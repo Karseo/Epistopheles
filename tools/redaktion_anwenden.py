@@ -1,4 +1,9 @@
-"""Redaktionsänderungen am PC einarbeiten (Spec 5.1, 5.4) - Ebene Original-Chunk.
+"""Redaktionsänderungen am PC einarbeiten (Spec 5.1, 5.4) - Ebene Original-Chunk und fertiger Volltext.
+
+Ebene `volltext` (P2): Einträge mit `ziel.datei` ändern `reader\\<Autor>\\<Werk>\\quelle\\<datei>` (nur
+reine Dateinamen `*.md`, nie `_*`). Backup nach `reader\\<Buch>\\notizen\\_backup`, Protokoll in
+`reader\\<Buch>\\notizen\\redaktion.json` (`eintraege`, `dateien` mit `hash_original` / `hash_aktuell`). Der
+Bericht nennt die Fußnotenbilanz vorher/nachher und neu entstandene Fußnotenhinweise.
 
     python tools/redaktion_anwenden.py [--root PFAD] [--buch "Autor/Titel"]
                                        [--eingang DATEI] [--ausfuehren]
@@ -34,9 +39,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))   # tools\ fuer redaktion, episto_tui
 
 from episto_tui.backup import backup_before_write  # noqa: E402
-from redaktion import ops, protokoll  # noqa: E402
+from redaktion import fussnoten, ops, protokoll, schutz  # noqa: E402
 
 EBENE_CHUNK = "chunk-orig"
+EBENE_VOLLTEXT = "volltext"
 ART_UEBERNEHMEN = "uebersetzung-uebernehmen"
 OFFENE_STAENDE = ("offen", "gesendet")
 
@@ -78,8 +84,28 @@ class UebernahmePlan:
 
 
 @dataclass
+class DateiPlan:
+    """Volltext: Änderungen an einer Kapiteldatei `reader/<Buch>/quelle/<datei>`."""
+    datei: str
+    pfad: Path
+    alt: str
+    neu: str
+    ergebnisse: list[EintragErgebnis] = field(default_factory=list)
+    fussnoten_vorher: dict = field(default_factory=dict)      # fussnoten.analysiere(...)["bilanz"]
+    fussnoten_nachher: dict = field(default_factory=dict)
+    neue_hinweise: list[dict] = field(default_factory=list)   # Fußnotenhinweise, die erst die neue Fassung hat
+
+    @property
+    def geaendert(self) -> bool:
+        return self.neu != self.alt and any(
+            r.status == ops.STATUS_ANGEWENDET for r in self.ergebnisse)
+
+
+@dataclass
 class BuchPlan:
     buch: str
+    reader: Path | None = None
+    volltext: list[DateiPlan] = field(default_factory=list)
     lektor: Path | None = None
     lektor_key: str = ""                               # Schlüssel des Lektor-Ordners (Eintrag `ziel.lektor` oder Buch)
     hinweis: str | None = None                         # z. B. ungültiger Ordnername
@@ -94,12 +120,13 @@ class BuchPlan:
     @property
     def anzahl_konflikte(self) -> int:
         return len(self.konflikte) + sum(
+            1 for d in self.volltext for r in d.ergebnisse if r.status == ops.STATUS_KONFLIKT) + sum(
             1 for c in self.chunks for r in c.ergebnisse if r.status == ops.STATUS_KONFLIKT) + sum(
             1 for u in self.uebernahmen if u.ergebnis.status == ops.STATUS_KONFLIKT)
 
     @property
     def anzahl_angewendet(self) -> int:
-        return sum(1 for c in self.chunks for r in c.ergebnisse if r.status == ops.STATUS_ANGEWENDET) + sum(
+        return sum(1 for d in self.volltext for r in d.ergebnisse if r.status == ops.STATUS_ANGEWENDET) + sum(1 for c in self.chunks for r in c.ergebnisse if r.status == ops.STATUS_ANGEWENDET) + sum(
             1 for u in self.uebernahmen if u.ergebnis.status == ops.STATUS_ANGEWENDET)
 
 
@@ -187,6 +214,24 @@ def lade_lektor_redaktion(lektor: Path) -> dict:
             or not isinstance(daten.get("eintraege", []), list)):
         raise ValueError("redaktion.json unlesbar (falscher Aufbau)")
     daten.setdefault("chunks", {})
+    daten.setdefault("eintraege", [])
+    return daten
+
+
+def lade_reader_redaktion(reader: Path) -> dict:
+    """`reader/<Buch>/notizen/redaktion.json` (Protokoll des Volltexts). Fehlt sie, leere Struktur;
+    ist sie unlesbar oder falsch aufgebaut, ValueError (sie wird dann nie überschrieben)."""
+    pfad = reader / "notizen" / "redaktion.json"
+    if not pfad.exists():
+        return {"eintraege": [], "dateien": {}}
+    try:
+        daten = json.loads(pfad.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        raise ValueError("redaktion.json des Readers unlesbar") from None
+    if (not isinstance(daten, dict) or not isinstance(daten.get("dateien", {}), dict)
+            or not isinstance(daten.get("eintraege", []), list)):
+        raise ValueError("redaktion.json des Readers unlesbar (falscher Aufbau)")
+    daten.setdefault("dateien", {})
     daten.setdefault("eintraege", [])
     return daten
 
@@ -300,6 +345,56 @@ def _plane_uebernahme(lektor: Path, e: dict) -> UebernahmePlan | EintragErgebnis
     return UebernahmePlan(n, datei, neu_datei, alt, neu, EintragErgebnis(e, ops.STATUS_ANGEWENDET))
 
 
+def _plane_volltext(root: Path, plan: BuchPlan, eintraege: list[dict]) -> None:
+    """Planung der Ebene `volltext` (liest nur). Je Kapiteldatei (`ziel.datei`) werden die Einträge in
+    Protokollreihenfolge abgespielt; unzulässige Dateinamen, fehlende Dateien, unlesbarer Text und ein
+    kaputtes Protokoll ergeben Konflikte, nie eine Änderung."""
+    buch = plan.buch
+
+    def konflikt_alle(liste: list[dict], grund: str) -> None:
+        plan.konflikte += [EintragErgebnis(e, ops.STATUS_KONFLIKT, grund) for e in liste]
+
+    reader = protokoll.reader_ordner(root, buch)
+    plan.reader = reader
+    if not reader.is_dir():
+        return konflikt_alle(eintraege, "Reader-Ordner fehlt")
+    try:
+        red = lade_reader_redaktion(reader)
+    except ValueError as exc:
+        return konflikt_alle(eintraege, str(exc))
+    vermerkt = {x.get("id") for x in red["eintraege"] if isinstance(x, dict)}
+    je_datei: dict[str, list[dict]] = {}
+    for e in eintraege:
+        z = e.get("ziel") if isinstance(e.get("ziel"), dict) else {}
+        name = z.get("datei")
+        if not schutz.gueltiger_kapitelname(name):
+            plan.konflikte.append(EintragErgebnis(e, ops.STATUS_KONFLIKT, "Kapiteldatei (ziel.datei) fehlt oder ist unzulässig"))
+        else:
+            je_datei.setdefault(name, []).append(e)
+    for name, liste in je_datei.items():
+        pfad = reader / "quelle" / name
+        # Schon in redaktion.json vermerkt = bereits geschrieben, nur der Stand fehlt (Abbruch dazwischen).
+        schon = [e for e in liste if e["id"] in vermerkt]
+        liste = [e for e in liste if e["id"] not in vermerkt]
+        if schon:
+            plan.volltext.append(DateiPlan(name, pfad, "", "", [EintragErgebnis(e, ops.STATUS_ANGEWENDET) for e in schon]))
+        if not liste:
+            continue
+        try:
+            alt = _lies_text(pfad)
+        except (OSError, UnicodeDecodeError) as exc:
+            grund = "Kapiteldatei fehlt" if isinstance(exc, FileNotFoundError) else f"Kapiteldatei nicht lesbar ({type(exc).__name__})"
+            plan.volltext.append(DateiPlan(name, pfad, "", "", [EintragErgebnis(e, ops.STATUS_KONFLIKT, grund) for e in liste]))
+            continue
+        neu, ergebnisse = ops.spiele_ab(alt, liste)
+        dp = DateiPlan(name, pfad, alt, neu, [EintragErgebnis(e, r.status, r.grund) for e, r in zip(liste, ergebnisse)])
+        if neu != alt:
+            dp.fussnoten_vorher = fussnoten.analysiere(alt)["bilanz"]
+            dp.fussnoten_nachher = fussnoten.analysiere(neu)["bilanz"]
+            dp.neue_hinweise = fussnoten.bilanz(alt, neu)["neue_hinweise"]
+        plan.volltext.append(dp)
+
+
 def _plane_buch(root: Path, buch: str) -> BuchPlan:
     plan = BuchPlan(buch=buch)
     roh = protokoll.lade_eingang(root, buch)
@@ -317,8 +412,14 @@ def _plane_buch(root: Path, buch: str) -> BuchPlan:
 
     offen: list[dict] = []
     uebernahmen: list[dict] = []
+    volltext: list[dict] = []
     for e in eintraege:
         ist_uebernahme = e.get("art") == ART_UEBERNEHMEN
+        if e.get("ebene") == EBENE_VOLLTEXT and not ist_uebernahme:
+            s = stand.get(e["id"])
+            if (s.get("status") if isinstance(s, dict) else "gesendet") in OFFENE_STAENDE:
+                volltext.append(e)
+            continue
         if e.get("ebene") != EBENE_CHUNK and not ist_uebernahme:
             plan.uebersprungen.append((e, f"übersprungen (Ebene {e.get('ebene')})"))
             continue
@@ -326,6 +427,8 @@ def _plane_buch(root: Path, buch: str) -> BuchPlan:
         status = s.get("status") if isinstance(s, dict) else "gesendet"
         if status in OFFENE_STAENDE:
             (uebernahmen if ist_uebernahme else offen).append(e)
+    if volltext:
+        _plane_volltext(root, plan, volltext)
     if not offen and not uebernahmen:
         return plan
 
@@ -428,7 +531,7 @@ def plane(root: Path, buch: str | None = None, eingang_datei: Path | None = None
         except ValueError:
             plaene.append(BuchPlan(buch=b, hinweis="ungültiger Ordnername, übersprungen"))
             continue
-        if p.chunks or p.uebernahmen or p.konflikte or p.uebersprungen or p.ruecknahmen:
+        if p.volltext or p.chunks or p.uebernahmen or p.konflikte or p.uebersprungen or p.ruecknahmen:
             plaene.append(p)
     return plaene
 
@@ -439,6 +542,75 @@ def _setze_stand_sicher(root: Path, buch: str, eintrag: dict, status: str, grund
     eid = eintrag.get("id")
     if isinstance(eid, str) and eid:
         protokoll.setze_stand(root, buch, eid, status, grund)
+
+
+def _setze_staende(root: Path, buch: str, ergebnisse: list[EintragErgebnis], zaehler: dict,
+                   warnungen: list[str]) -> None:
+    for r in ergebnisse:
+        try:
+            if r.status == ops.STATUS_ANGEWENDET:
+                _setze_stand_sicher(root, buch, r.eintrag, "angewendet", "")
+                zaehler["angewendet"] += 1
+            elif r.status == ops.STATUS_KONFLIKT:
+                _setze_stand_sicher(root, buch, r.eintrag, "konflikt", r.grund)
+                zaehler["konflikte"] += 1
+        except Exception as exc:  # noqa: BLE001
+            warnungen.append(f"WARNUNG: Stand für Eintrag {r.eintrag.get('id')} nicht gesetzt: "
+                             f"{type(exc).__name__}: {exc}")
+
+
+def _fuehre_datei_aus(root: Path, plan: BuchPlan, dp: DateiPlan, zaehler: dict, warnungen: list[str]) -> None:
+    """Volltext. Reihenfolge wie bei Chunks (nach einem Abbruch bleibt nie eine Änderung ohne Spur):
+    1. Drift-Prüfung; 2. redaktion.json lesen, `hash_original` festhalten (VOR der Änderung);
+    3. Backup (`reader/<Buch>/notizen/_backup`); 4. Datei atomar schreiben; 5. Einträge und
+    `hash_aktuell` in redaktion.json; 6. Stand. Scheitert 2 bis 4, ist nichts geändert und der Stand
+    bleibt `gesendet`; scheitert 5, wird gewarnt."""
+    buch, reader = plan.buch, plan.reader
+    angewendet = [r for r in dp.ergebnisse if r.status == ops.STATUS_ANGEWENDET]
+    geschrieben = False
+    if dp.geaendert:
+        try:
+            aktuell = _lies_text(dp.pfad)
+        except (OSError, UnicodeDecodeError):
+            aktuell = None
+        if aktuell != dp.alt:
+            for r in angewendet:
+                r.status, r.grund = ops.STATUS_KONFLIKT, "Kapiteldatei hat sich seit der Planung geändert"
+            angewendet = []
+        else:
+            try:
+                red = lade_reader_redaktion(reader)
+                vorhanden = red["dateien"].get(dp.datei)
+                hash_alt = vorhanden.get("hash_original") if isinstance(vorhanden, dict) else None
+                red["dateien"][dp.datei] = {
+                    "hash_original": hash_alt or ops.pruefsumme(dp.alt),
+                    "hash_aktuell": (vorhanden.get("hash_aktuell") if isinstance(vorhanden, dict) else None)
+                    or ops.pruefsumme(dp.alt),
+                    "zuletzt": _jetzt()}
+                protokoll.speichere_redaktion(reader / "notizen" / "redaktion.json", red)
+                backup_before_write(reader, dp.pfad)
+                _schreibe_text(dp.pfad, dp.neu)
+                geschrieben = True
+            except Exception as exc:  # noqa: BLE001 - eine Datei darf die anderen nicht abbrechen
+                warnungen.append(f"WARNUNG: {dp.datei} von {buch} nicht geschrieben, nichts geändert: "
+                                 f"{type(exc).__name__}: {exc}")
+                for r in angewendet:
+                    r.status, r.grund = ops.STATUS_KONFLIKT, f"nicht geschrieben ({type(exc).__name__})"
+                _setze_staende(root, buch, dp.ergebnisse, zaehler, warnungen)
+                return
+    if geschrieben:
+        try:
+            red = lade_reader_redaktion(reader)
+            ids = {x.get("id") for x in red["eintraege"] if isinstance(x, dict)}
+            for r in angewendet:
+                if r.eintrag["id"] not in ids:
+                    red["eintraege"].append({**r.eintrag, "status": ops.STATUS_ANGEWENDET})
+            red["dateien"].setdefault(dp.datei, {})["hash_aktuell"] = ops.pruefsumme(dp.neu)
+            protokoll.speichere_redaktion(reader / "notizen" / "redaktion.json", red)
+        except Exception as exc:  # noqa: BLE001
+            warnungen.append(f"WARNUNG: {dp.datei} von {buch} ist geändert, aber die Einträge konnten nicht in "
+                             f"redaktion.json vermerkt werden: {type(exc).__name__}: {exc}")
+    _setze_staende(root, buch, dp.ergebnisse, zaehler, warnungen)
 
 
 def _fuehre_chunk_aus(root: Path, plan: BuchPlan, cp: ChunkPlan, zaehler: dict,
@@ -609,6 +781,8 @@ def fuehre_aus(root: Path, plaene: list[BuchPlan]) -> dict:
                 _setze_stand_sicher(root, plan.buch, r.eintrag, r.status, r.grund)
             except Exception as exc:  # noqa: BLE001
                 warnungen.append(f"WARNUNG: Stand nicht gesetzt: {type(exc).__name__}: {exc}")
+        for dp in plan.volltext:
+            _fuehre_datei_aus(root, plan, dp, zaehler, warnungen)
         for cp in plan.chunks:
             _fuehre_chunk_aus(root, plan, cp, zaehler, warnungen)
         for u in plan.uebernahmen:
@@ -639,6 +813,23 @@ def _bericht(plaene: list[BuchPlan], ausfuehren: bool) -> list[str]:
             zeilen.append(f"  {p.hinweis}")
             n_buecher_ungueltig += 1
             continue
+        for d in p.volltext:
+            for r in d.ergebnisse:
+                if r.status == ops.STATUS_ANGEWENDET:
+                    n_ok += 1
+                    zeilen.append(f"  {d.datei}: {_kurz(r.eintrag)} – {verb}")
+                elif r.status == ops.STATUS_KONFLIKT:
+                    n_konf += 1
+                    zeilen.append(f"  {d.datei}: {_kurz(r.eintrag)} – Konflikt: {r.grund}")
+                else:
+                    n_uebersp += 1
+                    zeilen.append(f"  {d.datei}: {_kurz(r.eintrag)} – übersprungen ({r.grund})")
+            if d.fussnoten_vorher and d.fussnoten_vorher != d.fussnoten_nachher:
+                v, n = d.fussnoten_vorher, d.fussnoten_nachher
+                zeilen.append(f"  {d.datei}: Fußnoten vorher/nachher: Marker {v['marker']}→{n['marker']}, "
+                              f"Definitionen {v['definitionen']}→{n['definitionen']}")
+            for h in d.neue_hinweise:
+                zeilen.append(f"  {d.datei}: NEU in der Fußnotenbilanz: {h['begruendung']}")
         for c in p.chunks:
             for r in c.ergebnisse:
                 if r.status == ops.STATUS_ANGEWENDET:

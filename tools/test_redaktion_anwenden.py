@@ -214,10 +214,10 @@ def test_ruecknahme_nach_anwendung_ist_konflikt_und_aendert_nichts(tmp_path, cap
 
 
 def test_andere_ebenen_werden_uebersprungen_und_gezaehlt(tmp_path, capsys):
-    baue(tmp_path, eintraege=[eintrag(ebene="volltext")])
+    baue(tmp_path, eintraege=[eintrag(ebene="struktur")])
     assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
     out = capsys.readouterr().out
-    assert "übersprungen (Ebene volltext)" in out
+    assert "übersprungen (Ebene struktur)" in out
     assert ra.chunk_datei(tmp_path, BUCH, 1).read_bytes() == ALT.encode("utf-8")
 
 
@@ -651,3 +651,165 @@ def test_en_chunks_kopie_folgt_dem_lektor_schluessel(tmp_path):
     (ec / "chunk_001.md").write_bytes(ALT.encode("utf-8"))
     assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
     assert (ec / "chunk_001.md").read_text(encoding="utf-8").startswith(NEU)
+
+
+# ----------------------------------------------------------------- P2 Task 7: Volltext-Zweig
+
+from episto_tui.korrektur import absatz_spannen  # noqa: E402
+from redaktion import schutz  # noqa: E402
+
+KAPITEL = ("# Kapitel\r\n\r\nWort[^1]\tund\tTab[^2]\r\nzweite Zeile\r\n\r\n## Seite 12\r\n\r\n"
+           "<span class=\"x\">Roh</span>\r\n\r\n[^1]: Eins.\r\n[^2]: Zwei.")        # CRLF, Tabs, ohne Schluss-Newline
+DATEI = "0001_kapitel.md"
+
+
+def reader(tmp: Path) -> Path:
+    autor, titel = BUCH.split("/")
+    return tmp / "reader" / autor / titel
+
+
+def baue_reader(tmp: Path, text: str = KAPITEL, eintraege=None, datei: str = DATEI) -> Path:
+    q = reader(tmp) / "quelle"
+    q.mkdir(parents=True)
+    (q / datei).write_bytes(text.encode("utf-8"))
+    if eintraege is not None:
+        protokoll.schreibe_eingang(tmp, "tablet", BUCH, eintraege)
+    return reader(tmp)
+
+
+def vt(text: str, index: int, art: str, parameter: dict, datei: str = DATEI, **ziel_extra) -> dict:
+    a, b = absatz_spannen(text)[index]
+    ziel = {"datei": datei, "absatz_index": index, "anfang": ops.anker_von(text[a:b]), **ziel_extra}
+    return ops.neuer_eintrag(BUCH, "volltext", ziel, art, parameter, text[a:b], geraet="test")
+
+
+def ersetze_marker(text: str, index: int = 1, alt: str = "2", neu: str = "7") -> dict:
+    return vt(text, index, "fussnote", {"aktion": "marker-umbenennen", "alt": alt, "neu": neu, "vorkommen": 0})
+
+
+def red_json(tmp: Path) -> dict:
+    return protokoll.lade_redaktion(reader(tmp) / "notizen" / "redaktion.json")
+
+
+def test_dry_run_volltext_aendert_nichts_und_nennt_absatz_und_bilanz(tmp_path, capsys):
+    e = vt(KAPITEL, 1, "ersetzen", {"nachher": "Wort und Tab[^2]\r\nzweite Zeile"})       # Marker [^1] fällt weg
+    baue_reader(tmp_path, eintraege=[e])
+    vorher = (reader(tmp_path) / "quelle" / DATEI).read_bytes()
+    assert ra.main(["--root", str(tmp_path)]) == 0
+    out = capsys.readouterr().out
+    assert (reader(tmp_path) / "quelle" / DATEI).read_bytes() == vorher
+    assert not (reader(tmp_path) / "notizen").exists()
+    assert DATEI in out and "ersetzen" in out and "würde angewendet" in out
+    assert "Fußnotentext [^1] wird nirgends verwiesen" in out and "Marker 2→1" in out      # Bilanz, Review Focus 1
+
+
+def test_ausfuehren_schreibt_datei_mit_backup_und_vermerkt_redaktion_json(tmp_path):
+    e = ersetze_marker(KAPITEL)
+    baue_reader(tmp_path, eintraege=[e])
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
+    neu = (reader(tmp_path) / "quelle" / DATEI).read_bytes().decode("utf-8")
+    assert neu == KAPITEL.replace("Tab[^2]", "Tab[^7]")
+    backups = list((reader(tmp_path) / "notizen" / "_backup").glob("0001_kapitel.*.md"))
+    assert len(backups) == 1 and backups[0].read_bytes() == KAPITEL.encode("utf-8")
+    red = red_json(tmp_path)
+    assert [x["id"] for x in red["eintraege"]] == [e["id"]] and red["eintraege"][0]["status"] == "angewendet"
+    assert red["dateien"][DATEI]["hash_original"] == ops.pruefsumme(KAPITEL)
+    assert red["dateien"][DATEI]["hash_aktuell"] == ops.pruefsumme(neu)
+    assert protokoll.lade_stand(tmp_path, BUCH)[e["id"]]["status"] == "angewendet"
+
+
+def test_nur_betroffener_absatz_aendert_sich_byteexakt_in_quelldatei(tmp_path):
+    """Review Focus 2: CRLF, Tabs, Seitenmarker, HTML, Definitionsblock, kein Schluss-Newline."""
+    baue_reader(tmp_path, eintraege=[ersetze_marker(KAPITEL)])
+    ra.main(["--root", str(tmp_path), "--ausfuehren"])
+    a, b = absatz_spannen(KAPITEL)[1]
+    soll = KAPITEL[:a] + KAPITEL[a:b].replace("[^2]", "[^7]") + KAPITEL[b:]
+    assert (reader(tmp_path) / "quelle" / DATEI).read_bytes() == soll.encode("utf-8")
+
+
+def test_konflikt_bei_geaendertem_absatz_exit_2_und_nichts_geschrieben(tmp_path, capsys):
+    e = ersetze_marker(KAPITEL)
+    anders = KAPITEL.replace("zweite Zeile", "ZWEITE Zeile")
+    baue_reader(tmp_path, text=anders, eintraege=[e])
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 2
+    assert (reader(tmp_path) / "quelle" / DATEI).read_bytes() == anders.encode("utf-8")
+    assert not (reader(tmp_path) / "notizen" / "_backup").exists()
+    assert protokoll.lade_stand(tmp_path, BUCH)[e["id"]]["status"] == "konflikt"
+    assert "Konflikt" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("name", ["../aussen.md", "_kapitel_index.json", "kapitel.json", "a/b.md", "..", "", 5, None,
+                                  "fehlt.md", "x.md.sync-conflict-1.md", "C:\\x.md"])
+def test_unzulaessige_datei_ist_konflikt(tmp_path, capsys, name):
+    """Review Focus 3: nie ausserhalb von reader/<Buch>/quelle schreiben, nie Nicht-Kapiteldateien."""
+    e = ersetze_marker(KAPITEL)
+    e["ziel"]["datei"] = name
+    baue_reader(tmp_path, eintraege=[e])
+    aussen = reader(tmp_path) / "aussen.md"
+    aussen.write_text("AUSSEN", encoding="utf-8")
+    (reader(tmp_path) / "quelle" / "kapitel.json").write_text("{}", encoding="utf-8")
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 2
+    assert aussen.read_text(encoding="utf-8") == "AUSSEN"
+    assert (reader(tmp_path) / "quelle" / DATEI).read_bytes() == KAPITEL.encode("utf-8")
+    assert (reader(tmp_path) / "quelle" / "kapitel.json").read_text(encoding="utf-8") == "{}"
+    assert not (reader(tmp_path) / "notizen").exists()
+
+
+def test_reader_ordner_fehlt_ist_konflikt(tmp_path, capsys):
+    protokoll.schreibe_eingang(tmp_path, "tablet", BUCH, [ersetze_marker(KAPITEL)])
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 2
+    assert "Reader-Ordner fehlt" in capsys.readouterr().out
+
+
+def test_hash_original_wird_nur_einmal_gesetzt_und_zwei_laeufe_bauen_aufeinander_auf(tmp_path):
+    e1 = ersetze_marker(KAPITEL)
+    baue_reader(tmp_path, eintraege=[e1])
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
+    nach1 = (reader(tmp_path) / "quelle" / DATEI).read_bytes().decode("utf-8")
+    e2 = vt(nach1, 4, "fussnote", {"aktion": "definition-umbenennen", "alt": "2", "neu": "7"}, zeile=1)
+    protokoll.schreibe_eingang(tmp_path, "tablet", BUCH, [e2])
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
+    nach2 = (reader(tmp_path) / "quelle" / DATEI).read_bytes().decode("utf-8")
+    assert nach2 == nach1.replace("[^2]: Zwei.", "[^7]: Zwei.")
+    red = red_json(tmp_path)
+    assert [x["id"] for x in red["eintraege"]] == [e1["id"], e2["id"]]
+    assert red["dateien"][DATEI]["hash_original"] == ops.pruefsumme(KAPITEL)
+    assert red["dateien"][DATEI]["hash_aktuell"] == ops.pruefsumme(nach2)
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0                   # dritter Lauf: nichts mehr zu tun
+    assert (reader(tmp_path) / "quelle" / DATEI).read_bytes().decode("utf-8") == nach2
+
+
+def test_ruecknahme_verhindert_anwendung_volltext(tmp_path):
+    e = ersetze_marker(KAPITEL)
+    r = ops.neuer_eintrag(BUCH, "volltext", e["ziel"], "ruecknahme", {"id": e["id"]}, "")
+    baue_reader(tmp_path, eintraege=[e, r])
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
+    assert (reader(tmp_path) / "quelle" / DATEI).read_bytes() == KAPITEL.encode("utf-8")
+
+
+def test_marke_aendert_nichts_und_schreibt_keine_datei(tmp_path):
+    baue_reader(tmp_path, eintraege=[vt(KAPITEL, 1, "marke", {"kategorie": "pruefen"})])
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
+    assert (reader(tmp_path) / "quelle" / DATEI).read_bytes() == KAPITEL.encode("utf-8")
+    assert not (reader(tmp_path) / "notizen" / "_backup").exists()
+
+
+def test_redaktion_json_des_readers_ist_mit_spiele_nach_wiederholbar(tmp_path):
+    """Anwenden -> quelle wird neu erzeugt (Originaltext) -> schutz.spiele_nach ergibt denselben Text."""
+    e = ersetze_marker(KAPITEL)
+    baue_reader(tmp_path, eintraege=[e])
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
+    datei = reader(tmp_path) / "quelle" / DATEI
+    neu = datei.read_bytes()
+    datei.write_bytes(KAPITEL.encode("utf-8"))                                       # Neuaufbau liefert wieder den Urzustand
+    assert schutz.spiele_nach(reader(tmp_path)) == 0
+    assert datei.read_bytes() == neu
+
+
+def test_kaputte_redaktion_json_des_readers_wird_nicht_ueberschrieben(tmp_path, capsys):
+    baue_reader(tmp_path, eintraege=[ersetze_marker(KAPITEL)])
+    (reader(tmp_path) / "notizen").mkdir()
+    (reader(tmp_path) / "notizen" / "redaktion.json").write_text("{kaputt", encoding="utf-8")
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) != 0
+    assert (reader(tmp_path) / "quelle" / DATEI).read_bytes() == KAPITEL.encode("utf-8")
+    assert (reader(tmp_path) / "notizen" / "redaktion.json").read_text(encoding="utf-8") == "{kaputt"

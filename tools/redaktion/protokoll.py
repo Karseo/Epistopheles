@@ -63,6 +63,12 @@ def pruefe_schluessel(wert: object) -> str:
     return wert
 
 
+def reader_ordner(root: Path, buch: str) -> Path:
+    """Buchordner der Bibliothek `root/reader/<Autor>/<Werk>`; wirft ValueError bei unsicheren Namen."""
+    autor, titel = pruefe_schluessel(buch).split("/")
+    return Path(root) / "reader" / autor / titel
+
+
 def eingang_ordner(root: Path, buch: str) -> Path:
     """Eingangsordner eines Buchs `"Autor/Titel"`; wirft ValueError bei unsicheren Namen."""
     autor, titel = pruefe_schluessel(buch).split("/")

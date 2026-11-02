@@ -58,6 +58,13 @@ def _gueltiger_dateiname(name: object) -> bool:
             and Path(name).name == name)
 
 
+def gueltiger_kapitelname(name: object) -> bool:
+    """Reiner Dateiname einer Kapiteldatei `quelle/*.md`: kein Pfad, nicht `_…` (Index-/Technikdateien),
+    kein Syncthing-Konfliktexemplar."""
+    return (_gueltiger_dateiname(name) and name.endswith(".md") and not name.startswith("_")
+            and ".sync-conflict-" not in name)
+
+
 def _schreibe_atomar(pfad: Path, daten: bytes) -> None:
     fd, tmp = tempfile.mkstemp(dir=pfad.parent, prefix=pfad.name + ".", suffix=".tmp")
     try:
@@ -108,7 +115,7 @@ def spiele_nach(reader_buch: Path) -> int:
 
     nicht_angewendet = 0
     for name, liste in je_datei.items():
-        if not _gueltiger_dateiname(name):
+        if not gueltiger_kapitelname(name):
             nicht_angewendet += len(liste)
             continue
         datei = buch / "quelle" / name
