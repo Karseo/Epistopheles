@@ -167,6 +167,23 @@
   #vergleich-fuss { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 12px; justify-content: flex-end; }
   #vergleich-fuss button, #vergleich-kopf button { min-height: 44px; min-width: 44px; }
 
+  /* Absatz bearbeiten (Volltext) */
+  #absatz-leiste { position: absolute; right: 12px; bottom: 12px; z-index: 20; display: flex; align-items: center; gap: 6px; max-width: calc(100% - 24px);
+                   padding: 6px 8px; border: 1px solid var(--linie); border-radius: 14px; background: var(--flaeche); box-shadow: 0 6px 22px rgba(0,0,0,.28); }
+  #absatz-leiste[hidden] { display: none; }
+  #absatz-leiste-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--gedaempft); font-size: .85em; }
+  #absatz-leiste button { min-height: 44px; min-width: 44px; padding: 0 14px; border-radius: 12px; }
+  #absatz-dialog { width: min(900px, 98vw); max-height: 96dvh; margin: 8px auto auto; padding: 0; border: 1px solid var(--linie); border-radius: 16px;
+                   background: var(--flaeche); color: var(--text); }
+  #absatz-kopf { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--linie); }
+  #absatz-kopf b { flex: 1 1 10em; min-width: 0; }
+  #absatz-kopf button { min-height: 48px; min-width: 48px; padding: 0 16px; }
+  #absatz-warnung { padding: 8px 12px; color: var(--warn); font-weight: 700; white-space: pre-line; }
+  #absatz-warnung[hidden] { display: none; }
+  #absatz-editor { display: block; box-sizing: border-box; width: calc(100% - 24px); margin: 12px; height: 45dvh; min-height: 8em; resize: vertical; padding: 8px 10px;
+                   font: 16px/1.5 ui-monospace, "Cascadia Mono", "Roboto Mono", Consolas, monospace; tab-size: 4; color: var(--text); background: var(--bg);
+                   border: 1px solid var(--linie); border-radius: 12px; }
+
   /* Hochformat / schmales Fenster: untereinander */
   @media (max-width: 720px), (max-aspect-ratio: 1/1) {
     #teilung { flex-direction: column; }
@@ -265,6 +282,11 @@
         </div>
       </div>
       <pre id="uebersetzung-inhalt" tabindex="0" hidden></pre>
+      <div id="absatz-leiste" role="toolbar" aria-label="Absatz" hidden>
+        <span id="absatz-leiste-text"></span>
+        <button id="absatz-bearbeiten" type="button">Bearbeiten</button>
+        <button id="absatz-leiste-zu" type="button" aria-label="Leiste schließen">✕</button>
+      </div>
     </div>
     <div id="aenderungen-leiste" data-zustand="ok">
       <span id="aenderungen-text" role="status" aria-live="polite">0 Änderungen · 0 Markierungen · 0 warten auf APIC</span>
@@ -332,6 +354,16 @@
     <button id="vergleich-verwerfen" disabled>Verwerfen</button>
     <button id="vergleich-uebernehmen" disabled>Übernehmen</button>
   </div>
+</dialog>
+
+<dialog id="absatz-dialog" aria-label="Absatz bearbeiten">
+  <div id="absatz-kopf">
+    <b id="absatz-titel">Absatz bearbeiten</b>
+    <button id="absatz-speichern" type="button">Speichern</button>
+    <button id="absatz-abbrechen" type="button">Abbrechen</button>
+  </div>
+  <div id="absatz-warnung" role="status" aria-live="polite" hidden></div>
+  <textarea id="absatz-editor" spellcheck="false" autocapitalize="off" aria-label="Text des Absatzes"></textarea>
 </dialog>
 
 <dialog id="aenderungsliste" aria-label="Änderungen dieses Buchs">
@@ -561,7 +593,8 @@ function zeigeUebersetzung(ix, text) {
 }
 
 function zeigeRechts() {
-  if (werkzeugLeiste) werkzeugLeiste.verberge();        // Verschieben-Modus und Auswahl überleben keinen Wechsel
+  if (werkzeugLeiste) werkzeugLeiste.verberge();
+  if (modus !== "text") verbergeAbsatzLeiste();        // Verschieben-Modus und Auswahl überleben keinen Wechsel
   document.querySelectorAll("[data-modus]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.modus === modus)));
   $("modus-chunks").disabled = !buch || buch.chunks === 0;
   $("modus-text").disabled = !buch || buch.kapitel.length === 0;
@@ -629,6 +662,7 @@ function zeigeKapitelText(pre, ix, roh) {
   CA.rendere(pre, c.ansicht, { fuelle: haengeText, aktion: chunkAktion });
   pre.dataset.fuer = kennung; pre.scrollTop = oben;
   gezeigteSig = sig; gezeigterChunk = ix;
+  if (absatzAuswahl && absatzAuswahl.ansicht !== c.ansicht) verbergeAbsatzLeiste();       // anderer Text: der angetippte Absatz gilt nicht mehr
   const n = c.ansicht.hinweise.length, k = c.ansicht.konflikte.length, l = c.ansicht.luecke.length;
   info.textContent = bereit ? [`Fußnoten: ${n} ${n === 1 ? "Hinweis" : "Hinweise"}`, k ? `${k} ${k === 1 ? "Konflikt" : "Konflikte"}` : "",
     l ? `${l} am PC angewendet, im Export noch nicht enthalten` : ""].filter(Boolean).join(" · ") : "Änderungen werden geladen …";
@@ -728,6 +762,109 @@ async function werkzeugAktion(ansicht, liste) {
     if (buch === b) zeigeRechts();
   }
 }
+
+// ---- Absatz bearbeiten (Volltext, Modus „Bereinigt“) --------------------------------------------------------------------
+let absatzAuswahl = null;               // {ansicht, index}: der angetippte Absatz der gezeigten Kapitelansicht
+let absatzEditor = null;                // {ansicht, index, roh, bestaetigt}: der offene Editor
+
+/** Die gerade gezeigte Kapitelansicht, wenn sie noch zu den Daten passt (sonst null). */
+function aktuelleKapitelAnsicht() {
+  if (!buch || !CA || modus !== "text" || gezeigteSig === null || !kapitelBereit(gezeigterChunk)) return null;
+  const c = kapitelCache.get(gezeigterChunk);
+  return c && c.sig === gezeigteSig && c.sig === kapitelSig(gezeigterChunk) ? c.ansicht : null;
+}
+function verbergeAbsatzLeiste() { absatzAuswahl = null; $("absatz-leiste").hidden = true; }
+
+$("rechts-inhalt").addEventListener("click", (ev) => {
+  const a = aktuelleKapitelAnsicht();
+  if (!a) { verbergeAbsatzLeiste(); return; }
+  if (ev.target.closest && ev.target.closest("button, .verdacht-leiste, .konflikt")) return;
+  const pre = $("rechts-inhalt"), sel = document.getSelection();
+  const off = sel && sel.rangeCount && sel.isCollapsed && pre.contains(sel.anchorNode) ? CA.offsetIn(pre, sel.anchorNode, sel.anchorOffset) : null;
+  const i = off === null ? -1 : a.spannen.findIndex(([x, y]) => off >= x && off <= y);
+  if (i < 0) { verbergeAbsatzLeiste(); return; }
+  absatzAuswahl = { ansicht: a, index: i };
+  const roh = CA.absatzText(a, i).replace(/\s+/g, " ").trim();
+  $("absatz-leiste-text").textContent = `Absatz ${i + 1}: ${roh.length > 40 ? roh.slice(0, 40) + "…" : roh}`;
+  const leiste = $("absatz-leiste"), koerper = $("rechts-koerper");
+  leiste.hidden = false;
+  // Neben die Tippstelle setzen (darunter, sonst darüber), damit sie den Absatz nicht verdeckt; ohne Lage unten rechts
+  const rs = sel.getRangeAt(0).getClientRects(), r = rs.length ? rs[rs.length - 1] : null;
+  const y = r && (r.bottom || r.top) ? r : ev.clientY > 0 ? { top: ev.clientY, bottom: ev.clientY } : null;
+  if (y) {
+    const kr = koerper.getBoundingClientRect(), h = leiste.offsetHeight;
+    let top = y.bottom - kr.top + 10;
+    if (top + h > kr.height) top = Math.max(0, y.top - kr.top - h - 10);
+    leiste.style.top = top + "px"; leiste.style.bottom = "auto";
+  } else { leiste.style.top = ""; leiste.style.bottom = ""; }
+});
+$("absatz-leiste-zu").addEventListener("click", verbergeAbsatzLeiste);
+
+function meldeAbsatz(text) { const w = $("absatz-warnung"); w.textContent = text; w.hidden = !text; }
+function zuruecksetzenAbsatzBestaetigung() {
+  if (!absatzEditor) return;
+  absatzEditor.bestaetigt = false; $("absatz-speichern").textContent = "Speichern"; meldeAbsatz("");
+}
+function schliesseAbsatzEditor() { absatzEditor = null; if ($("absatz-dialog").open) $("absatz-dialog").close(); }
+
+$("absatz-bearbeiten").addEventListener("click", () => {
+  const a = aktuelleKapitelAnsicht();
+  if (!a || !absatzAuswahl || absatzAuswahl.ansicht !== a) { verbergeAbsatzLeiste(); return; }
+  const roh = CA.absatzText(a, absatzAuswahl.index);
+  if (roh === null) { verbergeAbsatzLeiste(); return; }
+  absatzEditor = { ansicht: a, index: absatzAuswahl.index, roh: roh, bestaetigt: false };
+  $("absatz-titel").textContent = `Absatz ${absatzAuswahl.index + 1} · ${daten.kapitel[a.nr].titel}`;
+  $("absatz-editor").value = roh;
+  zuruecksetzenAbsatzBestaetigung();
+  $("absatz-dialog").showModal();
+  $("absatz-editor").focus();
+});
+$("absatz-editor").addEventListener("input", zuruecksetzenAbsatzBestaetigung);
+$("absatz-abbrechen").addEventListener("click", schliesseAbsatzEditor);
+$("absatz-dialog").addEventListener("close", () => { absatzEditor = null; });
+
+/** Fußnoten, die sich durch die Änderung verschieben: Zeilen für die Warnung („Verweis [^2]: 1 → 0“). */
+function fussnotenWarnung(vorher, nachher) {
+  const b = window.Fussnoten.bilanz(vorher, nachher), zeilen = [];
+  for (const [id, [v, n]] of Object.entries(b.marker)) zeilen.push(`Verweis [^${id}]: ${v} → ${n}`);
+  for (const [id, [v, n]] of Object.entries(b.definitionen)) zeilen.push(`Fußnotentext [^${id}]: ${v} → ${n}`);
+  for (const h of b.neue_hinweise) zeilen.push(`Neu: ${h.begruendung}`);
+  return zeilen;
+}
+
+async function speichereAbsatz() {
+  const ed = absatzEditor;
+  if (!ed || chunkBusy || !buch || !CA) return;
+  const neu = $("absatz-editor").value;                              // das Textfeld liefert \n; ops.py setzt bei CRLF-Absätzen \r\n
+  if (neu === ed.roh.replace(/\r\n/g, "\n")) { meldeAbsatz("Keine Änderung: es wird nichts gespeichert."); return; }
+  if (!neu.trim()) { meldeAbsatz("Der Absatz wäre leer. Zum Entfernen später das Werkzeug „Löschen“ benutzen."); return; }
+  if (/\n\s*\n/.test(neu.trim())) { meldeAbsatz("Ein Absatz darf keine Leerzeile enthalten. Zum Teilen „Absatz hier trennen“ benutzen."); return; }
+  const a = ed.ansicht, c = kapitelCache.get(a.nr);
+  if (!c || c.ansicht !== a || c.sig !== kapitelSig(a.nr)) { meldeAbsatz("Der Text hat sich inzwischen geändert. Bitte den Absatz noch einmal öffnen."); return; }
+  const b = buch, geraet = verbindung.geraet || "epistopheles";
+  const eintrag = R.neuerEintrag(buchSchluessel(b), "volltext", { datei: a.chunk, anfang: R.ankerVon(ed.roh), absatz_index: ed.index },
+    "ersetzen", { nachher: neu }, ed.roh, "", geraet);
+  const erg = R.wendeAn(a.text, eintrag);                            // genau das, was APIC später tut: Vorprüfung
+  if (erg.status !== "angewendet") { meldeAbsatz("Nicht möglich: " + erg.grund); return; }
+  const warnung = fussnotenWarnung(a.text, erg.text);
+  if (warnung.length && !ed.bestaetigt) {
+    ed.bestaetigt = true;
+    meldeAbsatz("Fußnoten ändern sich:\n" + warnung.join("\n"));
+    $("absatz-speichern").textContent = "Trotzdem speichern";
+    return;
+  }
+  chunkBusy = true;
+  try {
+    await neueAenderung(eintrag);
+    schliesseAbsatzEditor(); verbergeAbsatzLeiste();
+  } catch (e) {
+    meldeAbsatz("Änderung nicht gespeichert: " + (e.message || e));
+  } finally {
+    chunkBusy = false;
+    if (buch === b) zeigeRechts();
+  }
+}
+$("absatz-speichern").addEventListener("click", speichereAbsatz);
 
 /** Chunk ↔ Kapitel: aus einem Chunk zum bereinigten Kapitel springen und umgekehrt zum ersten Chunk des Kapitels. */
 $("kapitel-sprung").addEventListener("click", () => {

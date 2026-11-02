@@ -197,3 +197,179 @@ def test_altes_datenpaket_sperrt_das_bearbeiten_und_zeigt_den_text_unveraendert(
         assert not pg.fehler, pg.fehler
     finally:
         a.stop()
+
+
+# --- P2 Task 10: Absatz bearbeiten -------------------------------------------------------------------------
+
+JS_TIPPE = """(nadel) => {
+  const pre = document.getElementById('rechts-inhalt');
+  const w = document.createTreeWalker(pre, NodeFilter.SHOW_TEXT);
+  let t;
+  while ((t = w.nextNode())) {
+    const i = t.data.indexOf(nadel);
+    if (i >= 0) {
+      const r = document.createRange(); r.setStart(t, i + 1); r.collapse(true);
+      const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+      pre.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      return true;
+    }
+  }
+  throw new Error('nicht gefunden: ' + nadel);
+}"""
+
+ZWEITER = "Ein zweiter Absatz folgt hier."
+
+
+def tippe(pg, nadel):
+    pg.evaluate(JS_TIPPE, nadel)
+
+
+def bearbeite(pg, nadel, neu):
+    """Absatz antippen, Bearbeiten, Text setzen (noch nicht speichern)."""
+    tippe(pg, nadel)
+    pg.locator("#absatz-leiste:not([hidden]) #absatz-bearbeiten").click()
+    pg.wait_for_selector("#absatz-dialog[open]")
+    pg.locator("#absatz-editor").fill(neu)
+
+
+def speichern(pg):
+    pg.locator("#absatz-speichern").click()
+
+
+def test_antippen_zeigt_leiste_und_bearbeiten_oeffnet_den_absatz(seite):
+    assert seite.locator("#absatz-leiste").is_hidden()
+    tippe(seite, ZWEITER)
+    assert seite.locator("#absatz-leiste").is_visible()
+    assert "Absatz 3" in seite.inner_text("#absatz-leiste")
+    seite.locator("#absatz-bearbeiten").click()
+    seite.wait_for_selector("#absatz-dialog[open]")
+    assert seite.input_value("#absatz-editor") == ZWEITER
+    for sel in ("#absatz-speichern", "#absatz-abbrechen", "#absatz-bearbeiten"):
+        box = seite.locator(sel).bounding_box()
+        assert box["height"] >= 44 and box["width"] >= 44, sel
+
+
+def test_speichern_legt_ersetzen_eintrag_mit_vorher_hash_an_und_text_ist_sofort_sichtbar(seite):
+    bearbeite(seite, ZWEITER, "Ein zweiter Absatz folgt dort.")
+    speichern(seite)
+    seite.wait_for_function("eintraege.length === 1")
+    e = seite.evaluate("eintraege[0]")
+    assert (e["ebene"], e["art"], e["buch"]) == ("volltext", "ersetzen", BUCH)
+    assert e["parameter"] == {"nachher": "Ein zweiter Absatz folgt dort."}
+    assert e["ziel"] == {"datei": DATEI, "anfang": "Ein zweiter Absatz folgt hier.", "absatz_index": 2}
+    assert e["vorher"]["hash"] == seite.evaluate(f"window.Redaktion.pruefsumme({json.dumps(ZWEITER)})")
+    seite.wait_for_function("!document.getElementById('absatz-dialog').open")
+    assert text_im_feld(seite) == KAPITEL.replace("hier.\n\n[^1]", "dort.\n\n[^1]")
+    assert seite.locator("#absatz-leiste").is_hidden()
+    assert seite.evaluate("window.Redaktion.zaehler(eintraege).aenderungen") == 1
+
+
+def test_unveraenderter_text_erzeugt_keinen_eintrag(seite):
+    bearbeite(seite, ZWEITER, ZWEITER)
+    speichern(seite)
+    assert "Keine Änderung" in seite.inner_text("#absatz-warnung")
+    assert seite.evaluate("eintraege.length") == 0
+    assert seite.evaluate("document.getElementById('absatz-dialog').open")
+
+
+def test_leerzeile_und_leerer_text_werden_abgewiesen(seite):
+    bearbeite(seite, ZWEITER, "Erster Teil.\n\nZweiter Teil.")
+    speichern(seite)
+    assert "Leerzeile" in seite.inner_text("#absatz-warnung") and "trennen" in seite.inner_text("#absatz-warnung")
+    seite.locator("#absatz-editor").fill("   ")
+    speichern(seite)
+    assert "leer" in seite.inner_text("#absatz-warnung")
+    assert seite.evaluate("eintraege.length") == 0
+
+
+def test_fussnotenverweis_entfernt_warnt_und_braucht_zweite_bestaetigung(seite):
+    ALT = "Der Repräsentant[^1] ist nicht bloß Delegierter[^2], wie Pitkin betonte."
+    bearbeite(seite, "Der Repr", ALT.replace("[^2]", ""))
+    speichern(seite)
+    warn = seite.inner_text("#absatz-warnung")
+    assert "[^2]" in warn and "1 → 0" in warn
+    assert seite.evaluate("eintraege.length") == 0                                  # noch nichts gespeichert
+    assert seite.inner_text("#absatz-speichern") == "Trotzdem speichern"
+    seite.locator("#absatz-abbrechen").click()
+    seite.wait_for_function("!document.getElementById('absatz-dialog').open")
+    assert seite.evaluate("eintraege.length") == 0
+    bearbeite(seite, "Der Repr", ALT.replace("[^2]", ""))                          # nochmal: jetzt bestätigen
+    speichern(seite)
+    speichern(seite)
+    seite.wait_for_function("eintraege.length === 1")
+    assert "[^2]" not in text_im_feld(seite).split("\n\n")[1]
+
+
+def test_aendern_des_textes_nach_der_warnung_verlangt_die_bestaetigung_neu(seite):
+    ALT = "Der Repräsentant[^1] ist nicht bloß Delegierter[^2], wie Pitkin betonte."
+    bearbeite(seite, "Der Repr", ALT.replace("[^2]", ""))
+    speichern(seite)
+    assert seite.inner_text("#absatz-speichern") == "Trotzdem speichern"
+    seite.locator("#absatz-editor").fill(ALT.replace("Delegierter[^2]", "Delegierter"))
+    assert seite.inner_text("#absatz-speichern") == "Speichern" and seite.locator("#absatz-warnung").is_hidden()
+
+
+def test_zwei_aenderungen_am_selben_absatz_bauen_aufeinander_auf(seite):
+    bearbeite(seite, ZWEITER, "Ein zweiter Absatz folgt dort.")
+    speichern(seite)
+    seite.wait_for_function("eintraege.length === 1")
+    bearbeite(seite, "Ein zweiter Absatz folgt dort.", "Ein zweiter Absatz folgt überall.")
+    speichern(seite)
+    seite.wait_for_function("eintraege.length === 2")
+    erg = seite.evaluate("""() => { const R = window.Redaktion, [a, b] = eintraege;
+      const l = R.spieleAb(daten.kapitel[0].text, eintraege);
+      return { hashB: b.vorher.hash === R.pruefsumme(a.parameter.nachher), stati: l.ergebnisse.map((e) => e.status), text: l.text }; }""")
+    assert erg["hashB"] and erg["stati"] == ["angewendet", "angewendet"]
+    assert erg["text"] == KAPITEL.replace("hier.\n\n[^1]", "überall.\n\n[^1]")
+
+
+def test_abbrechen_und_escape_aendern_nichts(seite):
+    bearbeite(seite, ZWEITER, "Ganz anders.")
+    seite.locator("#absatz-abbrechen").click()
+    seite.wait_for_function("!document.getElementById('absatz-dialog').open")
+    bearbeite(seite, ZWEITER, "Ganz anders.")
+    seite.keyboard.press("Escape")
+    seite.wait_for_function("!document.getElementById('absatz-dialog').open")
+    assert seite.evaluate("eintraege.length") == 0 and text_im_feld(seite) == KAPITEL
+
+
+def test_tippen_auf_leerraum_oder_chip_zeigt_keine_leiste(seite):
+    seite.evaluate("""() => { const pre = document.getElementById('rechts-inhalt'), r = document.createRange();
+      r.setStart(pre.firstChild, pre.firstChild.data.indexOf('\\n\\n') + 1); r.collapse(true);
+      const s = getSelection(); s.removeAllRanges(); s.addRange(r); pre.dispatchEvent(new MouseEvent('click', { bubbles: true })); }""")
+    assert seite.locator("#absatz-leiste").is_hidden()
+
+
+def test_crlf_absatz_mehrzeilig_bearbeitet_bleibt_crlf_und_rest_byteidentisch(browser, tmp_path):
+    kapitel = "# Titel\r\n\r\nErste Zeile\tmit Tab\r\nzweite Zeile\r\n\r\nSchluss ohne Newline"
+    a = Apic(baue(tmp_path, kapitel=kapitel))
+    try:
+        ctx, pg = neue_seite(browser, a.url)
+        zu_text(pg)
+        bearbeite(pg, "Erste Zeile", "Neue erste Zeile\tmit Tab\nneue zweite Zeile")
+        speichern(pg)
+        pg.wait_for_function("eintraege.length === 1")
+        text = pg.evaluate("window.Redaktion.spieleAb(daten.kapitel[0].text, eintraege).text")
+        assert text == "# Titel\r\n\r\nNeue erste Zeile\tmit Tab\r\nneue zweite Zeile\r\n\r\nSchluss ohne Newline"
+        ctx.close()
+        assert not pg.fehler, pg.fehler
+    finally:
+        a.stop()
+
+
+def test_altes_datenpaket_zeigt_keine_leiste(browser, tmp_path):
+    root = baue(tmp_path)
+    f = root / "reader" / "export-epistopheles" / "korrektur" / "k001.json"
+    d = json.loads(f.read_text(encoding="utf-8"))
+    d.pop("enthalten", None)
+    f.write_text(json.dumps(d), encoding="utf-8")
+    a = Apic(root)
+    try:
+        ctx, pg = neue_seite(browser, a.url)
+        pg.locator("#modus-text").click()
+        pg.wait_for_function("modus === 'text'")
+        tippe(pg, ZWEITER)
+        assert pg.locator("#absatz-leiste").is_hidden()
+        ctx.close()
+    finally:
+        a.stop()
