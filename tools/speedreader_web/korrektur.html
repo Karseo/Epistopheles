@@ -184,6 +184,26 @@
                    font: 16px/1.5 ui-monospace, "Cascadia Mono", "Roboto Mono", Consolas, monospace; tab-size: 4; color: var(--text); background: var(--bg);
                    border: 1px solid var(--linie); border-radius: 12px; }
 
+  /* Fußnoten zuordnen (Volltext) */
+  .fn-marker, .fn-def { cursor: pointer; padding: 14px 3px; margin: 0 -3px; border-radius: 6px; text-decoration: underline dotted var(--akzent); text-underline-offset: 3px; }
+  .fn-marker:hover, .fn-def:hover { background: var(--knopf-aktiv); }
+  .fn-orphan { text-decoration-color: var(--warn); text-decoration-style: solid; font-weight: 700; }
+  #absatz-leiste #absatz-verweis[hidden] { display: none; }
+  #fussnote-zuordnen { width: min(720px, 98vw); max-height: 96dvh; margin: 8px auto auto; padding: 0; border: 1px solid var(--linie); border-radius: 16px;
+                       background: var(--flaeche); color: var(--text); overflow: auto; }
+  #fn-kopf { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--linie); }
+  #fn-kopf b { flex: 1; min-width: 0; }
+  #fn-info { margin: 8px 12px 0; color: var(--gedaempft); overflow-wrap: anywhere; }
+  #fn-aktionen-oben { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 12px 0; }
+  #fn-wahl-titel { margin: 10px 12px 4px; font-size: .95rem; }
+  #fn-liste { list-style: none; margin: 0; padding: 0 12px; display: grid; gap: 6px; }
+  #fn-liste button { width: 100%; text-align: left; min-height: 48px; padding: 6px 12px; overflow-wrap: anywhere; }
+  #fn-liste button[aria-pressed="true"] { text-align: left; }
+  #fn-ergebnis { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 12px 0; }
+  #fn-kopf button, #fn-aktionen-oben button, #fn-ergebnis button { min-height: 48px; min-width: 48px; padding: 0 16px; }
+  #fn-meldung { padding: 8px 12px 12px; min-height: 1.4em; color: var(--warn); font-weight: 700; white-space: pre-line; }
+  #fn-meldung[data-art="info"] { color: var(--gedaempft); font-weight: 400; }
+
   /* Hochformat / schmales Fenster: untereinander */
   @media (max-width: 720px), (max-aspect-ratio: 1/1) {
     #teilung { flex-direction: column; }
@@ -285,6 +305,7 @@
       <div id="absatz-leiste" role="toolbar" aria-label="Absatz" hidden>
         <span id="absatz-leiste-text"></span>
         <button id="absatz-bearbeiten" type="button">Bearbeiten</button>
+        <button id="absatz-verweis" type="button" title="Fußnotenverweis an dieser Stelle setzen" hidden>Verweis setzen</button>
         <button id="absatz-leiste-zu" type="button" aria-label="Leiste schließen">✕</button>
       </div>
     </div>
@@ -364,6 +385,20 @@
   </div>
   <div id="absatz-warnung" role="status" aria-live="polite" hidden></div>
   <textarea id="absatz-editor" spellcheck="false" autocapitalize="off" aria-label="Text des Absatzes"></textarea>
+</dialog>
+
+<dialog id="fussnote-zuordnen" aria-label="Fußnote zuordnen">
+  <div id="fn-kopf"><b id="fn-titel">Fußnote zuordnen</b><button id="fn-zu" type="button">Schließen</button></div>
+  <p id="fn-info"></p>
+  <div id="fn-aktionen-oben"><button id="fn-entfernen" type="button" hidden>Verweis entfernen</button></div>
+  <h3 id="fn-wahl-titel"></h3>
+  <ul id="fn-liste"></ul>
+  <div id="fn-ergebnis">
+    <button id="fn-zuordnen" type="button" hidden></button>
+    <button id="fn-umbenennen" type="button" hidden></button>
+    <button id="fn-setzen" type="button" hidden>Verweis hier setzen</button>
+  </div>
+  <div id="fn-meldung" role="status" aria-live="polite"></div>
 </dialog>
 
 <dialog id="aenderungsliste" aria-label="Änderungen dieses Buchs">
@@ -661,6 +696,7 @@ function zeigeKapitelText(pre, ix, roh) {
   const kennung = `${buch.id}:k:${datei}`, oben = pre.dataset.fuer === kennung ? pre.scrollTop : 0;
   CA.rendere(pre, c.ansicht, { fuelle: haengeText, aktion: chunkAktion });
   werkzeuge();
+  if (bereit) dekoriereFussnoten(pre, c.ansicht);
   pre.dataset.fuer = kennung; pre.scrollTop = oben;
   gezeigteSig = sig; gezeigterChunk = ix;
   if (absatzAuswahl && absatzAuswahl.ansicht !== c.ansicht) verbergeAbsatzLeiste();       // anderer Text: der angetippte Absatz gilt nicht mehr
@@ -785,15 +821,16 @@ $("rechts-inhalt").addEventListener("click", (ev) => {
   const a = aktuelleKapitelAnsicht();
   if (!a) { verbergeAbsatzLeiste(); return; }
   if (werkzeugLeiste && werkzeugLeiste.zustand().modus === "verschieben") return;            // Zielabsatz antippen, nicht bearbeiten
-  if (ev.target.closest && ev.target.closest("button, .verdacht-leiste, .konflikt")) return;
+  if (ev.target.closest && ev.target.closest("button, .verdacht-leiste, .konflikt, .fn-marker, .fn-def")) return;
   const pre = $("rechts-inhalt"), sel = document.getSelection();
   const off = sel && sel.rangeCount && sel.isCollapsed && pre.contains(sel.anchorNode) ? CA.offsetIn(pre, sel.anchorNode, sel.anchorOffset) : null;
   const i = off === null ? -1 : a.spannen.findIndex(([x, y]) => off >= x && off <= y);
   if (i < 0) { verbergeAbsatzLeiste(); return; }
-  absatzAuswahl = { ansicht: a, index: i };
+  absatzAuswahl = { ansicht: a, index: i, pos: off - a.spannen[i][0] };
   const roh = CA.absatzText(a, i).replace(/\s+/g, " ").trim();
   $("absatz-leiste-text").textContent = `Absatz ${i + 1}: ${roh.length > 40 ? roh.slice(0, 40) + "…" : roh}`;
   const leiste = $("absatz-leiste"), koerper = $("rechts-koerper");
+  $("absatz-verweis").hidden = !fnAnalyse(a).definitionen.length;
   leiste.hidden = false;
   // Neben die Tippstelle setzen (darunter, sonst darüber), damit sie den Absatz nicht verdeckt; ohne Lage unten rechts
   const rs = sel.getRangeAt(0).getClientRects(), r = rs.length ? rs[rs.length - 1] : null;
@@ -872,6 +909,210 @@ async function speichereAbsatz() {
   }
 }
 $("absatz-speichern").addEventListener("click", speichereAbsatz);
+
+// ---- Fußnote zuordnen (Volltext) ------------------------------------------------------------------------------------------
+/** Fußnotenanalyse des abgespielten Kapitels (einmal je Ansicht). */
+const fnAnalyse = (a) => a._fn || (a._fn = window.Fussnoten.analysiere(a.text));
+const FN_TREFFER = /\[\^([^\]\[ \t\r\n\f\v\u00a0]+)\](:?)/g;
+
+/** Macht [^id] im Fließtext und die Köpfe „[^id]:“ der Fußnotentexte antippbar (Spans mit unverändertem Text).
+ *  Die Reihenfolge der Treffer im DOM muss genau der Analyse entsprechen, sonst bleibt der Text undekoriert. */
+function dekoriereFussnoten(pre, a) {
+  const ana = fnAnalyse(a);
+  const waise = { marker: new Set(), definition: new Set() };
+  for (const h of ana.hinweise) {
+    if (h.art === "marker-ohne-definition") waise.marker.add(h.id);
+    if (h.art === "definition-ohne-marker") waise.definition.add(h.id);
+  }
+  const knoten = [], lauf = document.createTreeWalker(pre, NodeFilter.SHOW_TEXT, { acceptNode: (n) =>
+    n.parentElement && n.parentElement.closest("[data-leer], button, .verdacht-leiste, .konflikt") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
+  for (let n; (n = lauf.nextNode());) knoten.push(n);
+  const treffer = [];                                          // {knoten, von, bis, art, nr}
+  let prev = "", m = 0, d = 0;
+  for (const k of knoten) {
+    const t = k.data;
+    for (const x of t.matchAll(FN_TREFFER)) {
+      const davor = x.index > 0 ? t[x.index - 1] : prev;
+      if (x[2]) {
+        if (davor !== "" && davor !== "\n") continue;           // „[^1]:“ mitten in der Zeile ist weder Marker noch Fußnotentext
+        if (!ana.definitionen[d] || ana.definitionen[d].id !== x[1]) return;
+        treffer.push({ k, von: x.index, bis: x.index + x[0].length, art: "def", nr: d++, id: x[1] });
+      } else {
+        if (!ana.marker[m] || ana.marker[m].id !== x[1]) return;
+        treffer.push({ k, von: x.index, bis: x.index + x[0].length, art: "marker", nr: m++, id: x[1] });
+      }
+    }
+    if (t) prev = t[t.length - 1];
+  }
+  if (m !== ana.marker.length || d !== ana.definitionen.length) return;          // Analyse und Anzeige stimmen nicht überein: nichts anfassen
+  for (let i = treffer.length - 1; i >= 0; i--) {                                  // von hinten, damit frühere Positionen gültig bleiben
+    const { k, von, bis, art, nr, id } = treffer[i];
+    const rest = k.splitText(von), nach = rest.splitText(bis - von);                // k = Text davor, rest = Treffer, nach = Rest
+    void nach;
+    const span = document.createElement("span");
+    span.className = art === "marker" ? "fn-marker" : "fn-def";
+    if (waise[art === "marker" ? "marker" : "definition"].has(id)) span.classList.add("fn-orphan");
+    span.dataset.fnNr = String(nr);
+    rest.parentNode.replaceChild(span, rest);
+    span.append(rest);
+  }
+}
+
+let fnDialog = null;               // {ansicht, art: "marker"|"def"|"setzen", item, wahl}
+
+function meldeFn(text, art) { const x = $("fn-meldung"); x.textContent = text || ""; x.dataset.art = art || "fehler"; }
+function schliesseFn() { fnDialog = null; if ($("fussnote-zuordnen").open) $("fussnote-zuordnen").close(); }
+$("fn-zu").addEventListener("click", schliesseFn);
+$("fussnote-zuordnen").addEventListener("close", () => { fnDialog = null; });
+
+const fnZeile = (a, i, z) => (CA.absatzText(a, i) || "").split(/\r?\n/)[z] || "";
+const kurz = (t, n) => { t = t.replace(/\s+/g, " ").trim(); return t.length > n ? t.slice(0, n) + "…" : t; };
+const fnMarkerText = (a, m) => `[^${m.id}] in „${kurz(fnZeile(a, m.absatz_index, m.zeile), 46)}“`;
+const fnDefText = (a, dd) => `[^${dd.id}] Fußnotentext: „${kurz(fnZeile(a, dd.absatz_index, dd.zeile).replace(/^\[\^[^\]]*\]:\s*/, ""), 46)}“`;
+
+/** Eintrag der Art "fussnote" für einen Absatz des Kapitels (vorher = Text des abgespielten Absatzes). */
+function fnEintrag(a, absatzIndex, parameter, zeile) {
+  const roh = CA.absatzText(a, absatzIndex);
+  const ziel = { datei: a.chunk, anfang: R.ankerVon(roh), absatz_index: absatzIndex };
+  if (zeile !== undefined) ziel.zeile = zeile;
+  return R.neuerEintrag(buchSchluessel(buch), "volltext", ziel, "fussnote", parameter, roh, "", verbindung.geraet || "epistopheles");
+}
+
+async function fnSpeichere(eintrag) {
+  const fd = fnDialog;
+  if (!fd || chunkBusy || !buch) return;
+  const a = fd.ansicht, c = kapitelCache.get(a.nr);
+  if (!c || c.ansicht !== a || c.sig !== kapitelSig(a.nr)) { meldeFn("Der Text hat sich inzwischen geändert. Bitte noch einmal antippen."); return; }
+  const erg = R.wendeAn(a.text, eintrag);                                          // genau die Vorprobe, die APIC später macht
+  if (erg.status !== "angewendet") { meldeFn("Nicht möglich: " + erg.grund); return; }
+  const b = buch;
+  chunkBusy = true;
+  try { await neueAenderung(eintrag); schliesseFn(); }
+  catch (e) { meldeFn("Änderung nicht gespeichert: " + (e.message || e)); }
+  finally { chunkBusy = false; if (buch === b) zeigeRechts(); }
+}
+
+/** Kandidaten der Auswahlliste: Waisen zuerst. */
+function fnKandidaten(a, art) {
+  const ana = fnAnalyse(a);
+  if (art === "def") return [...ana.marker.map((x, i) => ({ x, i })).filter((e) => !e.x.in_definition)]
+    .sort((p, q) => Number(!ana.definitionen.every((dd) => dd.id !== p.x.id)) - Number(!ana.definitionen.every((dd) => dd.id !== q.x.id)))
+    .map((e) => ({ art: "marker", x: e.x, waise: ana.definitionen.every((dd) => dd.id !== e.x.id), text: fnMarkerText(a, e.x) + (ana.definitionen.every((dd) => dd.id !== e.x.id) ? " · ohne Text" : "") }));
+  return ana.definitionen.map((dd) => ({ art: "def", x: dd, waise: ana.marker.every((mm) => mm.id !== dd.id) }))
+    .sort((p, q) => Number(!p.waise) - Number(!q.waise))
+    .map((e) => ({ ...e, text: fnDefText(a, e.x) + (e.waise ? " · ohne Verweis" : "") }));
+}
+
+function zeigeFnListe(titel, kandidaten) {
+  $("fn-wahl-titel").textContent = titel;
+  const ul = $("fn-liste"); ul.textContent = "";
+  kandidaten.forEach((k, n) => {
+    const li = el("li"), b = el("button", "", k.text);
+    b.type = "button"; b.dataset.nr = String(n); b.setAttribute("aria-pressed", "false");
+    li.append(b); ul.append(li);
+  });
+  if (!kandidaten.length) ul.append(el("li", "", "Keine Einträge vorhanden."));
+}
+
+function oeffneFn(art, nr) {
+  const a = aktuelleKapitelAnsicht();
+  if (!a) return;
+  const ana = fnAnalyse(a), item = art === "marker" ? ana.marker[nr] : ana.definitionen[nr];
+  if (!item) return;
+  fnDialog = { ansicht: a, art: art, item: item, kandidaten: null, wahl: null };
+  for (const id of ["fn-zuordnen", "fn-umbenennen", "fn-setzen", "fn-entfernen"]) $(id).hidden = true;
+  meldeFn("");
+  if (art === "marker") {
+    $("fn-titel").textContent = `Verweis [^${item.id}] zuordnen`;
+    $("fn-info").textContent = fnMarkerText(a, item);
+    $("fn-entfernen").hidden = false;
+    fnDialog.kandidaten = fnKandidaten(a, "marker");
+    zeigeFnListe("Zu welchem Fußnotentext gehört dieser Verweis?", fnDialog.kandidaten);
+  } else {
+    $("fn-titel").textContent = `Fußnotentext [^${item.id}] zuordnen`;
+    $("fn-info").textContent = fnDefText(a, item);
+    fnDialog.kandidaten = fnKandidaten(a, "def");
+    zeigeFnListe("Zu welchem Verweis gehört dieser Fußnotentext?", fnDialog.kandidaten);
+  }
+  $("fussnote-zuordnen").showModal();
+}
+
+/** Verweis an der Stelle des angetippten Zeigers setzen: Auswahl des Fußnotentexts. */
+function oeffneFnSetzen() {
+  const a = aktuelleKapitelAnsicht();
+  if (!a || !absatzAuswahl || absatzAuswahl.ansicht !== a) return;
+  fnDialog = { ansicht: a, art: "setzen", item: { absatz_index: absatzAuswahl.index, pos: absatzAuswahl.pos }, kandidaten: null, wahl: null };
+  for (const id of ["fn-zuordnen", "fn-umbenennen", "fn-setzen", "fn-entfernen"]) $(id).hidden = true;
+  meldeFn("");
+  $("fn-titel").textContent = "Verweis hier setzen";
+  $("fn-info").textContent = `Absatz ${absatzAuswahl.index + 1}, nach „${kurz(CA.absatzText(a, absatzAuswahl.index).slice(Math.max(0, absatzAuswahl.pos - 30), absatzAuswahl.pos), 30)}“`;
+  fnDialog.kandidaten = fnKandidaten(a, "setzen");
+  zeigeFnListe("Welcher Fußnotentext gehört zu diesem Verweis?", fnDialog.kandidaten);
+  verbergeAbsatzLeiste();
+  $("fussnote-zuordnen").showModal();
+}
+$("absatz-verweis").addEventListener("click", oeffneFnSetzen);
+
+/** Nach der Wahl eines Gegenstücks: die möglichen Aktionen zeigen. */
+function waehleFnKandidat(n) {
+  const fd = fnDialog;
+  if (!fd) return;
+  const k = fd.kandidaten[n];
+  if (!k) return;
+  fd.wahl = k;
+  $("fn-liste").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.nr === String(n))));
+  for (const id of ["fn-zuordnen", "fn-umbenennen", "fn-setzen"]) $(id).hidden = true;
+  meldeFn("");
+  const a = fd.ansicht, ana = fnAnalyse(a);
+  if (fd.art === "setzen") { $("fn-setzen").hidden = false; $("fn-setzen").textContent = `Verweis [^${k.x.id}] hier setzen`; return; }
+  const M = fd.art === "marker" ? fd.item : k.x, D = fd.art === "marker" ? k.x : fd.item;
+  if (M.id === D.id) { meldeFn(`Schon zugeordnet: Verweis und Fußnotentext heißen beide [^${M.id}].`, "info"); return; }
+  const belegt = ana.definitionen.some((x) => x.id === M.id);
+  $("fn-zuordnen").hidden = false; $("fn-zuordnen").textContent = `Fußnotentext umbenennen: [^${D.id}] → [^${M.id}]`;
+  $("fn-zuordnen").disabled = belegt;
+  $("fn-umbenennen").hidden = false; $("fn-umbenennen").textContent = `Verweis umbenennen: [^${M.id}] → [^${D.id}]`;
+  if (belegt) meldeFn(`Zu [^${M.id}] gibt es schon einen Fußnotentext. Den Verweis auf [^${D.id}] umzubenennen ist möglich.`, "info");
+}
+$("fn-liste").addEventListener("click", (ev) => { const b = ev.target.closest("button[data-nr]"); if (b) waehleFnKandidat(Number(b.dataset.nr)); });
+
+function fnPaar() {
+  const fd = fnDialog, k = fd && fd.wahl;
+  return k ? { M: fd.art === "marker" ? fd.item : k.x, D: fd.art === "marker" ? k.x : fd.item } : null;
+}
+$("fn-zuordnen").addEventListener("click", () => {
+  const p = fnPaar(); if (!p) return;
+  fnSpeichere(fnEintrag(fnDialog.ansicht, p.D.absatz_index, { aktion: "definition-umbenennen", alt: p.D.id, neu: p.M.id }, p.D.zeile));
+});
+$("fn-umbenennen").addEventListener("click", () => {
+  const p = fnPaar(); if (!p) return;
+  fnSpeichere(fnEintrag(fnDialog.ansicht, p.M.absatz_index, { aktion: "marker-umbenennen", alt: p.M.id, neu: p.D.id, vorkommen: p.M.vorkommen }));
+});
+$("fn-entfernen").addEventListener("click", () => {
+  const fd = fnDialog; if (!fd || fd.art !== "marker") return;
+  fnSpeichere(fnEintrag(fd.ansicht, fd.item.absatz_index, { aktion: "marker-entfernen", id: fd.item.id, vorkommen: fd.item.vorkommen }));
+});
+$("fn-setzen").addEventListener("click", () => {
+  const fd = fnDialog; if (!fd || fd.art !== "setzen" || !fd.wahl) return;
+  const roh = CA.absatzText(fd.ansicht, fd.item.absatz_index), pos = fd.item.pos;
+  // Kontext vor dem Zeiger: bis zu 40 Zeichen, bei Mehrdeutigkeit länger; mindestens 8, sonst gibt es keine verlässliche Stelle
+  let nach = null;
+  for (let n = Math.min(40, pos); n <= pos; n++) {
+    const s = roh.slice(pos - n, pos);
+    if (Array.from(s).length < 8) continue;
+    let treffer = 0;
+    for (let i = roh.indexOf(s); i >= 0; i = roh.indexOf(s, i + 1)) treffer++;
+    if (treffer === 1) { nach = s; break; }
+  }
+  if (nach === null) { meldeFn(pos < 8 ? "Vor dieser Stelle stehen weniger als mindestens 8 Zeichen: bitte weiter hinten im Absatz antippen." : "Die Stelle ist im Absatz nicht eindeutig: bitte an einer anderen Stelle antippen."); return; }
+  fnSpeichere(fnEintrag(fd.ansicht, fd.item.absatz_index, { aktion: "marker-setzen", id: fd.wahl.x.id, nach: nach }));
+});
+
+$("rechts-inhalt").addEventListener("click", (ev) => {
+  const t = ev.target.closest && ev.target.closest(".fn-marker, .fn-def");
+  if (!t || !aktuelleKapitelAnsicht()) return;
+  ev.preventDefault();
+  oeffneFn(t.classList.contains("fn-marker") ? "marker" : "def", Number(t.dataset.fnNr));
+});
 
 /** Chunk ↔ Kapitel: aus einem Chunk zum bereinigten Kapitel springen und umgekehrt zum ersten Chunk des Kapitels. */
 $("kapitel-sprung").addEventListener("click", () => {

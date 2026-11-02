@@ -56,6 +56,7 @@ Ich habe folgende Voreinstellungen gewählt; bitte widersprechen, was nicht pass
 5. **Stand angewendeter Änderungen nur für den Volltext** (Feld `enthalten` im Buchexport). Die Chunk-Ebene behält das P1-Verhalten („Export wiederholen“).
 6. **„Ursache suchen“ führt bis zum Chunk** (Übersetzung bzw. bei deutscher Quelle Rohchunk), nicht zur Struktur; ein Strukturgerüst gibt es erst mit P3. Die Suche ist ein textuelles, bewusst vorsichtiges Verfahren (Task 13), kein Versprechen für jeden Absatz.
 7. **Verdachtshinweise im Volltext beschränken sich auf Fußnoten** (Marker ohne Definition, Definition ohne Marker, doppelte Kennung, andere Konvention). Die Chunk-Regeln (abgerissene Zeilen, Kopfzeilen) passen nicht auf bereinigten Text und werden nicht übernommen.
+8. **Trennen an einer Textstelle** (Task 12a, nachgetragen): neue Form der Art `trennen` mit Kontexttext, nötig weil die meisten Absätze im Volltext einzeilig sind.
 
 Nicht Teil von P2: Strukturgerüst, Kapitel teilen / zusammenführen / Grenzen, Typen Inhaltsverzeichnis / Glossar (P3); KI-Felder bearbeiten und „veraltet“-Anzeige (P4); Buch-Übersicht (P5); Neu übersetzen und Chunk-Ebene unverändert, außer der Schlüssel-Korrektur in Task 2 und 3.
 
@@ -267,6 +268,23 @@ Tests liegen jeweils neben dem Code. Jede Aufgabe endet mit einem Commit; vor je
 - [ ] **Step 1: Failing checks** (Playwright, Testkapitel mit vertauschten Kennungen und einer Waise): Zuordnen erzeugt `definition-umbenennen`; Hinweis „Waise“ verschwindet; belegte Kennung wird abgewiesen; Marker setzen mit mehrdeutigem Kontext erzeugt nichts; Rücknahme über die Änderungsliste (P1) stellt den Zustand wieder her.
 - [ ] **Step 2–4:** rot, implementieren, grün.
 - [ ] **Step 5: Commit** `feat: Fußnoten im Volltext zuordnen`.
+
+### Task 12a: Absatz an einer Textstelle trennen (nachgetragen)
+
+*Nachtrag nach Task 11:* Im fertigen Volltext sind die meisten Absätze einzeilig; „Absatz hier trennen“ arbeitet auf ganzen Zeilen und ist dort deaktiviert, der Absatz-Editor weist Leerzeilen ab. Der Hauptfall „Absatzgrenze fehlt“ aus dem Entwurf (Abschnitt 1) wäre damit nicht bedienbar. Diese Aufgabe schließt die Lücke.
+
+**Files:**
+- Modify: `tools/redaktion/ops.py`, `tools/redaktion/testvektoren.json`, `tools/speedreader_web/redaktion.js`, `tools/speedreader_web/korrektur.html`
+- Test: `tools/redaktion/test_ops.py`, `tools/speedreader_web/test_redaktion_js.py`, `tools/speedreader_web/test_volltext.py`
+
+**Interfaces:**
+- Art `trennen` bekommt eine zweite Form: `parameter.nach` (wörtlicher Kontext, mindestens 8 Zeichen, kommt im Absatz genau einmal vor, überlappende Treffer zählen mit), ohne `ziel.zeile`. Der Absatz wird hinter diesem Kontext geteilt: `absatz[:ende].rstrip()` + zwei Zeilenenden + `absatz[ende:].lstrip()`; das Zeilenende ist das des Absatzes, sonst das der Datei (wie bei `ersetzen`). Ist einer der beiden Teile leer, ist das ein Konflikt (nie ein leerer Absatz). Mit `ziel.zeile` gilt unverändert die bisherige Zeilenform. Gemeinsame Suchfunktion mit `marker-setzen` (`_finde_stelle`), damit beide dieselben Regeln haben.
+- UI: In der Absatzleiste ein Knopf **Absatz hier trennen** (neben „Verweis setzen“), der den Zeiger des Antippens benutzt; Kontext wie bei „Verweis setzen“ (bis 40 Zeichen, bei Mehrdeutigkeit länger, sonst ehrliche Meldung). Die Kontextbildung wird dazu aus dem Code von „Verweis hier setzen“ in eine gemeinsame Funktion gezogen. Die Werkzeugleiste behält ihre Zeilenform für mehrzeilige Absätze.
+- Folge: Nach dem Trennen haben beide Teile eigene Anker; spätere Einträge am zweiten Teil bauen auf dem abgespielten Text auf (Kette, Test).
+
+- [ ] **Step 1: Failing tests:** Vektoren in `testvektoren.json` (von Hand): Trennen mitten im einzeiligen Absatz; in CRLF-Datei (`\r\n\r\n` als neues Trennzeichen); Kontext zu kurz, nicht gefunden, mehrdeutig; Trennen am Anfang und am Ende (leerer Teil, Konflikt); Kette „trennen, dann ersetzen am zweiten Teil“; Zeilenform bleibt unverändert (Regression). Paritätstest JS gegen Python. Browser: Zeiger in einem einzeiligen Absatz, **Absatz hier trennen**, Text enthält die Leerzeile, Zähler zeigt eine Änderung, Fußnotenbilanz unverändert, Rücknahme stellt den Absatz wieder her; Zeiger zu nah am Absatzanfang: Meldung, kein Eintrag.
+- [ ] **Step 2–4:** rot, implementieren, grün.
+- [ ] **Step 5: Commit** `feat: Absatz an einer Textstelle trennen`.
 
 ### Task 13: Ursache suchen
 
