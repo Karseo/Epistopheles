@@ -187,6 +187,7 @@ def test_bundle_enthaelt_chunkansicht_js(tmp_path):
     html = (tmp_path / "paket" / "korrektur.html").read_text(encoding="utf-8")
     assert '<script src="verdacht.js">' in html and '<script src="chunkansicht.js">' in html
     assert "fussnoten.js" in kopiert and (tmp_path / "paket" / "fussnoten.js").is_file()
+    assert "ursache.js" in kopiert and '<script src="ursache.js">' in html
     assert html.index('<script src="fussnoten.js">') < html.index('<script src="chunkansicht.js">')   # Reihenfolge der Abhaengigkeiten
 
 
