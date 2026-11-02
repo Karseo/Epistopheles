@@ -146,3 +146,18 @@ def test_gesamtlauf_p2(browser, tmp_path, capsys):
     assert any(p.startswith("und die Abgeordneten") or p.startswith("dass die Abgeordneten") for p in absaetze(heute))   # die Teilung (Trennen) wurde trotzdem wieder eingespielt
     protokoll_eintraege = json.loads((buch / "notizen" / "redaktion.json").read_text(encoding="utf-8"))["eintraege"]
     assert [e["id"] for e in protokoll_eintraege] == ids                              # das Protokoll bleibt vollständig
+
+    # --- Der Konflikt bleibt nicht unsichtbar: Export meldet ihn, die Rücknahme löst ihn am PC auf ----------------------
+    exportiere(root)
+    d = json.loads((root / "reader" / "export-epistopheles" / "korrektur" / "k001.json").read_text(encoding="utf-8"))
+    assert ids[0] not in d["enthalten"] and set(d["nachspiel"]) == {ids[0]}           # die App zeigt ihn als Konflikt
+    r = ops.neuer_eintrag(BUCH, "volltext", {"datei": datei}, "ruecknahme", {"id": ids[0]}, "", geraet="gt")
+    protokoll.schreibe_eingang(root, "gt", BUCH, [r])
+    assert ra.main(["--root", str(root), "--ausfuehren"]) == 0
+    bericht = schutz.lade_nachspiel(buch)
+    assert bericht["konflikte"] == [] and bericht["basis_geaendert"] == [datei]        # Konflikt gelöst; die geänderte Basis bleibt gemeldet
+    rest = {e["id"]: e["status"] for e in json.loads((buch / "notizen" / "redaktion.json").read_text(encoding="utf-8"))["eintraege"]}
+    assert rest[ids[0]] == "zurueckgenommen" and rest[ids[1]] == "angewendet"
+    exportiere(root)
+    d = json.loads((root / "reader" / "export-epistopheles" / "korrektur" / "k001.json").read_text(encoding="utf-8"))
+    assert d["nachspiel"] == {} and ids[0] not in d["enthalten"] and ids[1] in d["enthalten"]

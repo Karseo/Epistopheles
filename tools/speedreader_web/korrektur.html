@@ -700,7 +700,7 @@ const ansichtSig = (ix) => `${buch.id}#${ix}#${CA.signatur(eintraege, ix, abgele
 const kapitelBereit = (ix) => !!CA && !!daten && Array.isArray(daten.enthalten) && !!daten.kapitel[ix] && typeof daten.kapitel[ix].datei === "string" && !!daten.kapitel[ix].datei;
 const kapitelOptionen = (ix) => {
   if (!daten._enthaltenSet) daten._enthaltenSet = new Set(daten.enthalten);
-  return { ebene: "volltext", zielfeld: "datei", verdacht: false, enthalten: daten._enthaltenSet, nr: ix };
+  return { ebene: "volltext", zielfeld: "datei", verdacht: false, enthalten: daten._enthaltenSet, nachspiel: daten.nachspiel || null, nr: ix };
 };
 const kapitelSig = (ix) => `${buch.id}#k${ix}#${CA.signatur(eintraege, daten.kapitel[ix].datei, abgelehnt.length, eintraegeBuchId === buch.id, kapitelOptionen(ix))}`;
 /** Signatur der gerade gezeigten Ansicht (Chunk oder Kapitel), für „muss neu gezeichnet werden?“. */

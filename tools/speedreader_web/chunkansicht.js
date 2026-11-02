@@ -31,7 +31,7 @@
   /** Ebene der Ansicht: Roh-Chunk (Ziel `chunk`, Standard) oder fertiger Volltext (Ziel `datei`, ohne Verdachtsregeln der Chunks,
    *  dafuer Fussnotenhinweise). `enthalten` = Ids angewendeter Eintraege, die der exportierte Text schon enthaelt;
    *  `nr` = Position der Ansicht in der Liste (Chunk- bzw. Kapitelnummer), fuer die Zwischenspeicher der Oberflaeche. */
-  const STANDARD = { ebene: "chunk-orig", zielfeld: "chunk", verdacht: true, enthalten: null };
+  const STANDARD = { ebene: "chunk-orig", zielfeld: "chunk", verdacht: true, enthalten: null, nachspiel: null };
   const optionenVon = (optionen) => Object.assign({}, STANDARD, optionen || {});
 
   const eigener = (e, chunk, o) => { o = o || STANDARD; return istObjekt(e) && e.ebene === o.ebene && istObjekt(e.ziel) && e.ziel[o.zielfeld] === chunk; };
@@ -62,6 +62,12 @@
     for (const e of mein) {
       if (e.art === "marke") { if (typeof e.ziel.zeile === "number") marken.add(e.ziel.anfang + "\u0001" + e.ziel.zeile); continue; }
       if (o.enthalten && o.enthalten.has(e.id)) continue;            // steckt schon im exportierten Text, egal welchen Status die App gerade kennt
+      if (o.nachspiel && e.status === "angewendet" && Object.prototype.hasOwnProperty.call(o.nachspiel, e.id)) {
+        // Am PC angewendet, beim Neuaufbau (lektor-zu-episto) aber nicht wieder eingespielt: der Text hat die Korrektur NICHT.
+        // Nicht abspielen (App und PC sollen denselben Text sehen), sondern als Konflikt der Person zeigen.
+        aus.konflikte.push({ eintrag: e, grund: (o.nachspiel[e.id] || "ohne Angabe") + " (beim Neuaufbau nicht wieder eingespielt)", quelle: "nachspiel" });
+        continue;
+      }
       // Am PC angewendet, aber noch nicht im exportierten Text (veralteter Export): trotzdem abspielen (Volltext)
       const imExport = e.status === "angewendet" && o.enthalten && !o.enthalten.has(e.id);
       if (!imExport && (e.status === "angewendet" || e.status === "abgelehnt" || e.status === "uebersprungen")) continue;

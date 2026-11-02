@@ -105,6 +105,7 @@ class DateiPlan:
 class BuchPlan:
     buch: str
     reader: Path | None = None
+    aufloesen: list[str] = field(default_factory=list)  # Nachspiel-Konflikte, deren Eintrag zurückgenommen wird
     nachspiel: dict | None = None                      # offener Bericht von lektor-zu-episto (nur Anzeige)
     volltext: list[DateiPlan] = field(default_factory=list)
     lektor: Path | None = None
@@ -273,12 +274,19 @@ def _chunk_nummer(eintrag: dict) -> int | None:
     return n if isinstance(n, int) and not isinstance(n, bool) and n >= 0 else None
 
 
-def _pruefe_ruecknahme(e: dict, stand: dict) -> EintragErgebnis:
+def _pruefe_ruecknahme(e: dict, stand: dict, nachspiel_ids: set[str] = frozenset(),
+                       zurueckgenommen: set[str] = frozenset()) -> EintragErgebnis:
     """Eine Rücknahme wirkt nur, solange das Ziel nicht angewendet ist (Spec 5.1). Das Ziel selbst
     wird in `ops.ohne_zurueckgenommene` aus der Planung genommen, egal in welcher Reihenfolge die
-    Einträge eintrafen."""
+    Einträge eintrafen. Ausnahme: ein angewendeter Eintrag, den der Neuaufbau (lektor-zu-episto) nicht
+    wieder einspielen konnte (`nachspiel_ids`), steckt nicht im Text; seine Rücknahme löst den Konflikt auf."""
     p = e.get("parameter")
     ziel_id = p.get("id") if isinstance(p, dict) else None
+    if isinstance(ziel_id, str) and ziel_id in zurueckgenommen:
+        return EintragErgebnis(e, ops.STATUS_UEBERSPRUNGEN, f"Rücknahme von Eintrag {ziel_id}: schon zurückgenommen")
+    if isinstance(ziel_id, str) and ziel_id in nachspiel_ids:
+        return EintragErgebnis(e, ops.STATUS_UEBERSPRUNGEN,
+                               f"Rücknahme von Eintrag {ziel_id}: wird nicht mehr eingespielt (Nachspiel-Konflikt aufgelöst)")
     s = stand.get(ziel_id) if isinstance(ziel_id, str) else None
     if isinstance(s, dict) and s.get("status") == "angewendet":
         return EintragErgebnis(e, ops.STATUS_KONFLIKT,
@@ -398,9 +406,16 @@ def _plane_volltext(root: Path, plan: BuchPlan, eintraege: list[dict]) -> None:
 
 def _plane_buch(root: Path, buch: str) -> BuchPlan:
     plan = BuchPlan(buch=buch)
-    nachspiel = schutz.lade_nachspiel(protokoll.reader_ordner(root, buch))
+    reader_buch = protokoll.reader_ordner(root, buch)
+    nachspiel = schutz.lade_nachspiel(reader_buch)
     if nachspiel and (nachspiel.get("konflikte") or nachspiel.get("basis_geaendert")):
         plan.nachspiel = nachspiel
+    nachspiel_ids = {k["id"] for k in (nachspiel or {}).get("konflikte", []) if isinstance(k, dict) and isinstance(k.get("id"), str)}
+    try:
+        zurueckgenommen = {x["id"] for x in lade_reader_redaktion(reader_buch)["eintraege"]
+                           if isinstance(x, dict) and x.get("status") == "zurueckgenommen" and isinstance(x.get("id"), str)}
+    except ValueError:
+        zurueckgenommen = set()
     roh = protokoll.lade_eingang(root, buch)
     stand = protokoll.lade_stand(root, buch)
     # Einträge kommen von Geräten: ohne Objekt/Text-id werden sie gemeldet, nie verarbeitet.
@@ -411,7 +426,12 @@ def _plane_buch(root: Path, buch: str) -> BuchPlan:
     gueltig = [e for e in roh if isinstance(e, dict) and isinstance(e.get("id"), str) and e["id"]]
     for e in gueltig:
         if e.get("art") == "ruecknahme":
-            plan.ruecknahmen.append(_pruefe_ruecknahme(e, stand))
+            erg = _pruefe_ruecknahme(e, stand, nachspiel_ids, zurueckgenommen)
+            plan.ruecknahmen.append(erg)
+            ziel_id = (e.get("parameter") or {}).get("id") if isinstance(e.get("parameter"), dict) else None
+            if ziel_id in nachspiel_ids and ziel_id not in zurueckgenommen:
+                plan.aufloesen.append(ziel_id)
+                plan.reader = reader_buch
     eintraege = ops.ohne_zurueckgenommene(gueltig)
 
     offen: list[dict] = []
@@ -785,6 +805,16 @@ def fuehre_aus(root: Path, plaene: list[BuchPlan]) -> dict:
                 _setze_stand_sicher(root, plan.buch, r.eintrag, r.status, r.grund)
             except Exception as exc:  # noqa: BLE001
                 warnungen.append(f"WARNUNG: Stand nicht gesetzt: {type(exc).__name__}: {exc}")
+        if plan.aufloesen:
+            try:
+                red = lade_reader_redaktion(plan.reader)
+                for x in red["eintraege"]:
+                    if isinstance(x, dict) and x.get("id") in plan.aufloesen and x.get("status") == ops.STATUS_ANGEWENDET:
+                        x["status"] = "zurueckgenommen"
+                protokoll.speichere_redaktion(plan.reader / "notizen" / "redaktion.json", red)
+                schutz.entferne_aus_nachspiel(plan.reader, set(plan.aufloesen))
+            except Exception as exc:  # noqa: BLE001
+                warnungen.append(f"WARNUNG: Nachspiel-Konflikt von {plan.buch} nicht aufgelöst: {type(exc).__name__}: {exc}")
         for dp in plan.volltext:
             _fuehre_datei_aus(root, plan, dp, zaehler, warnungen)
         for cp in plan.chunks:

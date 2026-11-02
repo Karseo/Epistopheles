@@ -173,6 +173,10 @@ const leer = C.bereite(roh, [], D, [], true, VT);
 const mitV = C.bereite(roh, [eV, eChunk, eAndere], D, [], true, VT);
 const mitVAngewendet = Object.assign({}, eV, { status: "angewendet" });
 const gesendetImExport = C.bereite(roh.replace("Note[^2]", "Note[^7]"), [Object.assign({}, eV, { status: "gesendet" })], D, [], true, Object.assign({ enthalten: new Set([eV.id]) }, VT));
+const nsOpt = Object.assign({ enthalten: new Set([]), nachspiel: { [eV.id]: "Absatz nicht gefunden" } }, VT);
+const nachspiel = C.bereite(roh, [mitVAngewendet], D, [], true, nsOpt);
+const nachspielRueck = C.bereite(roh, [mitVAngewendet, R.ruecknahmeFuer(mitVAngewendet, "g", "Verworfen", "A/B")], D, [], true, nsOpt);
+const nsNeu = nachspiel.konflikte[0] && C.entwurf(nachspiel, "neu", nachspiel.konflikte[0]);
 const nichtImExport = C.bereite(roh, [mitVAngewendet], D, [], true, Object.assign({ enthalten: new Set([]) }, VT));
 const imExport = C.bereite(roh.replace("Note[^2]", "Note[^7]"), [mitVAngewendet], D, [], true, Object.assign({ enthalten: new Set([eV.id]) }, VT));
 const luecke = C.bereite(roh.replace("Note[^2]", "Note[^9]"), [mitVAngewendet], D, [], true, Object.assign({ enthalten: new Set([]) }, VT));
@@ -184,6 +188,8 @@ process.stdout.write(JSON.stringify({
   hinweiseLeer: leer.hinweise.map(x => [x.art, x.absatz_index, x.zeile]), ebene: leer.ebene, zielfeld: leer.zielfeld, chunk: leer.chunk,
   mitV: mitV.text, mitVKonflikte: mitV.konflikte.length,
   nichtImExport: nichtImExport.text, nichtImExportLuecke: nichtImExport.luecke.length,
+  nachspielText: nachspiel.text, nachspielKonflikte: nachspiel.konflikte.map(k => [k.quelle, k.grund, k.absatz_index]), nachspielLuecke: nachspiel.luecke.length,
+  nachspielRueckKonflikte: nachspielRueck.konflikte.length, nachspielNeu: nsNeu && [nsNeu.art, nsNeu.parameter, nsNeu.ziel.absatz_index],
   gesendetImExport: gesendetImExport.text, gesendetImExportKonflikte: gesendetImExport.konflikte.length,
   imExport: imExport.text, imExportLuecke: imExport.luecke.length, imExportKonflikte: imExport.konflikte.length,
   lueckeKonflikte: luecke.konflikte.length, lueckeLuecke: luecke.luecke.length,
@@ -243,3 +249,14 @@ def test_eintrag_im_export_wird_nie_erneut_abgespielt_auch_wenn_der_stand_noch_g
     """Der Stand `angewendet` kommt erst mit dem naechsten Abruf von APIC; `enthalten` im Export gilt sofort."""
     e = lauf_vt()
     assert e["gesendetImExport"] == ROH_VT.replace("Note[^2]", "Note[^7]") and e["gesendetImExportKonflikte"] == 0
+
+
+def test_nachspiel_konflikt_wird_nie_abgespielt_sondern_als_konflikt_mit_aufloesung_gezeigt():
+    """Review-Befund 2: Ein am PC angewendeter, beim Neuaufbau nicht wieder eingespielter Eintrag ist ein Konflikt der Person."""
+    e = lauf_vt()
+    assert e["nachspielText"] == ROH_VT                                     # PC-Wahrheit: ohne die Korrektur, kein Abspielen
+    assert len(e["nachspielKonflikte"]) == 1 and e["nachspielLuecke"] == 0
+    quelle, grund, absatz = e["nachspielKonflikte"][0]
+    assert quelle == "nachspiel" and "Absatz nicht gefunden" in grund and "Neuaufbau" in grund and absatz == 1
+    assert e["nachspielNeu"] == ["fussnote", {"aktion": "marker-umbenennen", "alt": "2", "neu": "7", "vorkommen": 0}, 1]   # Neu anwenden
+    assert e["nachspielRueckKonflikte"] == 0                                # Verwerfen/Neu anwenden (Rücknahme) löst ihn auf

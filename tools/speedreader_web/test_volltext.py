@@ -572,3 +572,71 @@ def test_trennen_dann_zweiten_teil_bearbeiten_baut_aufeinander_auf(seite_einzeil
 
 def test_trennen_knopf_nur_bei_bereiten_daten(seite_einzeilig):
     assert seite_einzeilig.locator("#absatz-trennen").is_hidden()               # ohne angetippten Absatz keine Leiste
+
+
+# --- Review-Befund 1 und 2: Nachspiel-Konflikt ist in der App sichtbar und aufloesbar -----------------------------
+
+def _nachspiel_wurzel(tmp_path):
+    """Buch, dessen Export einen am PC angewendeten Eintrag als Nachspiel-Konflikt kennt (nicht in `enthalten`)."""
+    from episto_tui.korrektur import absatz_spannen
+    from redaktion import ops
+    root = baue(tmp_path)
+    a, b = absatz_spannen(KAPITEL)[2]
+    e = ops.neuer_eintrag(BUCH, "volltext", {"datei": DATEI, "absatz_index": 2, "anfang": ops.anker_von(KAPITEL[a:b])},
+                          "ersetzen", {"nachher": "Ein zweiter Absatz folgt dort."}, KAPITEL[a:b], geraet="g")
+    e["id"], e["status"] = "nachspiel01", "angewendet"
+    notizen = root / "reader" / AUTOR / TITEL / "notizen"
+    notizen.mkdir(exist_ok=True)
+    (notizen / "redaktion.json").write_text(json.dumps({"eintraege": [e], "dateien": {}}), encoding="utf-8")
+    (notizen / "redaktion-nachspiel.json").write_text(json.dumps({"zeit": "2026-11-02T10:00:00Z", "angewendet": 0, "basis_geaendert": [],
+        "konflikte": [{"id": "nachspiel01", "datei": DATEI, "grund": "Absatz nicht gefunden"}]}), encoding="utf-8")
+    export_korrektur.exportiere(root, root / "reader" / "export-epistopheles" / "korrektur", root / "rohdaten" / "Lektor", ebooks=False)
+    return root, e
+
+
+@pytest.fixture()
+def seite_nachspiel(browser, tmp_path):
+    root, e = _nachspiel_wurzel(tmp_path)
+    a = Apic(root)
+    ctx, pg = neue_seite(browser, a.url)
+    zu_text(pg)
+    pg.evaluate("async (e) => { await aendereEintraege(buch.id, (l) => l.concat([e])); }", e)      # das Gerät kennt seinen Eintrag
+    pg.wait_for_selector("#rechts-inhalt .konflikt")
+    yield pg
+    ctx.close()
+    a.stop()
+    assert not pg.fehler, pg.fehler
+
+
+def test_nachspiel_konflikt_steht_im_export_und_nicht_in_enthalten(tmp_path):
+    root, _ = _nachspiel_wurzel(tmp_path)
+    d = json.loads((root / "reader" / "export-epistopheles" / "korrektur" / "k001.json").read_text(encoding="utf-8"))
+    assert d["enthalten"] == [] and d["nachspiel"] == {"nachspiel01": "Absatz nicht gefunden"}
+
+
+def test_nachspiel_konflikt_zeigt_konfliktblock_am_absatz_und_spielt_nicht_ab(seite_nachspiel):
+    pg = seite_nachspiel
+    label = pg.locator("#rechts-inhalt .konflikt").get_attribute("aria-label")           # Text steht per data-label im CSS
+    assert "Absatz nicht gefunden" in label and "Neuaufbau" in label
+    assert text_im_feld(pg) == KAPITEL                                           # derselbe Text wie am PC: ohne die Korrektur
+    assert "1 Konflikt" in pg.inner_text("#rechts-verdacht")
+    assert pg.evaluate("kapitelCache.get(0).ansicht.luecke.length") == 0         # kein stummer Zähler, sondern Konflikt
+
+
+def test_nachspiel_konflikt_verwerfen_sendet_ruecknahme_und_blendet_ihn_aus(seite_nachspiel):
+    pg = seite_nachspiel
+    pg.locator("#rechts-inhalt .konflikt button[data-aktion='verwerfen']").click()
+    pg.wait_for_function("eintraege.some((e) => e.art === 'ruecknahme')")
+    pg.wait_for_function("document.querySelectorAll('#rechts-inhalt .konflikt').length === 0")
+    assert pg.evaluate("eintraege.find((e) => e.art === 'ruecknahme').parameter.id") == "nachspiel01"
+    assert text_im_feld(pg) == KAPITEL
+
+
+def test_nachspiel_konflikt_neu_anwenden_legt_neuen_eintrag_an_und_zeigt_den_text(seite_nachspiel):
+    pg = seite_nachspiel
+    pg.locator("#rechts-inhalt .konflikt button[data-aktion='neu']").click()
+    pg.wait_for_function("eintraege.length === 3")                               # alter (angewendet), neuer, Rücknahme des alten
+    neu = pg.evaluate("eintraege.find((e) => e.art === 'ersetzen' && e.status !== 'angewendet')")
+    assert neu["parameter"] == {"nachher": "Ein zweiter Absatz folgt dort."} and neu["ziel"]["datei"] == DATEI
+    pg.wait_for_function("document.querySelectorAll('#rechts-inhalt .konflikt').length === 0")
+    assert text_im_feld(pg) == KAPITEL.replace("hier.\n\n[^1]", "dort.\n\n[^1]")

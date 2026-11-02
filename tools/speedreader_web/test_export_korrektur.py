@@ -331,3 +331,30 @@ def test_enthalten_ist_leer_ohne_oder_mit_kaputter_datei(tmp_path):
         _redaktion(root, kaputt)
         export_korrektur.exportiere(root, ordner, tmp_path / "lektor")
         assert json.loads((ordner / "k001.json").read_text(encoding="utf-8"))["enthalten"] == []
+
+
+def test_enthalten_nimmt_nachspiel_konflikte_aus_und_nennt_sie_mit_grund(tmp_path):
+    """Review-Befund 1: Was beim Neuaufbau nicht wieder eingespielt werden konnte, steckt nicht im Text."""
+    root, ordner = tmp_path / "bib", tmp_path / "korrektur"
+    _repo_buch(root, "A, B", "T", {"0001.md": "x"})
+    _redaktion(root, {"eintraege": [{"id": "ok", "ebene": "volltext", "status": "angewendet"},
+                                    {"id": "weg", "ebene": "volltext", "status": "angewendet"}]})
+    nachspiel = root / "reader" / "A, B" / "T" / "notizen" / "redaktion-nachspiel.json"
+    nachspiel.write_text(json.dumps({"konflikte": [{"id": "weg", "datei": "0001.md", "grund": "Absatz nicht gefunden"},
+                                                   {"id": None, "datei": None, "grund": "redaktion.json unlesbar"}]}), encoding="utf-8")
+    export_korrektur.exportiere(root, ordner, tmp_path / "lektor")
+    d = json.loads((ordner / "k001.json").read_text(encoding="utf-8"))
+    assert d["enthalten"] == ["ok"] and d["nachspiel"] == {"weg": "Absatz nicht gefunden"}
+
+
+def test_nachspiel_ist_leer_ohne_oder_mit_kaputtem_bericht(tmp_path):
+    root, ordner = tmp_path / "bib", tmp_path / "korrektur"
+    _repo_buch(root, "A, B", "T", {"0001.md": "x"})
+    export_korrektur.exportiere(root, ordner, tmp_path / "lektor")
+    assert json.loads((ordner / "k001.json").read_text(encoding="utf-8"))["nachspiel"] == {}
+    n = root / "reader" / "A, B" / "T" / "notizen"
+    n.mkdir(parents=True, exist_ok=True)
+    for kaputt in ("{kaputt", "[]", '{"konflikte": 5}'):
+        (n / "redaktion-nachspiel.json").write_text(kaputt, encoding="utf-8")
+        export_korrektur.exportiere(root, ordner, tmp_path / "lektor")
+        assert json.loads((ordner / "k001.json").read_text(encoding="utf-8"))["nachspiel"] == {}

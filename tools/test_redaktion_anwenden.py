@@ -825,3 +825,58 @@ def test_dry_run_nennt_offenen_nachspiel_bericht(tmp_path, capsys):
     assert ra.main(["--root", str(tmp_path)]) == 0                      # reine Anzeige: kein Konflikt-Exit
     out = capsys.readouterr().out
     assert "lektor-zu-episto" in out and "Eintrag abc: Absatz nicht gefunden" in out and "Ausgangstext" in out
+
+
+def _nachspiel_bericht(tmp: Path, ids: list[str], extra=()) -> Path:
+    n = reader(tmp) / "notizen"
+    n.mkdir(parents=True, exist_ok=True)
+    pfad = n / "redaktion-nachspiel.json"
+    pfad.write_text(json.dumps({"zeit": "2026-11-02T10:00:00Z", "angewendet": 0, "basis_geaendert": [],
+                                "konflikte": [{"id": i, "datei": DATEI, "grund": "Absatz nicht gefunden"} for i in [*ids, *extra]]}),
+                    encoding="utf-8")
+    return pfad
+
+
+def test_ruecknahme_eines_nachspiel_konflikts_loest_ihn_im_protokoll_auf(tmp_path, capsys):
+    """Review-Befund 2: 'Verwerfen' / 'Neu anwenden' in der App muss den Konflikt auch am PC beenden."""
+    e = ersetze_marker(KAPITEL)
+    baue_reader(tmp_path)
+    (reader(tmp_path) / "notizen").mkdir()
+    (reader(tmp_path) / "notizen" / "redaktion.json").write_text(json.dumps({"eintraege": [{**e, "status": "angewendet"}], "dateien": {}}), encoding="utf-8")
+    bericht = _nachspiel_bericht(tmp_path, [e["id"]])
+    r = ops.neuer_eintrag(BUCH, "volltext", e["ziel"], "ruecknahme", {"id": e["id"]}, "")
+    protokoll.schreibe_eingang(tmp_path, "tablet", BUCH, [r])
+    assert ra.main(["--root", str(tmp_path)]) == 0                                   # Dry-Run: ändert nichts
+    assert "wird nicht mehr eingespielt" in capsys.readouterr().out
+    assert json.loads(bericht.read_text(encoding="utf-8"))["konflikte"]
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
+    red = red_json(tmp_path)
+    assert red["eintraege"][0]["id"] == e["id"] and red["eintraege"][0]["status"] == "zurueckgenommen"
+    assert not bericht.exists()                                                      # nichts mehr zu melden
+    assert protokoll.lade_stand(tmp_path, BUCH)[r["id"]]["status"] == "uebersprungen"
+    # das Nachspiel ignoriert den zurückgenommenen Eintrag
+    (reader(tmp_path) / "quelle" / DATEI).write_bytes(KAPITEL.encode("utf-8"))
+    assert schutz.spiele_nach(reader(tmp_path)) == 0
+    assert (reader(tmp_path) / "quelle" / DATEI).read_bytes() == KAPITEL.encode("utf-8")
+
+
+def test_ruecknahme_laesst_andere_nachspiel_konflikte_im_bericht_stehen(tmp_path):
+    e = ersetze_marker(KAPITEL)
+    baue_reader(tmp_path)
+    (reader(tmp_path) / "notizen").mkdir()
+    (reader(tmp_path) / "notizen" / "redaktion.json").write_text(json.dumps({"eintraege": [{**e, "status": "angewendet"}], "dateien": {}}), encoding="utf-8")
+    bericht = _nachspiel_bericht(tmp_path, [e["id"]], extra=["anderer"])
+    protokoll.schreibe_eingang(tmp_path, "tablet", BUCH, [ops.neuer_eintrag(BUCH, "volltext", e["ziel"], "ruecknahme", {"id": e["id"]}, "")])
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
+    assert [k["id"] for k in json.loads(bericht.read_text(encoding="utf-8"))["konflikte"]] == ["anderer"]
+
+
+def test_ruecknahme_eines_normal_angewendeten_eintrags_bleibt_nicht_moeglich(tmp_path, capsys):
+    e = ersetze_marker(KAPITEL)
+    baue_reader(tmp_path, eintraege=[e])
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
+    protokoll.schreibe_eingang(tmp_path, "tablet", BUCH, [ops.neuer_eintrag(BUCH, "volltext", e["ziel"], "ruecknahme", {"id": e["id"]}, "")])
+    capsys.readouterr()
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
+    assert "Rücknahmen nicht möglich" in capsys.readouterr().out
+    assert red_json(tmp_path)["eintraege"][0]["status"] == "angewendet"

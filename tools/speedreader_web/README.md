@@ -301,7 +301,11 @@ wie bisher, kein Backup), dann neu aufgebaut und das Protokoll **wieder eingespi
 mehr greift (anderer Dateiname, geänderter Ausgangstext), steht einzeln mit Datei, Id und Grund in der Ausgabe und in
 `reader\<Buch>\notizen\redaktion-nachspiel.json` (zusätzlich `basis_geaendert`: Dateien, deren Ausgangstext nicht mehr
 der ist, auf dem die Korrektur entstand); `redaktion_anwenden.py` nennt den offenen Bericht im Dry-Run. Das Protokoll
-bleibt vollständig. Die `redaktion.json` im **Lektor**-Buchordner (Korrekturen an Rohchunks) wird dabei **nicht**
+bleibt vollständig. **Solche Einträge sind in der App sichtbar:** der Export nimmt sie aus `enthalten` und nennt sie unter
+`nachspiel` (Id → Grund); die App spielt sie nie ab (App und PC sehen denselben Text), sondern zeigt sie am Absatz als
+Konflikt mit **Neu anwenden** (neuer Eintrag auf dem aktuellen Text) oder **Verwerfen**. Beides sendet eine Rücknahme; sie
+setzt den Eintrag im Protokoll auf `zurueckgenommen` (das Nachspiel ignoriert ihn danach) und entfernt ihn aus dem Bericht.
+Die `redaktion.json` im **Lektor**-Buchordner (Korrekturen an Rohchunks) wird dabei **nicht**
 verwendet. Handänderungen in `quelle\*.md`, die nicht über das Protokoll liefen, gehen beim Neuaufbau verloren (nur das
 Backup bleibt): vorher selbst sichern; `--dry-run` zeigt, was geschehen würde.
 

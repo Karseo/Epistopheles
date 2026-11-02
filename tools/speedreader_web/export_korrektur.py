@@ -102,9 +102,24 @@ def _lies_kapitel(buch: library.Buch, datei: str) -> str:
     return (buch.pfad / "quelle" / datei).read_bytes().decode("utf-8")
 
 
+def _nachspiel_konflikte(buch: library.Buch) -> dict[str, str]:
+    """Eintraege, die `lektor-zu-episto.py --ueberschreiben` nach dem Neuaufbau NICHT wieder einspielen konnte
+    (reader\\..\\notizen\\redaktion-nachspiel.json): id -> Grund. Sie stehen im Protokoll als angewendet, stecken
+    aber nicht im Text; die App zeigt sie als Konflikt. Fehlende oder kaputte Datei: leer."""
+    try:
+        roh = json.loads((buch.pfad / "notizen" / "redaktion-nachspiel.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    liste = roh.get("konflikte") if isinstance(roh, dict) else None
+    if not isinstance(liste, list):
+        return {}
+    return {k["id"]: str(k.get("grund") or "") for k in liste if isinstance(k, dict) and isinstance(k.get("id"), str)}
+
+
 def _enthalten(buch: library.Buch) -> list[str]:
     """Ids der Volltext-Eintraege, die schon angewendet sind (reader\\..\\notizen\\redaktion.json) und
-    damit im exportierten Kapiteltext stecken. Fehlende oder kaputte Datei: leer."""
+    damit im exportierten Kapiteltext stecken, ohne die, die das Nachspiel nicht wieder einspielen konnte.
+    Fehlende oder kaputte Datei: leer."""
     try:
         roh = json.loads((buch.pfad / "notizen" / "redaktion.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -112,8 +127,9 @@ def _enthalten(buch: library.Buch) -> list[str]:
     liste = roh.get("eintraege") if isinstance(roh, dict) else None
     if not isinstance(liste, list):
         return []
+    offen = _nachspiel_konflikte(buch)
     return [e["id"] for e in liste
-            if isinstance(e, dict) and isinstance(e.get("id"), str)
+            if isinstance(e, dict) and isinstance(e.get("id"), str) and e["id"] not in offen
             and e.get("ebene") == "volltext" and e.get("status") == "angewendet"]
 
 
@@ -231,8 +247,10 @@ def exportiere(root: Path, ordner: Path, lektor: Path | None = None, ebooks: boo
                         if lektor_buch is not None and chunk_ordner is not None and chunk_ordner.name == "en" else [])
         kapitel = []
         enthalten: list[str] = []
+        nachspiel: dict[str, str] = {}
         if eintrag["buch"] is not None:
             enthalten = _enthalten(eintrag["buch"])
+            nachspiel = _nachspiel_konflikte(eintrag["buch"])
             for k in library.list_chapters(eintrag["buch"]):
                 try:
                     kapitel.append({"nr": k.nr, "titel": k.titel, "datei": k.datei, "text": _lies_kapitel(eintrag["buch"], k.datei)})
@@ -244,7 +262,8 @@ def exportiere(root: Path, ordner: Path, lektor: Path | None = None, ebooks: boo
             shutil.copyfile(quelle, ordner / ebook)
         _schreibe_json(ordner / f"{buch_id}.json",
                        {"id": buch_id, "erstellt": erstellt, "chunks": chunks, "uebersetzung": uebersetzung,
-                        "segmente": segmente, "kapitel": kapitel, "enthalten": enthalten})
+                        "segmente": segmente, "kapitel": kapitel, "enthalten": enthalten,
+                        "nachspiel": nachspiel})
         buecher.append({
             "id": buch_id, "autor": eintrag["autor"], "titel": eintrag["titel"],
             "quellsprache": str(meta.get("quellsprache") or ""),

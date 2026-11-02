@@ -109,6 +109,24 @@ def _schreibe_bericht(buch: Path, angewendet: int, konflikte: list[dict], basis_
         pass
 
 
+def entferne_aus_nachspiel(reader_buch: Path, ids: set[str]) -> None:
+    """Nimmt die Eintraege `ids` aus `redaktion-nachspiel.json`; bleibt nichts zu melden (keine Konflikte, keine
+    geaenderte Basis), verschwindet die Datei. Fehlende oder unlesbare Datei: nichts zu tun."""
+    buch = Path(reader_buch)
+    bericht = lade_nachspiel(buch)
+    if not bericht or not isinstance(bericht.get("konflikte"), list):
+        return
+    rest = [k for k in bericht["konflikte"] if not (isinstance(k, dict) and k.get("id") in ids)]
+    pfad = buch / "notizen" / NACHSPIEL
+    try:
+        if rest or bericht.get("basis_geaendert"):
+            _schreibe_atomar(pfad, json.dumps({**bericht, "konflikte": rest}, ensure_ascii=False, indent=2).encode("utf-8"))
+        else:
+            pfad.unlink()
+    except OSError:
+        pass
+
+
 def sichere_quelle(reader_buch: Path) -> Path | None:
     """Kopiert die vorhandenen `quelle/*.md` nach `notizen/_backup/quelle-<Zeit>/`, wenn `notizen/redaktion.json`
     Eintraege der Ebene `volltext` enthaelt (oder nicht lesbar ist: im Zweifel sichern), und gibt den Ordner
