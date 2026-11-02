@@ -28,13 +28,20 @@ STATUS_UEBERSPRUNGEN = "uebersprungen"
 
 # Arten ohne Wirkung auf den Text: werden uebersprungen, nicht als Konflikt gemeldet.
 ARTEN_OHNE_TEXTWIRKUNG = ("ruecknahme", "uebersetzung-uebernehmen", "neu-uebersetzen")
-TEXTARTEN = ("ersetzen", "verbinden", "trennen", "loeschen", "verschieben")
+TEXTARTEN = ("ersetzen", "verbinden", "trennen", "loeschen", "verschieben", "fussnote")
+FUSSNOTEN_AKTIONEN = ("marker-umbenennen", "marker-setzen", "marker-entfernen", "definition-umbenennen")
+MIN_KONTEXT = 8        # marker-setzen: so viele Zeichen Kontext vor der Einfuegestelle
 
 _FNV_OFFSET = 0xCBF29CE484222325
 _FNV_PRIME = 0x100000001B3
 _MASKE = 0xFFFFFFFFFFFFFFFF
 _ZEILENENDE = re.compile(r"\r?\n")
 _ABSATZ_TRENNER = re.compile(r"\n\s*\n")     # wie in korrektur.absatz_spannen
+# Fussnotenkennungen: nichts von ] [ und Leerraum (explizite Klasse, damit Python und JS gleich urteilen);
+# ein Marker ist [^id], solange kein ":" folgt (sonst ist es der Anfang einer Definition).
+_KENNUNG_ZEICHEN = r"[^\]\[ \t\r\n\f\v\u00a0]"
+_KENNUNG = re.compile(r"(?!\^)" + _KENNUNG_ZEICHEN + r"+\Z")
+_MARKER = re.compile(r"\[\^(" + _KENNUNG_ZEICHEN + r"+)\](?!:)")
 
 
 @dataclass
@@ -137,6 +144,90 @@ def _konflikt(text: str, grund: str) -> Ergebnis:
     return Ergebnis(text, STATUS_KONFLIKT, grund)
 
 
+def _kennung_ok(k: object) -> bool:
+    return isinstance(k, str) and _KENNUNG.match(k) is not None
+
+
+def _zaehle_ueberlappend(text: str, nadel: str) -> list[int]:
+    treffer, start = [], text.find(nadel)
+    while start >= 0:
+        treffer.append(start)
+        start = text.find(nadel, start + 1)
+    return treffer
+
+
+def _ganz(x: object) -> bool:
+    return isinstance(x, int) and not isinstance(x, bool)
+
+
+def _fussnote(text: str, absatz: str, a: int, b: int, ziel: dict, parameter: dict,
+              zeilen: list[str], trenner: str) -> Ergebnis:
+    """Fussnoten-Operationen innerhalb EINES Absatzes; nur `definition-umbenennen` prueft kapitelweit,
+    ob die neue Kennung schon als Definition vergeben ist."""
+    aktion = parameter.get("aktion")
+    if aktion not in FUSSNOTEN_AKTIONEN:
+        return _konflikt(text, f"unbekannte Fussnoten-Aktion: {aktion}")
+
+    if aktion in ("marker-umbenennen", "marker-entfernen"):
+        alt = parameter.get("alt" if aktion == "marker-umbenennen" else "id")
+        vk = parameter.get("vorkommen")
+        if not _kennung_ok(alt) or not _ganz(vk) or vk < 0:
+            return _konflikt(text, "Fussnoten-Parameter fehlerhaft (Kennung oder Vorkommen)")
+        treffer = [m for m in _MARKER.finditer(absatz) if m.group(1) == alt]
+        if vk >= len(treffer):
+            return _konflikt(text, f"Marker [^{alt}] (Vorkommen {vk}) nicht im Absatz")
+        m = treffer[vk]
+        if aktion == "marker-umbenennen":
+            neu = parameter.get("neu")
+            if not _kennung_ok(neu):
+                return _konflikt(text, "neue Kennung ungültig (leer, Leerraum oder eckige Klammer)")
+            if neu == alt:
+                return _konflikt(text, "neue Kennung ist die alte")
+            ersatz = f"[^{neu}]"
+        else:
+            ersatz = ""
+        return Ergebnis(text[:a] + absatz[:m.start()] + ersatz + absatz[m.end():] + text[b:], STATUS_ANGEWENDET)
+
+    if aktion == "marker-setzen":
+        kennung, nach = parameter.get("id"), parameter.get("nach")
+        if not _kennung_ok(kennung):
+            return _konflikt(text, "Kennung ungültig (leer, Leerraum oder eckige Klammer)")
+        if not isinstance(nach, str) or len(nach) < MIN_KONTEXT:
+            return _konflikt(text, f"Kontext für die Einfügestelle fehlt oder ist kürzer als {MIN_KONTEXT} Zeichen")
+        treffer = _zaehle_ueberlappend(absatz, nach)
+        if len(treffer) != 1:
+            return _konflikt(text, "Einfügestelle nicht gefunden" if not treffer else "Einfügestelle nicht eindeutig")
+        ende = treffer[0] + len(nach)
+        return Ergebnis(text[:a] + absatz[:ende] + f"[^{kennung}]" + absatz[ende:] + text[b:], STATUS_ANGEWENDET)
+
+    # definition-umbenennen
+    alt, neu, z = parameter.get("alt"), parameter.get("neu"), ziel.get("zeile")
+    if not _kennung_ok(alt) or not _kennung_ok(neu):
+        return _konflikt(text, "Kennung ungültig (leer, Leerraum oder eckige Klammer)")
+    if neu == alt:
+        return _konflikt(text, "neue Kennung ist die alte")
+    if not _ganz(z) or not (0 <= z < len(zeilen)):
+        return _konflikt(text, "Zeile der Definition fehlt oder liegt außerhalb des Absatzes")
+    kopf = f"[^{alt}]:"
+    if not zeilen[z].startswith(kopf):
+        return _konflikt(text, f"Zeile {z} ist keine Definition von [^{alt}]")
+    if any(zeile.startswith(f"[^{neu}]:") for zeile in _ZEILENENDE.split(text)):
+        return _konflikt(text, f"Kennung [^{neu}] ist im Kapitel schon als Definition vergeben")
+    zeilen = list(zeilen)
+    zeilen[z] = f"[^{neu}]:" + zeilen[z][len(kopf):]
+    return Ergebnis(text[:a] + trenner.join(zeilen) + text[b:], STATUS_ANGEWENDET)
+
+
+def _zeilenende_fuer(text: str, absatz: str) -> str:
+    """Zeilenende, das ein neu eingegebener mehrzeiliger Absatz bekommt: das des Absatzes, hat er
+    keinen Umbruch, das der Datei (CRLF, sobald irgendwo ein \\r\\n steht)."""
+    if "\r\n" in absatz:
+        return "\r\n"
+    if "\n" in absatz:
+        return "\n"
+    return "\r\n" if "\r\n" in text else "\n"
+
+
 def wende_an(text: str, eintrag: dict) -> Ergebnis:
     """Wendet einen Eintrag an. Ein fehlerhafter Eintrag (Einträge kommen von Geräten) liefert
     nie eine Ausnahme, sondern einen Konflikt mit Grund; der Text bleibt dann unverändert."""
@@ -186,7 +277,11 @@ def _wende_an(text: str, eintrag: dict) -> Ergebnis:
             return _konflikt(text, "parameter.nachher ist leer")
         if _ABSATZ_TRENNER.search(nachher.strip()):
             return _konflikt(text, "parameter.nachher enthält eine Leerzeile (würde den Absatz teilen)")
+        nachher = _ZEILENENDE.sub(_zeilenende_fuer(text, absatz), nachher)
         return Ergebnis(ersetze_absatz_exakt(text, index, nachher), STATUS_ANGEWENDET)
+
+    if art == "fussnote":
+        return _fussnote(text, absatz, a, b, ziel, parameter, zeilen, trenner)
 
     if art == "verbinden":
         z = ziel.get("zeile")

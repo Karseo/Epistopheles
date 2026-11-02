@@ -493,3 +493,18 @@ def test_auftrag_und_vorschlag_tragen_den_lektor_schluessel_wenn_gesetzt():
     assert "&lektor=Cathy%20O'Neil%2FWeapons%20of%20Math%20Destruction" in erg[1]["url"]
     assert "lektor" not in json.loads(erg[2]["body"])
     assert "lektor" not in erg[3]["url"]
+
+
+def test_fussnote_kennungen_und_kontext_randfaelle_wie_python():
+    text = "Kopf\n\nDer Satz 😀😀 hat eine Note[^1] und mehr."
+    faelle = []
+    for neu in ["a", "1.2", "x y", "x\ty", "", " ", "a[b", "a]b", "^x", "a^", "Ä", "\U0001F600", "a:b"]:
+        faelle.append({"text": text, "eintrag": _eintrag(text, 1, "fussnote",
+                       {"aktion": "marker-umbenennen", "alt": "1", "neu": neu, "vorkommen": 0})})
+    for nach in ["Satz 😀😀 hat", "😀😀 hat e", "hat eine Note", "hat eine", "ine Note[^1] u"]:
+        faelle.append({"text": text, "eintrag": _eintrag(text, 1, "fussnote",
+                       {"aktion": "marker-setzen", "id": "k", "nach": nach})})
+    erg = js("wendeAn", faelle=faelle)
+    for f, e in zip(faelle, erg):
+        py = ops.wende_an(f["text"], f["eintrag"])
+        assert (e["text"], e["status"]) == (py.text, py.status), f["eintrag"]["parameter"]

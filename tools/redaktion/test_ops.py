@@ -251,3 +251,32 @@ def test_fehlendes_vorher_hash_ist_konflikt_vorher_fehlt():
     del e["vorher"]["hash"]
     erg = ops.wende_an("Alpha eins.\n\nBeta zwei.", e)
     assert erg.status == "konflikt" and "vorher fehlt" in erg.grund
+
+
+# --- P2 Task 4: Fussnoten und Zeilenenden -----------------------------------------------------------
+
+def test_fussnote_aenderung_laesst_rest_byteidentisch():
+    """Review Focus 2: ausserhalb des Absatzes aendert sich kein Byte (Tabs, CRLF, Seitenmarker, HTML, kein Schluss-Newline)."""
+    text = ("Kopf\tmit Tab\r\n\r\nWort[^1]\tund\tTab[^2]\r\nzweite Zeile\r\n\r\n## Seite 12\r\n\r\n"
+            "<span class=\"x\">Roh</span>\r\n\r\n[^1]: Eins.\r\n[^2]: Zwei.")
+    a, b = absatz_spannen(text)[1]
+    e = _eintrag(text, 1, "fussnote", {"aktion": "marker-umbenennen", "alt": "2", "neu": "9", "vorkommen": 0})
+    erg = ops.wende_an(text, e)
+    assert erg.status == "angewendet"
+    assert erg.text == text[:a] + text[a:b].replace("[^2]", "[^9]") + text[b:]
+
+
+def test_fussnote_definition_umbenennen_prueft_kapitelweit_ueber_crlf():
+    text = "Kopf\r\n\r\n[^1]: Eins.\r\n\r\n[^5]: Fuenf."
+    e = _eintrag(text, 1, "fussnote", {"aktion": "definition-umbenennen", "alt": "1", "neu": "5"}, zeile=0)
+    erg = ops.wende_an(text, e)
+    assert erg.status == "konflikt" and "vergeben" in erg.grund and erg.text == text
+
+
+def test_fussnote_kette_abhaengig_nennt_ausloeser():
+    text = "Kopf\n\n[^1]: Eins.\n[^2]: Zwei."
+    e1 = _eintrag(text, 1, "fussnote", {"aktion": "definition-umbenennen", "alt": "2", "neu": "3"}, zeile=1)
+    e1["vorher"]["hash"] = "0" * 16
+    e2 = _eintrag(text, 1, "fussnote", {"aktion": "definition-umbenennen", "alt": "1", "neu": "9"}, zeile=0)
+    _, erg = ops.spiele_ab(text, [e1, e2])
+    assert [r.status for r in erg] == ["konflikt", "konflikt"] and e1["id"] in erg[1].grund
