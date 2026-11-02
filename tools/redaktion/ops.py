@@ -68,6 +68,17 @@ def pruefsumme(text: str) -> str:
     return f"{h:016x}"
 
 
+_letzte_zeit = [0]
+
+
+def _jetzt_iso() -> str:
+    """UTC mit Millisekunden, streng steigend (auch innerhalb einer Millisekunde): die Reihenfolge der Eintraege
+    eines Geraets ist aus `erstellt` ablesbar, Ketten am selben Absatz bauen darauf auf."""
+    ms = max(int(datetime.now(timezone.utc).timestamp() * 1000), _letzte_zeit[0] + 1)
+    _letzte_zeit[0] = ms
+    return datetime.fromtimestamp(ms / 1000, timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.") + f"{ms % 1000:03d}Z"
+
+
 def neuer_eintrag(buch: str, ebene: str, ziel: dict, art: str, parameter: dict,
                   vorher_text: str, hinweis: str = "", geraet: str = "") -> dict:
     return {
@@ -80,7 +91,7 @@ def neuer_eintrag(buch: str, ebene: str, ziel: dict, art: str, parameter: dict,
         "vorher": {"hash": pruefsumme(vorher_text), "ausschnitt": vorher_text[:80]},
         "nachher": parameter.get("nachher"),
         "hinweis": hinweis,
-        "erstellt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "erstellt": _jetzt_iso(),
         "geraet": geraet,
         "status": "offen",
     }

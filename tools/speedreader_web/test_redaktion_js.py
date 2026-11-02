@@ -190,7 +190,7 @@ def test_neuer_eintrag_form():
     assert e["nachher"] == "Beta!" and e["hinweis"] == "Hinweis" and e["geraet"] == "geraet-1"
     assert e["status"] == "offen" and len(e["id"]) == 12
     assert e["parameter"] == {"nachher": "Beta!"} and e["ziel"]["anfang"] == "Beta"
-    assert len(e["erstellt"]) == 20 and e["erstellt"].endswith("Z")
+    assert len(e["erstellt"]) == 24 and e["erstellt"].endswith("Z")      # mit Millisekunden
 
 
 # ---- Speicher, Senden, Stand, Zaehler (Task 7) ---------------------------------------------------------
@@ -524,3 +524,14 @@ def test_trennen_mit_kontext_randfaelle_wie_python():
     for f, e in zip(faelle, erg):
         py = ops.wende_an(f["text"], f["eintrag"])
         assert (e["text"], e["status"]) == (py.text, py.status), f["eintrag"]["parameter"]
+
+
+def test_neuer_eintrag_zeit_hat_millisekunden_und_steigt_streng():
+    erg = js_async("""
+      const z = [];
+      for (let i = 0; i < 200; i++) z.push(R.neuerEintrag("A/T", "volltext", { anfang: "x" }, "marke", {}, "x", "", "g").erstellt);
+      return z;
+    """)
+    import re
+    assert all(re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z", z) for z in erg)
+    assert erg == sorted(set(erg))

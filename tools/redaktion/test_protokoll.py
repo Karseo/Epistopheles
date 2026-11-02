@@ -208,3 +208,11 @@ def test_pruefe_schluessel_gibt_gueltige_unveraendert_zurueck_und_lehnt_unsicher
     for schlecht in ("../x/y", "A/../B", "/abs/y", "A", "A/B/C", "A/", "A\\B/C", 5, None):
         with pytest.raises(ValueError):
             pruefe_schluessel(schlecht)
+
+
+def test_lade_eingang_sortiert_gleiche_sekunde_nach_millisekunden(tmp_path):
+    """Eintraege derselben Sekunde duerfen nicht umgeordnet werden (Ketten bauen aufeinander auf); Eintraege
+    ohne Millisekunden (aeltere Geraete) zaehlen als .000."""
+    schreibe_eingang(tmp_path, "g1", BUCH, [eintrag("c", "2026-11-02T10:00:00.250Z"), eintrag("a", "2026-11-02T10:00:00Z")])
+    schreibe_eingang(tmp_path, "g2", BUCH, [eintrag("b", "2026-11-02T10:00:00.100Z"), eintrag("d", "2026-11-02T10:00:01Z")])
+    assert [e["id"] for e in lade_eingang(tmp_path, BUCH)] == ["a", "b", "c", "d"]

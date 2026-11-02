@@ -280,3 +280,10 @@ def test_fussnote_kette_abhaengig_nennt_ausloeser():
     e2 = _eintrag(text, 1, "fussnote", {"aktion": "definition-umbenennen", "alt": "1", "neu": "9"}, zeile=0)
     _, erg = ops.spiele_ab(text, [e1, e2])
     assert [r.status for r in erg] == ["konflikt", "konflikt"] and e1["id"] in erg[1].grund
+
+
+def test_neuer_eintrag_zeit_hat_millisekunden_und_steigt_streng():
+    import re
+    zeiten = [ops.neuer_eintrag("A/T", "volltext", {"anfang": "x"}, "marke", {}, "x")["erstellt"] for _ in range(50)]
+    assert all(re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z", z) for z in zeiten)
+    assert zeiten == sorted(set(zeiten))                       # keine Gleichstaende: Reihenfolge bleibt erhalten

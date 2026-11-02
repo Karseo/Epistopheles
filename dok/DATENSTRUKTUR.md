@@ -43,8 +43,11 @@ D:\Workspace\!Episto\
 |---|---|
 | Eingang der Einträge | `hilfsdaten\redaktion\eingang\<Buchschlüssel>\` (eine Datei je Sendung, `_stand.json` mit dem Status je `id`); der Buchschlüssel `Autor, Vorname/Titel` wird geprüft und bei Unsicherheit abgelehnt |
 | Token des Empfängers | `hilfsdaten\redaktion\token.txt` (nie im Paket, nicht in Git/Syncthing) |
-| angewendete Korrekturen | `rohdaten\Lektor\<Autor>\<Titel>\redaktion.json` (`lektor-zu-episto.py --ueberschreiben` spielt nur `reader\<Buch>\notizen\redaktion.json` mit Ebene `volltext` erneut ein, nicht diese Datei; `ebook-translate.py` bricht ohne `--resume` ab, solange sie existiert) |
-| Backups vor jedem Schreiben | `rohdaten\Lektor\<Autor>\<Titel>\notizen\_backup` (kein Backup vor `lektor-zu-episto.py --ueberschreiben`) |
+| angewendete Korrekturen, Chunks | `rohdaten\Lektor\<Autor>\<Titel>\redaktion.json` (`ebook-translate.py` bricht ohne `--resume` ab, solange sie existiert) |
+| angewendete Korrekturen, Volltext | `reader\<Autor>\<Werk>\notizen\redaktion.json`: `eintraege` (Ebene `volltext`, Anwendungsreihenfolge) und `dateien` (je `quelle\*.md`: `hash_original`, `hash_aktuell`, `zuletzt`); versioniert und synchronisiert; `lektor-zu-episto.py --ueberschreiben` spielt sie nach dem Neuaufbau wieder ein |
+| Bericht des Nachspiels | `reader\<Autor>\<Werk>\notizen\redaktion-nachspiel.json` (nicht anwendbare Einträge einzeln mit `id`, `datei`, `grund`; `basis_geaendert`); verschwindet, wenn nichts zu melden ist |
+| Backups vor jedem Schreiben | Chunks: `rohdaten\Lektor\<Autor>\<Titel>\notizen\_backup`; Volltext: `reader\<Autor>\<Werk>\notizen\_backup` (auch `quelle-<Zeit>\` vor `lektor-zu-episto.py --ueberschreiben`, wenn das Protokoll Volltext-Einträge enthält) |
+| Stand im Export | `reader\export-epistopheles\korrektur\k0xx.json`: je Kapitel `datei`, dazu `enthalten` (Ids angewendeter Volltext-Einträge, die im Text stecken); `index.json`: je Buch `reader` / `lektor` (Schlüssel `Autor/Titel`) und `chunkSprache` |
 | Übersetzungsvorschläge | `de\chunk_NNN.md.neu` im Lektor-Buchordner, bis zur Übernahme |
 
 Programme: `tools\redaktion_server.py` (Empfänger, von Hand starten), `tools\redaktion_anwenden.py`

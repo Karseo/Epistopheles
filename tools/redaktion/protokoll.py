@@ -114,6 +114,15 @@ def _geraet_bereinigt(geraet: object) -> str:
     return name or "geraet"
 
 
+_OHNE_MS = re.compile(r"(\d{2}:\d{2}:\d{2})Z\Z")
+
+
+def _zeitschluessel(erstellt: object) -> str:
+    """Sortierschluessel fuer `erstellt`: Zeiten ohne Millisekunden (aeltere Geraete) zaehlen als `.000`, damit sie
+    sich mit Zeiten mit Millisekunden richtig mischen (sonst sortiert `…:05Z` hinter `…:05.123Z`)."""
+    return _OHNE_MS.sub(r"\1.000Z", str(erstellt if erstellt is not None else ""))
+
+
 def lade_eingang(root: Path, buch: str) -> list[dict]:
     """Alle Eintraege des Buchs, nach `erstellt` sortiert, je `id` einmal.
 
@@ -126,7 +135,7 @@ def lade_eingang(root: Path, buch: str) -> list[dict]:
         for e in daten:
             if isinstance(e, dict) and isinstance(e.get("id"), str):
                 gesehen.setdefault(e["id"], e)
-    return sorted(gesehen.values(), key=lambda e: str(e.get("erstellt", "")))
+    return sorted(gesehen.values(), key=lambda e: _zeitschluessel(e.get("erstellt")))
 
 
 def schreibe_eingang(root: Path, geraet: str, buch: str, eintraege: list[dict]) -> list[str]:

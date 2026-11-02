@@ -23,3 +23,18 @@ def test_testwurzel_rohchunks_haben_tabs_und_gebrochenen_satz(tmp_path):
     root = baue_testwurzel(tmp_path / "wurzel")
     chunk = (root / "rohdaten" / "Lektor" / "Test, Autor" / "Testbuch" / "en" / "chunk_000.md").read_text(encoding="utf-8")
     assert "\t" in chunk and "— 47 —" in chunk and "betonte¹" in chunk and "12 Vgl. Pitkin (1967), S. 8." in chunk
+
+
+def test_paket_enthaelt_alle_app_dateien_und_die_neuen_exportfelder(tmp_path):
+    """Gesamtlauf Schritt 1 (P2 Task 14): Export und Paket auf der Testwurzel vollstaendig."""
+    import json
+    from redaktion.testwurzel import baue_testwurzel
+    root = baue_testwurzel(tmp_path / "w")
+    paket = root / "reader" / "export-epistopheles"
+    for name in ("index.html", "korrektur.html", "redaktion.js", "verdacht.js", "fussnoten.js", "ursache.js",
+                 "chunkansicht.js", "korrektur/index.json", "korrektur/k001.json"):
+        assert (paket / name).is_file(), name
+    buch = json.loads((paket / "korrektur" / "k001.json").read_text(encoding="utf-8"))
+    assert buch["enthalten"] == [] and buch["kapitel"][0]["datei"].endswith(".md")
+    eintrag = json.loads((paket / "korrektur" / "index.json").read_text(encoding="utf-8"))["buecher"][0]
+    assert eintrag["reader"] == "Test, Autor/Testbuch" and eintrag["lektor"] == "Test, Autor/Testbuch"

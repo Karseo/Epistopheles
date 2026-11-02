@@ -61,6 +61,7 @@
     const abspiel = [], marken = new Set();
     for (const e of mein) {
       if (e.art === "marke") { if (typeof e.ziel.zeile === "number") marken.add(e.ziel.anfang + "\u0001" + e.ziel.zeile); continue; }
+      if (o.enthalten && o.enthalten.has(e.id)) continue;            // steckt schon im exportierten Text, egal welchen Status die App gerade kennt
       // Am PC angewendet, aber noch nicht im exportierten Text (veralteter Export): trotzdem abspielen (Volltext)
       const imExport = e.status === "angewendet" && o.enthalten && !o.enthalten.has(e.id);
       if (!imExport && (e.status === "angewendet" || e.status === "abgelehnt" || e.status === "uebersprungen")) continue;

@@ -35,6 +35,7 @@ def seite(browser, tmp_path):
 
 
 def hervorgehoben(pg):
+    pg.wait_for_function("() => { const h = CSS.highlights.get('ursache'); return !!h && h.size > 0; }")     # wird im nächsten Frame gesetzt
     return pg.evaluate("""() => { const h = CSS.highlights.get('ursache'); if (!h || !h.size) return null;
       return [...h][0].toString(); }""")
 

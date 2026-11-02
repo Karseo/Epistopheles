@@ -172,6 +172,7 @@ const eAndere = mk("ersetzen", { datei: "0002_b.md", anfang: R.ankerVon(abs1), a
 const leer = C.bereite(roh, [], D, [], true, VT);
 const mitV = C.bereite(roh, [eV, eChunk, eAndere], D, [], true, VT);
 const mitVAngewendet = Object.assign({}, eV, { status: "angewendet" });
+const gesendetImExport = C.bereite(roh.replace("Note[^2]", "Note[^7]"), [Object.assign({}, eV, { status: "gesendet" })], D, [], true, Object.assign({ enthalten: new Set([eV.id]) }, VT));
 const nichtImExport = C.bereite(roh, [mitVAngewendet], D, [], true, Object.assign({ enthalten: new Set([]) }, VT));
 const imExport = C.bereite(roh.replace("Note[^2]", "Note[^7]"), [mitVAngewendet], D, [], true, Object.assign({ enthalten: new Set([eV.id]) }, VT));
 const luecke = C.bereite(roh.replace("Note[^2]", "Note[^9]"), [mitVAngewendet], D, [], true, Object.assign({ enthalten: new Set([]) }, VT));
@@ -183,6 +184,7 @@ process.stdout.write(JSON.stringify({
   hinweiseLeer: leer.hinweise.map(x => [x.art, x.absatz_index, x.zeile]), ebene: leer.ebene, zielfeld: leer.zielfeld, chunk: leer.chunk,
   mitV: mitV.text, mitVKonflikte: mitV.konflikte.length,
   nichtImExport: nichtImExport.text, nichtImExportLuecke: nichtImExport.luecke.length,
+  gesendetImExport: gesendetImExport.text, gesendetImExportKonflikte: gesendetImExport.konflikte.length,
   imExport: imExport.text, imExportLuecke: imExport.luecke.length, imExportKonflikte: imExport.konflikte.length,
   lueckeKonflikte: luecke.konflikte.length, lueckeLuecke: luecke.luecke.length,
   entwurf: d, entwuerfeZiel: ent.liste && ent.liste[0].ziel, chunkNebenText: chunkNeben.text === roh,
@@ -235,3 +237,9 @@ def test_signatur_volltext_haengt_nur_von_eigener_datei_und_ebene_ab():
     e = lauf_vt()
     assert e["sigVt"] != e["sigVtAnderes"]
     assert "b|0" == e["sigChunk"]                                           # Chunk-Ansicht sieht den Volltext-Eintrag nicht
+
+
+def test_eintrag_im_export_wird_nie_erneut_abgespielt_auch_wenn_der_stand_noch_gesendet_ist():
+    """Der Stand `angewendet` kommt erst mit dem naechsten Abruf von APIC; `enthalten` im Export gilt sofort."""
+    e = lauf_vt()
+    assert e["gesendetImExport"] == ROH_VT.replace("Note[^2]", "Note[^7]") and e["gesendetImExportKonflikte"] == 0

@@ -2,7 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** Entwurf, wartet auf Freigabe (Abschnitt „Entscheidungen zur Freigabe“). Umsetzung erst danach.
+**Status:** freigegeben und umgesetzt (Tasks 1 bis 14 und 12a, Stand 2026-11-02). Abweichungen vom Plan stehen in den Commit-Texten und in `tools/speedreader_web/README.md`, Abschnitt „Redaktion“.
+
+**Umsetzungsnotizen:** Task 5 (JS) wurde zusammen mit Task 4 gebaut (gemeinsamer Paritätstest). `erstellt` hat seit Task 14 Millisekunden und steigt je Gerät streng (der Gesamtlauf zeigte, dass Einträge derselben Sekunde im Eingang umgeordnet wurden); der Eingang sortiert mit normalisiertem Schlüssel.
 
 **Goal:** Auf Epistopheles den fertigen Volltext (`reader\<Autor>\<Werk>\quelle\*.md`) direkt korrigieren (Absatz bearbeiten, Zeilen verbinden / trennen / löschen / verschieben, markieren), Fußnoten zuordnen (Hochzahl im Text ↔ Fußnotentext am Kapitelende) und von einer Textstelle zur Ursache im Chunk springen. Die Einträge fließen wie in P1 zu APIC und werden dort mit `redaktion_anwenden.py` kontrolliert in `quelle\*.md` eingearbeitet; `lektor-zu-episto.py` spielt sie nach einem Neuaufbau wieder ein, statt sie still zu vernichten.
 

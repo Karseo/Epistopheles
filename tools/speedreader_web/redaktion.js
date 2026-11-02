@@ -69,6 +69,13 @@
     return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
   }
 
+  /** UTC mit Millisekunden, streng steigend: die Reihenfolge der Eintraege eines Geraets bleibt aus `erstellt` ablesbar. */
+  let letzteZeit = 0;
+  function jetztIso() {
+    letzteZeit = Math.max(Date.now(), letzteZeit + 1);
+    return new Date(letzteZeit).toISOString();
+  }
+
   function neuerEintrag(buch, ebene, ziel, art, parameter, vorherText, hinweis, geraet) {
     parameter = parameter || {};
     return {
@@ -81,7 +88,7 @@
       vorher: { hash: pruefsumme(vorherText), ausschnitt: zeichen(vorherText).slice(0, 80).join("") },
       nachher: hat(parameter, "nachher") ? parameter.nachher : null,
       hinweis: hinweis || "",
-      erstellt: new Date().toISOString().replace(/\.\d+Z$/, "Z"),
+      erstellt: jetztIso(),
       geraet: geraet || "",
       status: "offen",
     };
