@@ -565,3 +565,89 @@ def test_uebernehmen_loest_keine_andere_aenderung_aus_und_laesst_original_chunk_
     assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
     assert ra.chunk_datei(tmp_path, BUCH, 1).read_text(encoding="utf-8").startswith(NEU)
     assert (de / "chunk_001.md").read_bytes() == DE_NEU.encode("utf-8")
+
+
+# ----------------------------------------------------------------- P2 Task 2: Lektor-Schlüssel und Sprache
+
+LEKTOR_ALT = "Cathy O'Neil/Weapons of Math Destruction"       # Lektor-Ordner heißt anders als das Bibliotheksbuch
+
+
+def _mit_ziel(e: dict, **ziel) -> dict:
+    e = dict(e)
+    e["ziel"] = {**e["ziel"], **ziel}
+    return e
+
+
+def _baue_abweichend(tmp: Path, sprache_ordner: str = "en", quellsprache: str = "en",
+                     eintraege=None, lektor_schluessel: str = LEKTOR_ALT) -> Path:
+    autor, titel = lektor_schluessel.split("/")
+    lek = tmp / "rohdaten" / "Lektor" / autor / titel
+    (lek / sprache_ordner).mkdir(parents=True)
+    (lek / "meta.json").write_text(json.dumps({"quellsprache": quellsprache}), encoding="utf-8")
+    (lek / sprache_ordner / "chunk_001.md").write_bytes(ALT.encode("utf-8"))
+    if eintraege is not None:
+        protokoll.schreibe_eingang(tmp, "tablet", BUCH, eintraege)
+    return lek
+
+
+def test_lektor_schluessel_im_ziel_ueberschreibt_den_buchschluessel(tmp_path, capsys):
+    lek = _baue_abweichend(tmp_path, eintraege=[_mit_ziel(eintrag(), lektor=LEKTOR_ALT)])
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
+    assert (lek / "en" / "chunk_001.md").read_text(encoding="utf-8").startswith(NEU)
+    assert (lek / "redaktion.json").is_file()
+    assert not (tmp_path / "rohdaten" / "Lektor" / "Autor, Vorname").exists()      # nichts am Bibliotheksnamen angelegt
+
+
+def test_unsicherer_lektor_schluessel_ist_konflikt(tmp_path, capsys):
+    for schlecht in ("../x/y", "A/../B", "/abs/y", "A", "A/B/C", 5):
+        protokoll_root = tmp_path / str(abs(hash(str(schlecht))))
+        baue(protokoll_root, eintraege=[_mit_ziel(eintrag(), lektor=schlecht)])
+        assert ra.main(["--root", str(protokoll_root), "--ausfuehren"]) == 2
+        assert "Lektor-Schlüssel" in capsys.readouterr().out
+        assert ra.chunk_datei(protokoll_root, BUCH, 1).read_text(encoding="utf-8") == ALT       # nichts geschrieben
+
+
+def test_sprache_en_bei_deutscher_quelle_schreibt_in_en(tmp_path):
+    """Popper: Quelle deutsch, Rohchunks englisch."""
+    lek = _baue_abweichend(tmp_path, sprache_ordner="en", quellsprache="de",
+                           lektor_schluessel=BUCH, eintraege=[_mit_ziel(eintrag(), sprache="en")])
+    assert ra.chunk_datei(tmp_path, BUCH, 1, {"sprache": "en"}) == lek / "en" / "chunk_001.md"
+    assert ra.chunk_datei(tmp_path, BUCH, 1) == lek / "de" / "chunk_001.md"             # ohne Ziel wie bisher
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
+    assert (lek / "en" / "chunk_001.md").read_text(encoding="utf-8").startswith(NEU)
+
+
+@pytest.mark.parametrize("sprache", ["fr", "../en", "", 3, "EN"])
+def test_sprache_ausserhalb_der_whitelist_ist_konflikt(tmp_path, capsys, sprache):
+    baue(tmp_path, eintraege=[_mit_ziel(eintrag(), sprache=sprache)])
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 2
+    assert "Sprache" in capsys.readouterr().out
+    assert ra.chunk_datei(tmp_path, BUCH, 1).read_text(encoding="utf-8") == ALT
+
+
+def test_ohne_lektor_und_sprache_unveraendertes_verhalten(tmp_path):
+    baue(tmp_path, eintraege=[eintrag()])
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
+    assert ra.chunk_datei(tmp_path, BUCH, 1).read_text(encoding="utf-8").startswith(NEU)
+
+
+def test_uneinheitliches_ziel_im_selben_buch_ist_konflikt(tmp_path, capsys):
+    """Ein Lauf bearbeitet je Buch genau einen Lektor-Ordner; abweichende Einträge bleiben liegen."""
+    lek = _baue_abweichend(tmp_path)
+    e1 = _mit_ziel(eintrag(), lektor=LEKTOR_ALT)
+    e2 = _mit_ziel(eintrag("Zweiter Absatz bleibt.", "Zweiter neu.", index=1), lektor="Anderer/Ordner")
+    protokoll.schreibe_eingang(tmp_path, "tablet", BUCH, [e1, e2])
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 2
+    out = capsys.readouterr().out
+    assert "uneinheitliches Ziel" in out
+    text = (lek / "en" / "chunk_001.md").read_text(encoding="utf-8")
+    assert text.startswith(NEU) and "Zweiter Absatz bleibt." in text
+
+
+def test_en_chunks_kopie_folgt_dem_lektor_schluessel(tmp_path):
+    lek = _baue_abweichend(tmp_path, eintraege=[_mit_ziel(eintrag(), lektor=LEKTOR_ALT)])
+    ec = tmp_path / "rohdaten" / "en-chunks" / "Cathy O'Neil" / "Weapons of Math Destruction"
+    ec.mkdir(parents=True)
+    (ec / "chunk_001.md").write_bytes(ALT.encode("utf-8"))
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
+    assert (ec / "chunk_001.md").read_text(encoding="utf-8").startswith(NEU)

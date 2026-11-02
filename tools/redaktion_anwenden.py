@@ -57,6 +57,7 @@ class ChunkPlan:
     alt: str
     neu: str
     ergebnisse: list[EintragErgebnis] = field(default_factory=list)
+    sprache: str = ""        # "en" | "de": Unterordner des Lektors, in dem der Chunk liegt
 
     @property
     def geaendert(self) -> bool:
@@ -80,6 +81,7 @@ class UebernahmePlan:
 class BuchPlan:
     buch: str
     lektor: Path | None = None
+    lektor_key: str = ""                               # Schlüssel des Lektor-Ordners (Eintrag `ziel.lektor` oder Buch)
     hinweis: str | None = None                         # z. B. ungültiger Ordnername
     chunks: list[ChunkPlan] = field(default_factory=list)
     uebernahmen: list[UebernahmePlan] = field(default_factory=list)
@@ -103,9 +105,33 @@ class BuchPlan:
 
 # --------------------------------------------------------------------------- Pfade
 
-def lektor_ordner(root: Path, buch: str) -> Path:
+SPRACHEN = ("en", "de")
+
+
+def lektor_schluessel(buch: str, ziel: dict | None = None) -> str:
+    """Schlüssel des Lektor-Ordners: `ziel["lektor"]`, wenn der Eintrag ihn nennt (O'Neil, Piano:
+    Lektor-Ordner heißt anders als das Bibliotheksbuch), sonst `buch`. ValueError bei unsicherem Schlüssel."""
+    if isinstance(ziel, dict) and "lektor" in ziel:
+        try:
+            return protokoll.pruefe_schluessel(ziel["lektor"])
+        except ValueError as exc:
+            raise ValueError(f"Lektor-Schlüssel ungültig: {exc}") from None
+    return buch
+
+
+def chunk_sprache(ziel: dict | None) -> str | None:
+    """`ziel["sprache"]` (nur `en`/`de`), `None` wenn der Eintrag keine nennt; sonst ValueError."""
+    if isinstance(ziel, dict) and "sprache" in ziel:
+        s = ziel["sprache"]
+        if isinstance(s, str) and s in SPRACHEN:
+            return s
+        raise ValueError(f"Sprache ungültig: {s!r} (erlaubt: en, de)")
+    return None
+
+
+def lektor_ordner(root: Path, buch: str, ziel: dict | None = None) -> Path:
     protokoll.eingang_ordner(root, buch)      # prüft den Schlüssel (ValueError)
-    autor, titel = buch.split("/")
+    autor, titel = lektor_schluessel(buch, ziel).split("/")
     return Path(root) / "rohdaten" / "Lektor" / autor / titel
 
 
@@ -117,13 +143,13 @@ def quellsprache(lektor: Path) -> str:
     return "de" if isinstance(meta, dict) and meta.get("quellsprache") == "de" else "en"
 
 
-def chunk_datei(root: Path, buch: str, chunk: int) -> Path:
-    lektor = lektor_ordner(root, buch)
-    return lektor / quellsprache(lektor) / f"chunk_{chunk:03d}.md"
+def chunk_datei(root: Path, buch: str, chunk: int, ziel: dict | None = None) -> Path:
+    lektor = lektor_ordner(root, buch, ziel)
+    return lektor / (chunk_sprache(ziel) or quellsprache(lektor)) / f"chunk_{chunk:03d}.md"
 
 
-def en_chunks_datei(root: Path, buch: str, chunk: int) -> Path:
-    autor, titel = buch.split("/")
+def en_chunks_datei(root: Path, buch: str, chunk: int, ziel: dict | None = None) -> Path:
+    autor, titel = lektor_schluessel(buch, ziel).split("/")
     return Path(root) / "rohdaten" / "en-chunks" / autor / titel / f"chunk_{chunk:03d}.md"
 
 
@@ -303,7 +329,31 @@ def _plane_buch(root: Path, buch: str) -> BuchPlan:
     if not offen and not uebernahmen:
         return plan
 
-    lektor = lektor_ordner(root, buch)
+    # Ziel je Eintrag prüfen (Lektor-Schlüssel, Sprache); ein Lauf bearbeitet je Buch einen Lektor-Ordner.
+    ziele: dict[str, tuple[str, str | None]] = {}
+    brauchbar: list[dict] = []
+    for e in offen + uebernahmen:
+        z = e.get("ziel") if isinstance(e.get("ziel"), dict) else {}
+        try:
+            ziele[e["id"]] = (lektor_schluessel(buch, z), chunk_sprache(z))
+        except ValueError as exc:
+            plan.konflikte.append(EintragErgebnis(e, ops.STATUS_KONFLIKT, str(exc)))
+        else:
+            brauchbar.append(e)
+    offen = [e for e in offen if e in brauchbar]
+    uebernahmen = [e for e in uebernahmen if e in brauchbar]
+    if not offen and not uebernahmen:
+        return plan
+    erster = ziele[(offen + uebernahmen)[0]["id"]][0]
+    plan.lektor_key = erster
+    for e in list(offen + uebernahmen):
+        if ziele[e["id"]][0] != erster:
+            plan.konflikte.append(EintragErgebnis(
+                e, ops.STATUS_KONFLIKT, f"uneinheitliches Ziel: Lektor-Ordner {ziele[e['id']][0]!r}, "
+                                        f"in diesem Lauf wird {erster!r} bearbeitet"))
+            offen = [x for x in offen if x is not e]
+            uebernahmen = [x for x in uebernahmen if x is not e]
+    lektor = lektor_ordner(root, buch, {"lektor": erster})
     plan.lektor = lektor
     if not lektor.is_dir():
         plan.konflikte += [EintragErgebnis(e, ops.STATUS_KONFLIKT, "Lektor-Ordner fehlt") for e in offen + uebernahmen]
@@ -320,8 +370,8 @@ def _plane_buch(root: Path, buch: str) -> BuchPlan:
     for e in [x for x in offen + uebernahmen if x["id"] in vermerkt]:
         n = _chunk_nummer(e)
         n = n if n is not None else 0
-        plan.chunks.append(ChunkPlan(n, chunk_datei(root, buch, n), "", "",
-                                     [EintragErgebnis(e, ops.STATUS_ANGEWENDET)]))
+        plan.chunks.append(ChunkPlan(n, chunk_datei(root, buch, n, e.get("ziel")), "", "",
+                                     [EintragErgebnis(e, ops.STATUS_ANGEWENDET)], ziele[e["id"]][1] or ""))
     offen = [e for e in offen if e["id"] not in vermerkt]
     uebernahmen = [e for e in uebernahmen if e["id"] not in vermerkt]
 
@@ -341,17 +391,25 @@ def _plane_buch(root: Path, buch: str) -> BuchPlan:
             je_chunk.setdefault(n, []).append(e)
 
     for n in sorted(je_chunk):
-        datei = chunk_datei(root, buch, n)
+        sprachen = [ziele[e["id"]][1] for e in je_chunk[n]]
+        sprache = sprachen[0]
+        for e, s_e in zip(list(je_chunk[n]), sprachen):
+            if s_e != sprache:
+                plan.konflikte.append(EintragErgebnis(
+                    e, ops.STATUS_KONFLIKT, f"uneinheitliches Ziel: Chunk {n:03d} mit Sprache {s_e!r} statt {sprache!r}"))
+                je_chunk[n].remove(e)
+        zeig = {"lektor": erster, **({"sprache": sprache} if sprache else {})}
+        datei = chunk_datei(root, buch, n, zeig)
         try:
             alt = _lies_text(datei)
         except (OSError, UnicodeDecodeError) as exc:
             grund = "Chunk-Datei fehlt" if isinstance(exc, FileNotFoundError) else f"Chunk-Datei nicht lesbar ({type(exc).__name__})"
             plan.chunks.append(ChunkPlan(n, datei, "", "", [
-                EintragErgebnis(e, ops.STATUS_KONFLIKT, grund) for e in je_chunk[n]]))
+                EintragErgebnis(e, ops.STATUS_KONFLIKT, grund) for e in je_chunk[n]], datei.parent.name))
             continue
         neu, ergebnisse = ops.spiele_ab(alt, je_chunk[n])
         plan.chunks.append(ChunkPlan(n, datei, alt, neu, [
-            EintragErgebnis(e, r.status, r.grund) for e, r in zip(je_chunk[n], ergebnisse)]))
+            EintragErgebnis(e, r.status, r.grund) for e, r in zip(je_chunk[n], ergebnisse)], datei.parent.name))
     return plan
 
 
@@ -424,8 +482,8 @@ def _fuehre_chunk_aus(root: Path, plan: BuchPlan, cp: ChunkPlan, zaehler: dict,
                 return
 
     if geschrieben:
-        if quellsprache(lektor) == "en":
-            spiegel = en_chunks_datei(root, buch, cp.chunk)
+        if cp.sprache == "en":
+            spiegel = en_chunks_datei(root, buch, cp.chunk, {"lektor": plan.lektor_key})
             try:
                 if spiegel.is_file():
                     backup_before_write(lektor, spiegel)

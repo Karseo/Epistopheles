@@ -199,3 +199,12 @@ def test_liste_buecher(tmp_path):
     (basis / "NurAutor").mkdir()
     (basis / "Tief" / "A" / "B").mkdir(parents=True)
     assert liste_buecher(tmp_path) == ["Alf, X/Werk (1)", "Tief/A", "Zed/Buch"]
+
+
+def test_pruefe_schluessel_gibt_gueltige_unveraendert_zurueck_und_lehnt_unsichere_ab():
+    from redaktion.protokoll import pruefe_schluessel
+    for ok in ("Cathy O'Neil/Weapons of Math Destruction", "Müller, Äh/Ü.ber (1)"):
+        assert pruefe_schluessel(ok) == ok
+    for schlecht in ("../x/y", "A/../B", "/abs/y", "A", "A/B/C", "A/", "A\\B/C", 5, None):
+        with pytest.raises(ValueError):
+            pruefe_schluessel(schlecht)

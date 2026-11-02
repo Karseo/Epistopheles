@@ -50,14 +50,22 @@ def _eingang_basis(root: Path) -> Path:
     return Path(root) / "hilfsdaten" / "redaktion" / "eingang"
 
 
+def pruefe_schluessel(wert: object) -> str:
+    """Prueft einen Buchschluessel `"Autor/Titel"` (auch den Lektor-Schluessel eines Eintrags);
+    gibt ihn unveraendert zurueck oder wirft ValueError. Nie 'reparieren'."""
+    if not isinstance(wert, str):
+        raise ValueError("Buchschluessel ist kein Text")
+    teile = wert.split("/")
+    if len(teile) != 2:
+        raise ValueError(f"Buchschluessel braucht genau zwei Teile: {wert!r}")
+    for t in teile:
+        _pruefe_teil(t)
+    return wert
+
+
 def eingang_ordner(root: Path, buch: str) -> Path:
     """Eingangsordner eines Buchs `"Autor/Titel"`; wirft ValueError bei unsicheren Namen."""
-    if not isinstance(buch, str):
-        raise ValueError("Buchschluessel ist kein Text")
-    teile = buch.split("/")
-    if len(teile) != 2:
-        raise ValueError(f"Buchschluessel braucht genau zwei Teile: {buch!r}")
-    autor, titel = (_pruefe_teil(t) for t in teile)
+    autor, titel = pruefe_schluessel(buch).split("/")
     basis = _eingang_basis(root)
     ziel = basis / autor / titel
     try:
