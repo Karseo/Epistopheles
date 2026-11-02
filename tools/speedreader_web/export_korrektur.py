@@ -96,6 +96,27 @@ def pfad_aus_meta(quelldatei: str, ebooks: Path | None = None) -> Path | None:
     return pfad
 
 
+def _lies_kapitel(buch: library.Buch, datei: str) -> str:
+    """Kapiteltext aus den Bytes der Datei (UTF-8): Zeilenenden bleiben unveraendert
+    (read_text wuerde \\r\\n zu \\n machen)."""
+    return (buch.pfad / "quelle" / datei).read_bytes().decode("utf-8")
+
+
+def _enthalten(buch: library.Buch) -> list[str]:
+    """Ids der Volltext-Eintraege, die schon angewendet sind (reader\\..\\notizen\\redaktion.json) und
+    damit im exportierten Kapiteltext stecken. Fehlende oder kaputte Datei: leer."""
+    try:
+        roh = json.loads((buch.pfad / "notizen" / "redaktion.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    liste = roh.get("eintraege") if isinstance(roh, dict) else None
+    if not isinstance(liste, list):
+        return []
+    return [e["id"] for e in liste
+            if isinstance(e, dict) and isinstance(e.get("id"), str)
+            and e.get("ebene") == "volltext" and e.get("status") == "angewendet"]
+
+
 def _normal(text: str) -> str:
     return "".join(c for c in text.casefold() if c.isalnum())
 
@@ -209,11 +230,13 @@ def exportiere(root: Path, ordner: Path, lektor: Path | None = None, ebooks: boo
         uebersetzung = ([p.read_text(encoding="utf-8") for p in _chunks_in(lektor_buch / "de")]
                         if lektor_buch is not None and chunk_ordner is not None and chunk_ordner.name == "en" else [])
         kapitel = []
+        enthalten: list[str] = []
         if eintrag["buch"] is not None:
+            enthalten = _enthalten(eintrag["buch"])
             for k in library.list_chapters(eintrag["buch"]):
                 try:
-                    kapitel.append({"nr": k.nr, "titel": k.titel, "text": library.read_chapter_text(eintrag["buch"], k.datei)})
-                except OSError:
+                    kapitel.append({"nr": k.nr, "titel": k.titel, "datei": k.datei, "text": _lies_kapitel(eintrag["buch"], k.datei)})
+                except (OSError, UnicodeDecodeError):
                     continue
         ebook = ""
         if ebooks and quelle is not None:
@@ -221,7 +244,7 @@ def exportiere(root: Path, ordner: Path, lektor: Path | None = None, ebooks: boo
             shutil.copyfile(quelle, ordner / ebook)
         _schreibe_json(ordner / f"{buch_id}.json",
                        {"id": buch_id, "erstellt": erstellt, "chunks": chunks, "uebersetzung": uebersetzung,
-                        "segmente": segmente, "kapitel": kapitel})
+                        "segmente": segmente, "kapitel": kapitel, "enthalten": enthalten})
         buecher.append({
             "id": buch_id, "autor": eintrag["autor"], "titel": eintrag["titel"],
             "quellsprache": str(meta.get("quellsprache") or ""),
@@ -229,6 +252,8 @@ def exportiere(root: Path, ordner: Path, lektor: Path | None = None, ebooks: boo
             "ebook": ebook,
             "chunkSprache": chunk_sprache,
             "chunkQuelle": chunk_quelle,
+            "reader": f"{eintrag['autor']}/{eintrag['titel']}" if eintrag["buch"] is not None else "",
+            "lektor": f"{lektor_buch.parent.name}/{lektor_buch.name}" if lektor_buch is not None else "",
             "chunks": len(chunks),
             "uebersetzung": len(uebersetzung),
             "segmente": len(segmente),
