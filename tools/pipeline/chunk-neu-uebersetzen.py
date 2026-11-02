@@ -43,15 +43,17 @@ def offene_eintraege(root: Path, buch: str, chunk: int) -> list[dict]:
 
 
 def uebersetze_chunk(root: Path, buch: str, chunk: int,
-                     uebersetzer: Callable[[str], str]) -> Path:
-    """Schreibt `de/chunk_NNN.md.neu` und gibt den Pfad zurueck. Wirft ValueError bei
-    unsicherem Buchnamen oder deutscher Quelle, OSError bei fehlendem Chunk."""
+                     uebersetzer: Callable[[str], str], lektor: str | None = None) -> Path:
+    """Schreibt `de/chunk_NNN.md.neu` und gibt den Pfad zurueck. `lektor` = Schluessel des
+    Lektor-Ordners, wenn er vom Buchschluessel abweicht. Wirft ValueError bei unsicherem Buch-
+    oder Lektornamen oder deutscher Quelle, OSError bei fehlendem Chunk."""
     if isinstance(chunk, bool) or not isinstance(chunk, int) or chunk < 0:
         raise ValueError("chunk muss eine Zahl ab 0 sein")
-    lektor = ra.lektor_ordner(root, buch)           # prueft den Buchschluessel
+    ziel_ref = {"lektor": lektor} if lektor is not None else None
+    lektor = ra.lektor_ordner(root, buch, ziel_ref)           # prueft Buch- und Lektorschluessel
     if ra.quellsprache(lektor) != "en":
         raise ValueError("Quelle ist deutsch - es gibt nichts ins Deutsche zu übersetzen")
-    text = ra._lies_text(ra.chunk_datei(root, buch, chunk))
+    text = ra._lies_text(ra.chunk_datei(root, buch, chunk, ziel_ref))
     text, ergebnisse = ops.spiele_ab(text, offene_eintraege(root, buch, chunk))
     konflikte = sum(1 for r in ergebnisse if r.status == ops.STATUS_KONFLIKT)
     if konflikte:
@@ -80,6 +82,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--root", required=True)
     ap.add_argument("--buch", required=True)
     ap.add_argument("--chunk", type=int, required=True)
+    ap.add_argument("--lektor", default=None, help="Schlüssel des Lektor-Ordners (Autor/Titel), wenn abweichend")
     ap.add_argument("--ollama-url", default=None)
     ap.add_argument("--model", default=None)
     args = ap.parse_args(argv)
@@ -91,7 +94,7 @@ def main(argv: list[str] | None = None) -> int:
         def uebersetzer(t: str) -> str:
             return et.translate_chunk(t, "en", "English", url, modell, "de", "German")
 
-        ziel = uebersetze_chunk(Path(args.root), args.buch, args.chunk, uebersetzer)
+        ziel = uebersetze_chunk(Path(args.root), args.buch, args.chunk, uebersetzer, args.lektor)
     except (OSError, ValueError, RuntimeError, SystemExit, ImportError) as e:
         print(f"Fehler: {e or type(e).__name__}", file=sys.stderr)
         return 1

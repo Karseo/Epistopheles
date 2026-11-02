@@ -475,3 +475,21 @@ def test_uebernehme_stand_ruecknahme_uebersprungen_ist_erledigt():
     assert erg["braucht"] is True
     assert erg["danach"] is True            # a (bestaetigt) und m (gesendet) warten weiter
     assert erg["nurRuecknahme"] is False    # eine uebersprungene Ruecknahme wird nicht mehr abgefragt
+
+
+def test_auftrag_und_vorschlag_tragen_den_lektor_schluessel_wenn_gesetzt():
+    erg = js_async("""
+      const aufrufe = [];
+      const f = async (url, opt) => { aufrufe.push({ url, body: opt.body }); return { ok: true, status: 200,
+        json: async () => ({ id: "ab", alt: "a", neu: "n" }) }; };
+      const o = { adresse: "http://apic:8080", token: "T", lektor: "Cathy O'Neil/Weapons of Math Destruction" };
+      await R.auftrag("O'Neil, Cathy/Weapons", 3, o, f);
+      await R.vorschlag("O'Neil, Cathy/Weapons", 3, o, f);
+      await R.auftrag("A/T", 1, { adresse: "http://apic:8080", token: "T" }, f);
+      await R.vorschlag("A/T", 1, { adresse: "http://apic:8080", token: "T" }, f);
+      return aufrufe;
+    """)
+    assert json.loads(erg[0]["body"])["lektor"] == "Cathy O'Neil/Weapons of Math Destruction"
+    assert "&lektor=Cathy%20O'Neil%2FWeapons%20of%20Math%20Destruction" in erg[1]["url"]
+    assert "lektor" not in json.loads(erg[2]["body"])
+    assert "lektor" not in erg[3]["url"]

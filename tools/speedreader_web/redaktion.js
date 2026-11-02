@@ -434,7 +434,7 @@
     const r = await f(basis(optionen.adresse) + "/api/auftraege", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Redaktion-Token": optionen.token || "" },
-      body: JSON.stringify({ art: "neu-uebersetzen", buch: buch, chunk: chunk }),
+      body: JSON.stringify(Object.assign({ art: "neu-uebersetzen", buch: buch, chunk: chunk }, optionen.lektor ? { lektor: optionen.lektor } : {})),
     });
     const d = await antwort(r);
     if (!istObjekt(d) || typeof d.id !== "string" || !d.id) throw new Error("APIC lieferte keine Auftrags-Id");
@@ -458,7 +458,8 @@
   async function vorschlag(buch, chunk, optionen, fetchImpl) {
     pruefeChunk(chunk);
     const f = fetchImpl || fetch;
-    const r = await f(basis(optionen.adresse) + "/api/vorschlag?buch=" + encodeURIComponent(buch) + "&chunk=" + chunk, {
+    const r = await f(basis(optionen.adresse) + "/api/vorschlag?buch=" + encodeURIComponent(buch) + "&chunk=" + chunk
+      + (optionen.lektor ? "&lektor=" + encodeURIComponent(optionen.lektor) : ""), {
       method: "GET",
       headers: { "X-Redaktion-Token": optionen.token || "" },
     });

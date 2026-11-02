@@ -118,3 +118,22 @@ def test_ungueltiger_chunk_fehlender_chunk_und_deutsche_quelle(root):
 def test_main_meldet_fehler_mit_exit_1(root, capsys):
     assert cnu.main(["--root", str(root), "--buch", "../../x/y", "--chunk", "0"]) == 1
     assert "Fehler" in capsys.readouterr().err
+
+
+def test_uebersetze_chunk_liest_aus_dem_lektor_ordner_des_schluessels(tmp_path):
+    lek = tmp_path / "rohdaten" / "Lektor" / "Cathy O'Neil" / "Weapons of Math Destruction"
+    (lek / "en").mkdir(parents=True)
+    (lek / "de").mkdir()
+    (lek / "en" / "chunk_000.md").write_bytes(b"Original O'Neil\n")
+    (lek / "meta.json").write_text(json.dumps({"quellsprache": "en"}), encoding="utf-8")
+    ziel = cnu.uebersetze_chunk(tmp_path, "O'Neil, Cathy/Weapons", 0, lambda t: "DE:" + t,
+                                lektor="Cathy O'Neil/Weapons of Math Destruction")
+    assert ziel == lek / "de" / "chunk_000.md.neu"
+    assert ziel.read_text(encoding="utf-8") == "DE:Original O'Neil\n"
+
+
+@pytest.mark.parametrize("lektor", ["../x/y", "A", "/abs/y"])
+def test_uebersetze_chunk_lehnt_unsicheren_lektor_schluessel_ab(root, lektor):
+    with pytest.raises(ValueError):
+        cnu.uebersetze_chunk(root, BUCH, 0, lambda t: t, lektor=lektor)
+    assert not (lektor_dir := root / "rohdaten" / "Lektor" / "Autor, Eins" / "Titel" / "de" / "chunk_000.md.neu").exists(), lektor_dir

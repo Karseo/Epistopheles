@@ -79,3 +79,27 @@ def test_ungueltige_auftraege_und_unbekannte_id(tmp_path):
     with pytest.raises(KeyError):
         w.status("gibtsnicht")
     assert aufgerufen == []
+
+
+def test_lektor_schluessel_gehoert_zum_auftrag_und_zur_doppelpruefung(tmp_path):
+    gesehen, frei = [], threading.Event()
+
+    def starte(job):
+        gesehen.append((job["buch"], job.get("lektor")))
+        assert frei.wait(5)
+
+    w = Warteschlange(tmp_path, starte)
+    a = w.reiche_ein("neu-uebersetzen", BUCH, 1, "Lektor A/Ordner")
+    b = w.reiche_ein("neu-uebersetzen", BUCH, 1, "Lektor B/Ordner")
+    c = w.reiche_ein("neu-uebersetzen", BUCH, 1, "Lektor A/Ordner")
+    assert a != b and a == c                      # gleicher Auftrag nicht doppelt, anderes Ziel schon
+    frei.set()
+    assert warte_bis(lambda: w.status(b)["zustand"] == "fertig")
+    assert gesehen == [(BUCH, "Lektor A/Ordner"), (BUCH, "Lektor B/Ordner")]
+
+
+@pytest.mark.parametrize("lektor", ["../x/y", "A", "/abs/y", 5])
+def test_unsicherer_lektor_schluessel_wird_abgelehnt(tmp_path, lektor):
+    w = Warteschlange(tmp_path, lambda job: None)
+    with pytest.raises(ValueError):
+        w.reiche_ein("neu-uebersetzen", BUCH, 1, lektor)

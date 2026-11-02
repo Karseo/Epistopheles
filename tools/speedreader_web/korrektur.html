@@ -899,6 +899,16 @@ let sendeLaeuft = false, sendeNochmal = false;
 let kette = Promise.resolve();        // serialisiert alle Änderungen am Speicher (kein verlorenes Update)
 
 const buchSchluessel = (b) => `${b.autor}/${b.titel}`;          // so kennt APIC das Buch
+/** Lektor-Schlüssel des Buchs, wenn der Lektor-Ordner anders heißt als das Bibliotheksbuch (O'Neil, Piano); sonst "". */
+const lektorFuer = (b) => (typeof b.lektor === "string" && b.lektor && b.lektor !== buchSchluessel(b) ? b.lektor : "");
+/** Ziel-Zusatz für Einträge der Chunk-Ebene: Lektor-Schlüssel (auch bei Übernahmen) und Sprache der Rohchunks (nur Korrekturen); nur wenn bekannt, überschreibt nichts. */
+function mitZielZusatz(b, eintrag) {
+  if (!eintrag || (eintrag.ebene !== "chunk-orig" && eintrag.ebene !== "uebersetzung")) return eintrag;
+  const zusatz = {}, ziel = eintrag.ziel || {};
+  if (!("lektor" in ziel) && lektorFuer(b)) zusatz.lektor = lektorFuer(b);
+  if (eintrag.ebene === "chunk-orig" && !("sprache" in ziel) && (b.chunkSprache === "en" || b.chunkSprache === "de")) zusatz.sprache = b.chunkSprache;
+  return Object.keys(zusatz).length ? Object.assign({}, eintrag, { ziel: Object.assign({}, ziel, zusatz) }) : eintrag;
+}
 const verbindungFertig = () => !!(verbindung.adresse && verbindung.token);
 const mitZeitlimit = (url, opt) => fetch(url, Object.assign({}, opt, AbortSignal.timeout ? { signal: AbortSignal.timeout(10000) } : {}));
 
@@ -958,14 +968,14 @@ function ladeAenderungen(b) {
 function neueAenderung(eintrag) {
   if (!buch) return Promise.reject(new Error("Kein Buch geöffnet"));
   const b = buch;
-  const e = Object.assign({ status: "offen", geraet: verbindung.geraet || "epistopheles", buch: buchSchluessel(b) }, eintrag);
+  const e = Object.assign({ status: "offen", geraet: verbindung.geraet || "epistopheles", buch: buchSchluessel(b) }, mitZielZusatz(b, eintrag));
   return aendereEintraege(b.id, (liste) => { liste.push(e); return liste; }).then((liste) => { sendeJetzt(); return liste; });
 }
 /** Mehrere Einträge auf einmal (gemeinsam gespeichert, gemeinsam gesendet). */
 function neueAenderungen(eintragListe) {
   if (!buch) return Promise.reject(new Error("Kein Buch geöffnet"));
   const b = buch, geraet = verbindung.geraet || "epistopheles";
-  const neu = eintragListe.map((eintrag) => Object.assign({ status: "offen", geraet: geraet, buch: buchSchluessel(b) }, eintrag));
+  const neu = eintragListe.map((eintrag) => Object.assign({ status: "offen", geraet: geraet, buch: buchSchluessel(b) }, mitZielZusatz(b, eintrag)));
   return aendereEintraege(b.id, (liste) => liste.concat(neu)).then((liste) => { sendeJetzt(); return liste; });
 }
 window.neueAenderung = neueAenderung;
@@ -1196,7 +1206,7 @@ const zuordnungSicher = () => !!buch && buch.chunks === (buch.uebersetzung || 0)
 
 const netzFehler = (e) => !(e && typeof e.status === "number" && e.status > 0);
 const apicHinweis = (e) => (netzFehler(e) ? "APIC nicht erreichbar" : e.status === 401 || e.status === 403 ? "Token abgelehnt" : `APIC meldet Fehler (${e.status})`);
-const optApic = () => ({ adresse: verbindung.adresse, token: verbindung.token });
+const optApic = (b) => ({ adresse: verbindung.adresse, token: verbindung.token, lektor: b ? lektorFuer(b) : "" });
 
 function zeigeAuftragsKopf() {
   const zeile = $("neu-zeile");
@@ -1271,7 +1281,7 @@ async function sendeWunsch(b, key, w) {
     return;
   }
   try {
-    const r = await R.auftrag(buchSchluessel(b), ix, optApic(), mitZeitlimit);
+    const r = await R.auftrag(buchSchluessel(b), ix, optApic(b), mitZeitlimit);
     setzeAuftrag(b.id, key, w, { zustand: "wartet", id: r.id, meldung: "", hinweis: "" });
   } catch (e) {
     if (e && (e.status === 400 || e.status === 404)) {
@@ -1326,7 +1336,7 @@ async function oeffneVergleich(ix) {
   if (!verbindungFertig()) { vergleichStatus("APIC ist nicht eingerichtet: der Vorschlag kann nicht geladen werden.", "fehler"); $("vergleich-nochmal").hidden = false; return; }
   vergleichStatus("Lade Vorschlag von APIC …", "");
   try {
-    const v = await R.vorschlag(buchSchluessel(b), ix, optApic(), mitZeitlimit);
+    const v = await R.vorschlag(buchSchluessel(b), ix, optApic(b), mitZeitlimit);
     if (nr !== vergleichNr || buch !== b) return;              // inzwischen anderer Vergleich, geschlossen oder Buch gewechselt
     vergleich = { buchId: b.id, chunk: ix, alt: v.alt, neu: v.neu };
     $("vergleich-alt").textContent = v.alt; $("vergleich-neu").textContent = v.neu;
