@@ -373,3 +373,121 @@ def test_altes_datenpaket_zeigt_keine_leiste(browser, tmp_path):
         ctx.close()
     finally:
         a.stop()
+
+
+# --- P2 Task 11: Strukturwerkzeuge im Volltext -------------------------------------------------------------
+
+from test_werkzeugleiste import knopf, waehle, leiste_offen, zu_chunk  # noqa: E402
+
+UMBRUCH = ("# Titel\n\nErste Zeile bricht\nmitten im Satz ab und\nsetzt sich fort.\n\nZweiter Absatz folgt hier.\n\n"
+           "Dritter Absatz folgt dort.\n\n[^1]: Eine Note.")
+
+
+@pytest.fixture()
+def seite_umbruch(browser, tmp_path):
+    a = Apic(baue(tmp_path, kapitel=UMBRUCH))
+    ctx, pg = neue_seite(browser, a.url)
+    zu_text(pg)
+    yield pg
+    ctx.close()
+    a.stop()
+    assert not pg.fehler, pg.fehler
+
+
+def eintrag_liste(pg):
+    return pg.evaluate("eintraege.map(e => ({ebene: e.ebene, art: e.art, ziel: e.ziel, parameter: e.parameter}))")
+
+
+def test_werkzeugleiste_erscheint_im_volltext_ohne_kapitel_verzeichnis_glossar(seite_umbruch):
+    pg = seite_umbruch
+    assert not leiste_offen(pg)
+    waehle(pg, "Erste Zeile", "setzt sich")
+    assert leiste_offen(pg)
+    for was in ("verbinden", "verschieben", "loeschen", "trennen", "markieren"):
+        assert knopf(pg, was).is_visible(), was
+        assert knopf(pg, was).bounding_box()["height"] >= 44, was
+    for was in ("kapitel", "verzeichnis", "glossar"):
+        assert knopf(pg, was).is_hidden(), was
+
+
+def test_zeilen_verbinden_im_volltext(seite_umbruch):
+    pg = seite_umbruch
+    waehle(pg, "Erste Zeile", "mitten im")
+    knopf(pg, "verbinden").click()
+    pg.wait_for_function("eintraege.length === 1")
+    (e,) = eintrag_liste(pg)
+    assert (e["ebene"], e["art"]) == ("volltext", "verbinden") and e["ziel"]["datei"] == DATEI and "chunk" not in e["ziel"]
+    assert text_im_feld(pg) == UMBRUCH.replace("bricht\nmitten", "bricht mitten")
+    assert not leiste_offen(pg)
+
+
+def test_loeschen_und_trennen_im_volltext(seite_umbruch):
+    pg = seite_umbruch
+    waehle(pg, "setzt sich", "fort.")
+    knopf(pg, "loeschen").click()
+    pg.wait_for_function("eintraege.length === 1")
+    assert text_im_feld(pg) == UMBRUCH.replace("\nsetzt sich fort.", "")
+    waehle(pg, "mitten im Satz", "ab und")
+    knopf(pg, "trennen").click()
+    pg.wait_for_function("eintraege.length === 2")
+    assert [e["art"] for e in eintrag_liste(pg)] == ["loeschen", "trennen"]
+    assert text_im_feld(pg) == UMBRUCH.replace("\nsetzt sich fort.", "").replace("bricht\nmitten", "bricht\n\nmitten")
+
+
+def test_verschieben_im_volltext_zweiter_schritt_zielabsatz(browser, tmp_path):
+    """Hohe Seite: die Verschiebe-Leiste liegt unten im Textfenster und darf den kurzen Testtext nicht verdecken."""
+    a = Apic(baue(tmp_path, kapitel=UMBRUCH))
+    ctx, pg = neue_seite(browser, a.url, 960, 900)
+    try:
+        zu_text(pg)
+        _verschieben_im_volltext(pg)
+    finally:
+        ctx.close()
+        a.stop()
+    assert not pg.fehler, pg.fehler
+
+
+def _verschieben_im_volltext(pg):
+    waehle(pg, "Zweiter Absatz", "hier.")
+    knopf(pg, "verschieben").click()
+    xy = pg.evaluate("""() => { const pre = document.getElementById('rechts-inhalt'), w = document.createTreeWalker(pre, NodeFilter.SHOW_TEXT);
+      let t; while ((t = w.nextNode())) { const i = t.data.indexOf('Dritter Absatz'); if (i >= 0) {
+        const r = document.createRange(); r.setStart(t, i); r.setEnd(t, i + 6); const b = r.getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; } } }""")
+    pg.touchscreen.tap(xy[0], xy[1])
+    pg.wait_for_function("eintraege.length === 1")
+    (e,) = eintrag_liste(pg)
+    assert e["art"] == "verschieben" and e["parameter"]["nach_anfang"].startswith("Dritter") and e["ziel"]["datei"] == DATEI
+    neu = text_im_feld(pg)
+    assert neu.index("Dritter Absatz") < neu.index("Zweiter Absatz")
+    assert pg.locator("#absatz-leiste").is_hidden()                                 # der Tipp aufs Ziel öffnet keine Absatzleiste
+
+
+def test_markieren_im_volltext_aendert_den_text_nicht(seite_umbruch):
+    pg = seite_umbruch
+    waehle(pg, "Erste Zeile", "mitten im")
+    pg.fill("#werkzeug-notiz", "Umbruch prüfen")
+    knopf(pg, "markieren").click()
+    pg.wait_for_function("eintraege.length === 1")
+    (e,) = eintrag_liste(pg)
+    assert (e["ebene"], e["art"], e["ziel"]["datei"]) == ("volltext", "marke", DATEI)
+    assert e["parameter"] == {"kategorie": "markiert", "text": "Umbruch prüfen"}
+    assert text_im_feld(pg) == UMBRUCH
+    assert pg.evaluate("window.Redaktion.zaehler(eintraege)") == {"aenderungen": 0, "markierungen": 1, "wartend": pg.evaluate("window.Redaktion.zaehler(eintraege).wartend")}
+
+
+def test_auswahl_ueber_zwei_absaetze_erlaubt_nur_markieren(seite_umbruch):
+    pg = seite_umbruch
+    waehle(pg, "setzt sich", "Zweiter Absatz")
+    for was in ("verbinden", "verschieben", "loeschen", "trennen"):
+        assert knopf(pg, was).is_disabled(), was
+    assert knopf(pg, "markieren").is_enabled()
+
+
+def test_chunk_modus_behaelt_alle_werkzeuge(seite_umbruch):
+    pg = seite_umbruch
+    pg.locator("#modus-chunks").click()
+    pg.wait_for_function("modus === 'chunks' && gezeigteSig !== null")
+    zu_chunk(pg, 1)
+    waehle(pg, "Representation", "judge")
+    for was in ("kapitel", "verzeichnis", "glossar"):
+        assert knopf(pg, was).is_visible(), was

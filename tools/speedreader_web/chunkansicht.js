@@ -397,6 +397,7 @@
     return summe;
   }
 
+  const NUR_CHUNK = ["kapitel", "verzeichnis", "glossar"];
   const WERKZEUGE = [["verbinden", "Zeilen verbinden"], ["verschieben", "Ausschneiden / verschieben"], ["loeschen", "Löschen"],
                      ["trennen", "Absatz hier trennen"], ["kapitel", "Kapitel beginnt hier"], ["verzeichnis", "Inhaltsverzeichnis"],
                      ["glossar", "Glossar"], ["markieren", "Nur markieren"]];
@@ -435,7 +436,11 @@
     const setzeStatus = (t) => { status.textContent = t; };
     const aktualisiere = () => {
       const w = werkzeuge(st.auswahl), verschiebt = st.modus === "verschieben";
-      for (const [was] of WERKZEUGE) knoepfe[was].disabled = !w[was] || verschiebt || st.laeuft;
+      const volltext = !!st.ansicht && st.ansicht.ebene === "volltext";           // Kapitel, Verzeichnis, Glossar: Sache der Struktur (P3)
+      for (const [was] of WERKZEUGE) {
+        knoepfe[was].disabled = !w[was] || verschiebt || st.laeuft;
+        knoepfe[was].hidden = volltext && NUR_CHUNK.includes(was);
+      }
       notiz.disabled = verschiebt; abbruch.hidden = !verschiebt; leiste.classList.toggle("verschiebt", verschiebt);
       if (verschiebt) setzeStatus("Zielabsatz antippen, hinter den die Zeilen kommen");
       else if (st.auswahl && st.auswahl.mehrere) setzeStatus("Auswahl über mehrere Absätze: nur Markierungen");

@@ -660,6 +660,7 @@ function zeigeKapitelText(pre, ix, roh) {
   if (!c || c.sig !== sig) { c = { sig: sig, ansicht: CA.bereite(roh, eintraege, datei, abgelehnt, bereit, kapitelOptionen(ix)) }; kapitelCache.set(ix, c); }
   const kennung = `${buch.id}:k:${datei}`, oben = pre.dataset.fuer === kennung ? pre.scrollTop : 0;
   CA.rendere(pre, c.ansicht, { fuelle: haengeText, aktion: chunkAktion });
+  werkzeuge();
   pre.dataset.fuer = kennung; pre.scrollTop = oben;
   gezeigteSig = sig; gezeigterChunk = ix;
   if (absatzAuswahl && absatzAuswahl.ansicht !== c.ansicht) verbergeAbsatzLeiste();       // anderer Text: der angetippte Absatz gilt nicht mehr
@@ -744,19 +745,24 @@ let werkzeugLeiste = null;
 function werkzeuge() {
   if (werkzeugLeiste || !CA) return;
   werkzeugLeiste = CA.installiereWerkzeuge($("rechts-inhalt"), {
-    ansicht: () => { const c = buch && istChunkModus() ? ansichtCache.get(gezeigterChunk) : null; return c && c.sig === gezeigteSig && c.sig === ansichtSig(gezeigterChunk) ? c.ansicht : null; },
+    ansicht: () => {
+      if (!buch) return null;
+      if (modus === "text") return aktuelleKapitelAnsicht();
+      const c = istChunkModus() ? ansichtCache.get(gezeigterChunk) : null;
+      return c && c.sig === gezeigteSig && c.sig === ansichtSig(gezeigterChunk) ? c.ansicht : null;
+    },
     ausfuehren: werkzeugAktion,
   });
 }
 /** Legt die Entwürfe der Werkzeugleiste als Einträge ab (alle auf einmal, über die serialisierte Kette). */
 async function werkzeugAktion(ansicht, liste) {
   if (chunkBusy || !buch || !CA) throw new Error("bitte kurz warten");
-  const b = buch, ix = ansicht.chunk, c = ansichtCache.get(ix);
-  if (!c || c.ansicht !== ansicht || c.sig !== ansichtSig(ix)) { zeigeRechts(); throw new Error("Der Text hat sich geändert, bitte noch einmal auswählen"); }
+  const b = buch, c = cacheVon(ansicht).get(ansicht.nr);
+  if (!c || c.ansicht !== ansicht || c.sig !== sigVon(ansicht)) { zeigeRechts(); throw new Error("Der Text hat sich geändert, bitte noch einmal auswählen"); }
   chunkBusy = true;
   const geraet = verbindung.geraet || "epistopheles";
   try {
-    await neueAenderungen(liste.map((d) => R.neuerEintrag(buchSchluessel(b), "chunk-orig", d.ziel, d.art, d.parameter, d.vorherText, d.hinweis, geraet)));
+    await neueAenderungen(liste.map((d) => R.neuerEintrag(buchSchluessel(b), ansicht.ebene, d.ziel, d.art, d.parameter, d.vorherText, d.hinweis, geraet)));
   } finally {
     chunkBusy = false;
     if (buch === b) zeigeRechts();
@@ -778,6 +784,7 @@ function verbergeAbsatzLeiste() { absatzAuswahl = null; $("absatz-leiste").hidde
 $("rechts-inhalt").addEventListener("click", (ev) => {
   const a = aktuelleKapitelAnsicht();
   if (!a) { verbergeAbsatzLeiste(); return; }
+  if (werkzeugLeiste && werkzeugLeiste.zustand().modus === "verschieben") return;            // Zielabsatz antippen, nicht bearbeiten
   if (ev.target.closest && ev.target.closest("button, .verdacht-leiste, .konflikt")) return;
   const pre = $("rechts-inhalt"), sel = document.getSelection();
   const off = sel && sel.rangeCount && sel.isCollapsed && pre.contains(sel.anchorNode) ? CA.offsetIn(pre, sel.anchorNode, sel.anchorOffset) : null;
