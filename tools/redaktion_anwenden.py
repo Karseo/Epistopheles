@@ -105,6 +105,7 @@ class DateiPlan:
 class BuchPlan:
     buch: str
     reader: Path | None = None
+    nachspiel: dict | None = None                      # offener Bericht von lektor-zu-episto (nur Anzeige)
     volltext: list[DateiPlan] = field(default_factory=list)
     lektor: Path | None = None
     lektor_key: str = ""                               # Schlüssel des Lektor-Ordners (Eintrag `ziel.lektor` oder Buch)
@@ -397,6 +398,9 @@ def _plane_volltext(root: Path, plan: BuchPlan, eintraege: list[dict]) -> None:
 
 def _plane_buch(root: Path, buch: str) -> BuchPlan:
     plan = BuchPlan(buch=buch)
+    nachspiel = schutz.lade_nachspiel(protokoll.reader_ordner(root, buch))
+    if nachspiel and (nachspiel.get("konflikte") or nachspiel.get("basis_geaendert")):
+        plan.nachspiel = nachspiel
     roh = protokoll.lade_eingang(root, buch)
     stand = protokoll.lade_stand(root, buch)
     # Einträge kommen von Geräten: ohne Objekt/Text-id werden sie gemeldet, nie verarbeitet.
@@ -531,7 +535,7 @@ def plane(root: Path, buch: str | None = None, eingang_datei: Path | None = None
         except ValueError:
             plaene.append(BuchPlan(buch=b, hinweis="ungültiger Ordnername, übersprungen"))
             continue
-        if p.volltext or p.chunks or p.uebernahmen or p.konflikte or p.uebersprungen or p.ruecknahmen:
+        if p.volltext or p.chunks or p.uebernahmen or p.konflikte or p.uebersprungen or p.ruecknahmen or p.nachspiel:
             plaene.append(p)
     return plaene
 
@@ -813,6 +817,14 @@ def _bericht(plaene: list[BuchPlan], ausfuehren: bool) -> list[str]:
             zeilen.append(f"  {p.hinweis}")
             n_buecher_ungueltig += 1
             continue
+        if p.nachspiel:
+            n = p.nachspiel
+            zeilen.append(f"  Offener Bericht von lektor-zu-episto (notizen/redaktion-nachspiel.json, {n.get('zeit', '?')}): "
+                          f"{len(n.get('konflikte') or [])} Korrektur(en) konnten nach dem Neuaufbau nicht wieder eingespielt werden")
+            for k in n.get("konflikte") or []:
+                zeilen.append(f"    {k.get('datei')}: Eintrag {k.get('id')}: {k.get('grund')}")
+            for datei in n.get("basis_geaendert") or []:
+                zeilen.append(f"    {datei}: Ausgangstext hat sich seit der Korrektur geändert")
         for d in p.volltext:
             for r in d.ergebnisse:
                 if r.status == ops.STATUS_ANGEWENDET:

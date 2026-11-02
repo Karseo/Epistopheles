@@ -813,3 +813,15 @@ def test_kaputte_redaktion_json_des_readers_wird_nicht_ueberschrieben(tmp_path, 
     assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) != 0
     assert (reader(tmp_path) / "quelle" / DATEI).read_bytes() == KAPITEL.encode("utf-8")
     assert (reader(tmp_path) / "notizen" / "redaktion.json").read_text(encoding="utf-8") == "{kaputt"
+
+
+def test_dry_run_nennt_offenen_nachspiel_bericht(tmp_path, capsys):
+    baue_reader(tmp_path, eintraege=[])
+    (reader(tmp_path) / "notizen").mkdir()
+    (reader(tmp_path) / "notizen" / "redaktion-nachspiel.json").write_text(json.dumps({
+        "zeit": "2026-11-02T10:00:00Z", "angewendet": 0, "basis_geaendert": [DATEI],
+        "konflikte": [{"id": "abc", "datei": DATEI, "grund": "Absatz nicht gefunden"}]}), encoding="utf-8")
+    protokoll.schreibe_eingang(tmp_path, "tablet", BUCH, [ersetze_marker(KAPITEL)])
+    assert ra.main(["--root", str(tmp_path)]) == 0                      # reine Anzeige: kein Konflikt-Exit
+    out = capsys.readouterr().out
+    assert "lektor-zu-episto" in out and "Eintrag abc: Absatz nicht gefunden" in out and "Ausgangstext" in out

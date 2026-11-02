@@ -139,3 +139,101 @@ def test_spiele_nach_eintraege_keine_liste_stuerzt_nicht_ab(tmp_path):
     buch = _reader(tmp_path, {}, "")
     (buch / "notizen" / "redaktion.json").write_text('{"eintraege": 5}', encoding="utf-8")
     assert schutz.spiele_nach(buch) == 1
+
+
+# --- P2 Task 8: Nachspiel-Bericht und Backup --------------------------------------------------------
+
+def _bericht(buch: Path) -> dict:
+    return json.loads((buch / "notizen" / "redaktion-nachspiel.json").read_text(encoding="utf-8"))
+
+
+def test_nachspiel_bericht_nennt_jeden_konflikt_mit_grund(tmp_path):
+    ok = _eintrag(ALT, 1, "Zweiter\tAbsatz neu.", "0001_a.md")
+    fehlt = _eintrag(ALT, 0, "Neu.", "0002_b.md")
+    unzulaessig = _eintrag(ALT, 0, "Neu.", "../x.md")
+    veraltet = _eintrag(ALT, 2, "Dritter neu.", "0001_a.md")
+    veraltet["vorher"]["hash"] = "0" * 16
+    buch = _reader(tmp_path, {"0001_a.md": ALT.encode("utf-8")}, [ok, fehlt, unzulaessig, veraltet])
+    assert schutz.spiele_nach(buch) == 3
+    b = _bericht(buch)
+    assert b["angewendet"] == 1 and b["zeit"]
+    k = {x["id"]: x for x in b["konflikte"]}
+    assert set(k) == {fehlt["id"], unzulaessig["id"], veraltet["id"]}
+    assert k[fehlt["id"]]["datei"] == "0002_b.md" and "fehlt" in k[fehlt["id"]]["grund"]
+    assert "unzulässig" in k[unzulaessig["id"]]["grund"]
+    assert k[veraltet["id"]]["datei"] == "0001_a.md" and "vorher" in k[veraltet["id"]]["grund"]
+    assert all(x["grund"] for x in b["konflikte"])
+
+
+def test_nachspiel_bericht_wird_ohne_konflikte_entfernt(tmp_path):
+    e = _eintrag(ALT, 1, "Zweiter\tAbsatz neu.", "0001_a.md")
+    buch = _reader(tmp_path, {"0001_a.md": ALT.encode("utf-8")}, [e])
+    (buch / "notizen" / "redaktion-nachspiel.json").write_text('{"alt": 1}', encoding="utf-8")
+    assert schutz.spiele_nach(buch) == 0
+    assert not (buch / "notizen" / "redaktion-nachspiel.json").exists()
+
+
+def test_nachspiel_ohne_redaktion_json_laesst_den_bericht_unberuehrt(tmp_path):
+    buch = tmp_path / "A" / "T"
+    (buch / "quelle").mkdir(parents=True)
+    (buch / "notizen").mkdir()
+    (buch / "notizen" / "redaktion-nachspiel.json").write_text("{}", encoding="utf-8")
+    assert schutz.spiele_nach(buch) == 0
+    assert (buch / "notizen" / "redaktion-nachspiel.json").exists()
+
+
+def test_basis_geaendert_wird_gemeldet(tmp_path):
+    e = _eintrag(ALT, 1, "Zweiter\tAbsatz neu.", "0001_a.md")
+    buch = _reader(tmp_path, {"0001_a.md": ALT.encode("utf-8")}, [e])
+    (buch / "notizen" / "redaktion.json").write_text(json.dumps({
+        "eintraege": [e], "dateien": {"0001_a.md": {"hash_original": ops.pruefsumme("ganz anderer Urtext"),
+                                                    "hash_aktuell": "x"}}}), encoding="utf-8")
+    assert schutz.spiele_nach(buch) == 0                          # Eintrag griff trotzdem
+    b = _bericht(buch)                                            # aber der Urtext ist nicht mehr der von damals
+    assert b["basis_geaendert"] == ["0001_a.md"] and b["konflikte"] == []
+
+
+def test_basis_unveraendert_gibt_keinen_bericht(tmp_path):
+    e = _eintrag(ALT, 1, "Zweiter\tAbsatz neu.", "0001_a.md")
+    buch = _reader(tmp_path, {"0001_a.md": ALT.encode("utf-8")}, [e])
+    (buch / "notizen" / "redaktion.json").write_text(json.dumps({
+        "eintraege": [e], "dateien": {"0001_a.md": {"hash_original": ops.pruefsumme(ALT)}}}), encoding="utf-8")
+    assert schutz.spiele_nach(buch) == 0
+    assert not (buch / "notizen" / "redaktion-nachspiel.json").exists()
+
+
+def test_kaputte_redaktion_json_steht_im_bericht(tmp_path):
+    buch = _reader(tmp_path, {"0001_a.md": b"Text."}, "{kaputt")
+    assert schutz.spiele_nach(buch) == 1
+    assert "unlesbar" in _bericht(buch)["konflikte"][0]["grund"]
+
+
+def test_sichere_quelle_nur_bei_volltext_eintraegen(tmp_path):
+    e = _eintrag(ALT, 1, "Zweiter\tAbsatz neu.", "0001_a.md")
+    ohne = _reader(tmp_path / "ohne", {"0001_a.md": ALT.encode("utf-8")}, [])
+    assert schutz.sichere_quelle(ohne) is None
+    nur_chunk = _reader(tmp_path / "chunk", {"0001_a.md": ALT.encode("utf-8")}, [_eintrag(ALT, 1, "X.", "0001_a.md", ebene="chunk-orig")])
+    assert schutz.sichere_quelle(nur_chunk) is None
+    keine_json = tmp_path / "keine" / "A" / "T"
+    (keine_json / "quelle").mkdir(parents=True)
+    (keine_json / "quelle" / "0001_a.md").write_bytes(b"x")
+    assert schutz.sichere_quelle(keine_json) is None
+    mit = _reader(tmp_path / "mit", {"0001_a.md": ALT.encode("utf-8"), "0002_b.md": b"B\r\n", "_kapitel_index.json": b"[]"}, [e])
+    ziel = schutz.sichere_quelle(mit)
+    assert ziel is not None and ziel.parent == mit / "notizen" / "_backup" and ziel.name.startswith("quelle-")
+    assert (ziel / "0001_a.md").read_bytes() == ALT.encode("utf-8") and (ziel / "0002_b.md").read_bytes() == b"B\r\n"
+    assert not (ziel / "_kapitel_index.json").exists()
+    zweites = schutz.sichere_quelle(mit)                         # gleiche Sekunde: eigener Ordner, nichts ueberschrieben
+    assert zweites is not None and zweites != ziel and (ziel / "0001_a.md").exists()
+
+
+def test_sichere_quelle_sichert_auch_bei_kaputter_redaktion_json(tmp_path):
+    buch = _reader(tmp_path, {"0001_a.md": b"Text."}, "{kaputt")
+    ziel = schutz.sichere_quelle(buch)
+    assert ziel is not None and (ziel / "0001_a.md").read_bytes() == b"Text."
+
+
+def test_sichere_quelle_ohne_quelldateien_ist_none(tmp_path):
+    e = _eintrag(ALT, 1, "Z.", "0001_a.md")
+    buch = _reader(tmp_path, {}, [e])
+    assert schutz.sichere_quelle(buch) is None

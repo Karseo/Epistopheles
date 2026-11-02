@@ -417,6 +417,10 @@ def verarbeite(buch_rel: str, lektor_root: Path, episto_root: Path,
     fehler = schutz.pruefe_ueberschreiben(ziel_quelle, ueberschreiben, dry_run)
     if fehler:
         raise SystemExit(fehler)
+    if not dry_run:
+        gesichert = schutz.sichere_quelle(ziel_buch)         # nur bei Volltext-Korrekturen im Protokoll
+        if gesichert:
+            print(f"  Vorhandene Kapiteldateien gesichert (Volltext-Korrekturen im Protokoll): {gesichert}")
     # Referenzsprache (Rohchunks) gehoert nicht zu den fertigen Reader-Daten: rohdaten/<sprache>-chunks/<Autor>/<Titel>/
     ziel_referenz = episto_root.parent / "rohdaten" / f"{sprache_referenz}-chunks" / autor_titel
 
@@ -528,6 +532,14 @@ def verarbeite(buch_rel: str, lektor_root: Path, episto_root: Path,
         if offen:
             print(f"  [WARNUNG] {offen} Korrektur(en) aus notizen/redaktion.json konnten nicht "
                   f"erneut angewendet werden (Konflikt, Datei fehlt oder Protokoll unlesbar).")
+        bericht = schutz.lade_nachspiel(ziel_buch) or {}
+        for k in bericht.get("konflikte", []):
+            print(f"    {k.get('datei')}: Eintrag {k.get('id')}: {k.get('grund')}")
+        if bericht.get("basis_geaendert"):
+            print(f"  [WARNUNG] Der Ausgangstext hat sich seit der Korrektur geaendert in: "
+                  f"{', '.join(bericht['basis_geaendert'])}")
+        if bericht.get("konflikte") or bericht.get("basis_geaendert"):
+            print("  Bericht: notizen/redaktion-nachspiel.json")
 
     print(f"\nFertig{' (DRY-RUN, nichts geschrieben)' if dry_run else ''}.")
     print(f"  Kapitel-Dateien : {len(segs)}")
