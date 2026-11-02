@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>EPISTO Speedreader</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --bg: #f7f5f0; --flaeche: #ffffff; --text: #1d1b18; --gedaempft: #6b665e;
+    --linie: #d8d3c8; --akzent: #0b7285; --orp: #d6291e; --knopf: #ebe7dd; --knopf-aktiv: #d9d3c4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="hell"]) {
+      --bg: #14130f; --flaeche: #1d1b16; --text: #ece8de; --gedaempft: #9a9486;
+      --linie: #38352d; --akzent: #4fc3d9; --orp: #ff6b5e; --knopf: #2a2720; --knopf-aktiv: #3a362c;
+    }
+  }
+  :root[data-theme="dunkel"] {
+    --bg: #14130f; --flaeche: #1d1b16; --text: #ece8de; --gedaempft: #9a9486;
+    --linie: #38352d; --akzent: #4fc3d9; --orp: #ff6b5e; --knopf: #2a2720; --knopf-aktiv: #3a362c;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 18px/1.4 system-ui, "Segoe UI", Roboto, sans-serif;
+    display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto auto; height: 100dvh;
+    padding: env(safe-area-inset-top) 16px 12px; gap: 8px; user-select: none; -webkit-user-select: none;
+  }
+  button {
+    font: inherit; color: var(--text); background: var(--knopf); border: 1px solid var(--linie);
+    border-radius: 14px; min-height: 56px; min-width: 56px; padding: 0 14px; cursor: pointer; touch-action: manipulation;
+  }
+  button:active { background: var(--knopf-aktiv); }
+  button:focus-visible, input:focus-visible { outline: 3px solid var(--akzent); outline-offset: 2px; }
+  button[disabled] { opacity: .4; cursor: default; }
+
+  /* Kopfzeile */
+  #kopf { display: flex; align-items: center; gap: 8px; padding-top: 8px; }
+  #titel { flex: 1; min-width: 0; line-height: 1.25; }
+  #titel b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #titel span { display: block; color: var(--gedaempft); font-size: .85em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Ansicht umschalten */
+  #modus { display: flex; align-items: center; gap: 8px; }
+  #modus .gruppe { display: flex; flex: 1; min-width: 0; border: 1px solid var(--linie); border-radius: 14px; overflow: hidden; }
+  #modus .gruppe button { flex: 1; border: 0; border-radius: 0; min-height: 52px; background: var(--knopf); }
+  #modus .gruppe button + button { border-left: 1px solid var(--linie); }
+  #modus .gruppe button[aria-pressed="true"] { background: var(--akzent); color: var(--bg); font-weight: 700; }
+  #schrift-gruppe { display: flex; gap: 8px; }
+  #schrift-gruppe button { min-height: 52px; font-weight: 700; }
+
+  /* Lesetext (KI-Felder als Text, Originaltext) */
+  #lesen {
+    --s: 1; position: relative; overflow: auto; overscroll-behavior: contain; background: var(--flaeche); border: 1px solid var(--linie);
+    border-radius: 20px; padding: 20px clamp(16px, 5vw, 56px) 40px; user-select: text; -webkit-user-select: text;
+    font: calc(1.15rem * var(--s)) / 1.7 "Noto Serif", "Iowan Old Style", Georgia, serif; hyphens: auto; text-wrap: pretty;
+  }
+  #lesen:focus-visible { outline: 3px solid var(--akzent); outline-offset: -3px; }
+  #lesen > div { max-width: 40em; margin: 0 auto; }
+  #lesen p { margin: 0 0 1em; }
+  #lesen h2, #lesen h3, #lesen h4 { font-family: system-ui, "Segoe UI", Roboto, sans-serif; line-height: 1.3; margin: 1.4em 0 .5em; }
+  #lesen h2 { font-size: 1.5em; } #lesen h3 { font-size: 1.25em; } #lesen h4 { font-size: 1.05em; }
+  #lesen h3.abschnitt { font-size: .8em; letter-spacing: .1em; text-transform: uppercase; color: var(--akzent); margin-top: 1.8em; }
+  #lesen ul { margin: 0 0 1em; padding-left: 1.3em; } #lesen li { margin: 0 0 .6em; }
+  #lesen blockquote { margin: 0 0 1em; padding-left: 1em; border-left: 3px solid var(--linie); color: var(--gedaempft); }
+  #lesen .seite { text-align: center; color: var(--gedaempft); font: .75em system-ui, sans-serif; margin: 1.6em 0; border-top: 1px dashed var(--linie); padding-top: .4em; }
+  #lesen .bild { color: var(--gedaempft); font: italic .85em system-ui, sans-serif; text-align: center; }
+  #lesen hr { border: 0; border-top: 1px solid var(--linie); margin: 2em 0; }
+  #lesen sup { font: .7em system-ui, sans-serif; color: var(--akzent); }
+  #lesen .anmerkungen { margin-top: 2.4em; padding-top: .6em; border-top: 1px solid var(--linie); font-size: .85em; color: var(--gedaempft); }
+  #lesen .hinweis-leer { color: var(--gedaempft); text-align: center; padding: 3em 0; font-family: system-ui, sans-serif; }
+  #lesen .hinweis-leer button { margin-top: 12px; }
+
+  /* Bühne mit dem Wort */
+  #buehne {
+    position: relative; display: grid; place-items: center; background: var(--flaeche);
+    border: 1px solid var(--linie); border-radius: 20px; overflow: hidden; cursor: pointer;
+    --basis: clamp(2.4rem, 9vmin, 6rem);
+  }
+  #raster { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); width: 100%; align-items: baseline;
+            font-size: calc(var(--basis) * var(--f, 1)); line-height: 1.2; font-weight: 500; white-space: pre; }
+  #links { text-align: right; justify-self: end; padding-right: 0; }
+  #mitte { color: var(--orp); font-weight: 700; }
+  #rechts { text-align: left; justify-self: start; }
+  #raster.marke { color: var(--akzent); letter-spacing: .06em; font-weight: 700; }
+  #raster.marke #mitte { color: var(--akzent); text-decoration: underline; text-underline-offset: .15em; }
+  .strich { position: absolute; left: 50%; width: 2px; height: 14%; background: var(--linie); transform: translateX(-50%); }
+  #strich-o { top: 8%; } #strich-u { bottom: 8%; }
+  #hinweis { position: absolute; inset: auto 16px 12px 16px; text-align: center; color: var(--gedaempft); font-size: .8em; }
+  #leer { padding: 24px; text-align: center; color: var(--gedaempft); max-width: 36em; }
+
+  /* Fortschritt */
+  #fortschritt { display: grid; gap: 4px; }
+  #balken { width: 100%; height: 40px; accent-color: var(--akzent); margin: 0; }
+  #status { color: var(--gedaempft); font-size: .85em; text-align: center; }
+
+  /* Bedienung */
+  #bedienung { display: grid; gap: 8px; }
+  .zeile { display: grid; gap: 8px; grid-auto-flow: column; grid-auto-columns: 1fr; }
+  #pause { background: var(--akzent); color: var(--bg); border-color: var(--akzent); font-weight: 700; font-size: 1.1em; min-height: 64px; }
+  #tempo-anzeige { display: grid; place-items: center; font-weight: 700; font-size: .95em; }
+
+  /* Kapitelwahl */
+  dialog { border: 1px solid var(--linie); border-radius: 20px; background: var(--flaeche); color: var(--text);
+           width: min(720px, 96vw); max-height: 92dvh; padding: 0; }
+  dialog::backdrop { background: rgba(0,0,0,.5); }
+  #wahl-kopf { display: flex; gap: 8px; padding: 12px; position: sticky; top: 0; background: var(--flaeche); border-bottom: 1px solid var(--linie); }
+  #suche { flex: 1; min-width: 0; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--linie); border-radius: 12px; padding: 0 14px; min-height: 52px; user-select: text; }
+  #liste { padding: 8px 12px 16px; overflow: auto; max-height: calc(92dvh - 140px); }
+  details { border-bottom: 1px solid var(--linie); }
+  summary { padding: 14px 4px; cursor: pointer; min-height: 52px; }
+  summary small { color: var(--gedaempft); }
+  .kap { display: block; width: 100%; text-align: left; margin: 0 0 6px; min-height: 52px; background: var(--bg); }
+  .kap[aria-current="true"] { border-color: var(--akzent); border-width: 2px; }
+  #wahl-fuss { padding: 10px 12px; border-top: 1px solid var(--linie); display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; color: var(--gedaempft); font-size: .8em; }
+
+  #start { grid-row: 3 / 6; display: grid; place-items: center; text-align: center; padding: 24px; }
+  #start > div { max-width: 34em; }
+  #start button { margin-top: 12px; }
+  [hidden] { display: none !important; }
+
+  @media (orientation: landscape) and (max-height: 640px) {
+    body { font-size: 16px; gap: 6px; }
+    button { min-height: 48px; }
+    #pause { min-height: 52px; }
+  }
+</style>
+</head>
+<body>
+<header id="kopf">
+  <button id="knopf-wahl" aria-label="Kapitel wählen">☰ Kapitel</button>
+  <div id="titel"><b id="titel-kapitel">EPISTO Speedreader</b><span id="titel-buch">Epistopheles</span></div>
+  <button id="kap-zurueck" aria-label="Voriges Kapitel" title="Voriges Kapitel (P)">⏴</button>
+  <button id="kap-vor" aria-label="Nächstes Kapitel" title="Nächstes Kapitel (N)">⏵</button>
+  <button id="knopf-thema" aria-label="Darstellung wechseln" title="Hell / Dunkel / automatisch">◐</button>
+</header>
+
+<nav id="modus" aria-label="Ansicht" hidden>
+  <div class="gruppe" role="group">
+    <button data-ansicht="speed" title="Speedreader: KI-Felder Wort für Wort (1)">⚡ Speed</button>
+    <button data-ansicht="ki" title="KI-Felder als Text (2)">KI-Text</button>
+    <button data-ansicht="original" title="Originaltext des Kapitels (3)">Original</button>
+  </div>
+  <div id="schrift-gruppe" hidden>
+    <button id="schrift-klein" aria-label="Schrift kleiner" title="Schrift kleiner (−)">A−</button>
+    <button id="schrift-gross" aria-label="Schrift größer" title="Schrift größer (+)">A+</button>
+  </div>
+</nav>
+
+<article id="lesen" tabindex="0" hidden aria-label="Lesetext" lang="de"><div id="lesen-inhalt"></div></article>
+
+<main id="buehne" aria-live="off">
+  <div class="strich" id="strich-o"></div>
+  <div id="raster"><span id="links"></span><span id="mitte"></span><span id="rechts"></span></div>
+  <div class="strich" id="strich-u"></div>
+  <div id="leer" hidden></div>
+  <div id="hinweis">Antippen: Start / Pause</div>
+</main>
+
+<section id="fortschritt">
+  <input id="balken" type="range" min="0" max="0" value="0" aria-label="Position im Kapitel">
+  <div id="status"></div>
+</section>
+
+<section id="bedienung">
+  <div class="zeile">
+    <button data-aktion="abschnitt_zurueck" aria-label="Voriger Abschnitt" title="Voriger Abschnitt (Bild ↑)">⏮ Abschn.</button>
+    <button data-aktion="satz_zurueck" aria-label="Satz zurück" title="Satz zurück (←)">◀ Satz</button>
+    <button id="pause" data-aktion="pause" title="Start / Pause (Leertaste)">Start</button>
+    <button data-aktion="satz_vor" aria-label="Satz vor" title="Satz vor (→)">Satz ▶</button>
+    <button data-aktion="abschnitt_vor" aria-label="Nächster Abschnitt" title="Nächster Abschnitt (Bild ↓)">Abschn. ⏭</button>
+  </div>
+  <div class="zeile">
+    <button data-aktion="langsamer" title="−50 (↓)">−50</button>
+    <button data-aktion="fein_langsamer" title="−5 (−)">−5</button>
+    <div id="tempo-anzeige"><span id="tempo">400</span><small>Wörter/min</small></div>
+    <button data-aktion="fein_schneller" title="+5 (+)">+5</button>
+    <button data-aktion="schneller" title="+50 (↑)">+50</button>
+  </div>
+</section>
+
+<section id="start" hidden>
+  <div>
+    <h2>Daten laden</h2>
+    <p>Der Speedreader zeigt die KI-Felder der Kapitel (Zusammenfassung, Thesen, …) als Schnelllesen vor dem Originaltext.
+       Dafür braucht er einmalig die Datei <code>daten.json</code>, erzeugt am PC mit <code>export_daten.py</code>.
+       Sie wird danach auf diesem Gerät gespeichert, auch ohne WLAN.</p>
+    <input id="datei" type="file" accept=".json,application/json" hidden>
+    <button id="knopf-datei">daten.json auswählen</button>
+    <p>Optional für die Ansicht <b>Original</b> (Volltext der Kapitel): den Ordner <code>buecher</code> aus dem Export importieren.</p>
+    <button id="knopf-ordner">Ordner „buecher“ importieren</button>
+    <p id="start-fehler" style="color:var(--orp)"></p>
+    <p id="start-info" role="status" style="color:var(--gedaempft)"></p>
+  </div>
+</section>
+
+<dialog id="wahl" aria-label="Kapitel wählen">
+  <div id="wahl-kopf">
+    <input id="suche" type="search" placeholder="Autor, Buch oder Kapitel suchen …" autocomplete="off">
+    <button id="wahl-zu">Schließen</button>
+  </div>
+  <div id="liste"></div>
+  <div id="wahl-fuss">
+    <span id="stand"></span>
+    <span><button id="daten-neu">Daten aktualisieren …</button> <button id="volltext-neu">Volltext importieren …</button>
+      <a href="korrektur.html" style="color:var(--akzent)">Korrekturlesen ↗</a></span>
+    <span id="import-status" role="status"></span>
+  </div>
+  <input id="ordner" type="file" webkitdirectory multiple hidden>
+</dialog>
+
+<script src="speedreader.js"></script>
+<script src="lesetext.js"></script>
+<script>
+"use strict";
+const SR = Speedreader;
+const $ = (id) => document.getElementById(id);
+
+// ---- Zustand (nur auf diesem Gerät) ---------------------------------------
+const lsGet = (k, std) => { try { const v = localStorage.getItem(k); return v === null ? std : JSON.parse(v); } catch { return std; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* privat/blockiert: egal */ } };
+
+let daten = null;                 // {erstellt, buecher:[{autor,titel,kapitel:[{nr,titel,felder}]}]}
+let buchIx = 0, kapIx = 0;        // aktuelles Kapitel
+let woerter = [], namen = [];
+let i = 0, laeuft = false, timer = null;
+let wpm = SR.begrenzeTempo(lsGet("wpm", SR.STANDARD_WPM));
+let wakeLock = null;
+const ANSICHTEN = ["speed", "ki", "original"];
+let ansicht = ANSICHTEN.includes(lsGet("ansicht", "speed")) ? lsGet("ansicht", "speed") : "speed";
+let schrift = Math.min(2, Math.max(0.8, Number(lsGet("schrift", 1)) || 1));   // Faktor für die Lesetexte
+let ladeNr = 0;                   // verwirft Ergebnisse veralteter Ladevorgänge (Kapitel inzwischen gewechselt)
+let buchText = { id: null, erstellt: null, kapitel: null };   // Volltext des gerade offenen Buchs
+
+// ---- IndexedDB für daten.json -----------------------------------------------
+const dbOffen = () => new Promise((ok, fehler) => {
+  let a; try { a = indexedDB.open("episto-speedreader", 1); } catch (e) { return fehler(e); }
+  a.onupgradeneeded = () => a.result.createObjectStore("kv");
+  a.onsuccess = () => ok(a.result); a.onerror = () => fehler(a.error);
+});
+const dbLies = async (k) => { const db = await dbOffen(); return new Promise((ok, f) => { const r = db.transaction("kv").objectStore("kv").get(k); r.onsuccess = () => ok(r.result); r.onerror = () => f(r.error); }); };
+const dbSchreib = async (k, v) => { const db = await dbOffen(); return new Promise((ok, f) => { const t = db.transaction("kv", "readwrite"); t.objectStore("kv").put(v, k); t.oncomplete = ok; t.onerror = () => f(t.error); }); };
+
+function pruefe(d) {
+  if (!d || !Array.isArray(d.buecher) || !d.buecher.length) throw new Error("Keine Bücher in der Datei – ist das die daten.json von export_daten.py?");
+  return d;
+}
+
+async function ladeDaten() {
+  // 1. frisch vom Server (nur wenn über http geöffnet), 2. gespeicherte Kopie
+  if (location.protocol.startsWith("http")) {
+    try { const r = await fetch("daten.json", { cache: "no-cache" }); if (r.ok) { const d = pruefe(await r.json()); dbSchreib("daten", d).catch(() => {}); return d; } } catch { /* offline */ }
+  }
+  try { const d = await dbLies("daten"); if (d) return pruefe(d); } catch { /* keine Kopie */ }
+  return null;
+}
+
+async function dateiEinlesen(datei) {
+  const d = pruefe(JSON.parse(await datei.text()));
+  try { await dbSchreib("daten", d); } catch { /* ohne Speicher: läuft nur bis zum Neuladen */ }
+  setzeDaten(d);
+}
+
+// ---- Kapitel laden ------------------------------------------------------------
+function setzeDaten(d, ziel) {
+  daten = d;
+  buchText = { id: null, erstellt: null, kapitel: null };      // neuer Datenstand: Volltext neu laden
+  $("start").hidden = true;
+  $("modus").hidden = false;
+  wendeAnsichtAn();
+  const letzte = ziel || lsGet("ort", null);
+  let b = 0, k = 0, anteil = null;
+  if (letzte) {
+    const bb = d.buecher.findIndex((x) => x.autor === letzte.autor && x.titel === letzte.titel);
+    if (bb >= 0) {
+      b = bb; k = Math.max(0, d.buecher[bb].kapitel.findIndex((x) => x.nr === letzte.nr));
+      if (d.buecher[bb].kapitel[k].nr === letzte.nr) anteil = typeof letzte.anteil === "number" ? letzte.anteil : null;
+    }
+  }
+  oeffneKapitel(b, k, anteil);
+}
+
+function oeffneKapitel(b, k, anteil = null) {
+  stoppe();
+  buchIx = b; kapIx = k;
+  const buch = daten.buecher[b], kap = buch.kapitel[k];
+  ({ woerter, namen } = SR.baueWoerter(kap.felder));
+  i = 0;
+  lsSet("ort", { autor: buch.autor, titel: buch.titel, nr: kap.nr });
+  $("titel-kapitel").textContent = `${kap.nr}. ${kap.titel}`;
+  $("titel-buch").textContent = `${buch.autor} – ${buch.titel}`;
+  document.title = `${kap.titel} · EPISTO Speedreader`;
+  $("kap-zurueck").disabled = !kapitelNachbar(-1);
+  $("kap-vor").disabled = !kapitelNachbar(1);
+  $("balken").max = Math.max(0, woerter.length - 1);
+  zeige();
+  if (ansicht !== "speed") zeigeLesetext(anteil);
+}
+
+function kapitelNachbar(richtung) {
+  const buch = daten.buecher[buchIx], k = kapIx + richtung;
+  if (k >= 0 && k < buch.kapitel.length) return [buchIx, k];
+  return null;     // Kapitel eines anderen Buchs nur über die Auswahl
+}
+
+// ---- Anzeige --------------------------------------------------------------------
+function passeSchriftAn() {
+  const raster = $("raster"), halb = $("buehne").clientWidth / 2 - 24;
+  raster.style.setProperty("--f", "1");
+  const breite = (id) => $(id).getBoundingClientRect().width;
+  const noetig = Math.max(breite("links"), breite("rechts")) + breite("mitte") / 2;
+  if (noetig > halb) raster.style.setProperty("--f", String(Math.max(0.25, halb / noetig)));
+}
+
+function zeige() {
+  if (ansicht !== "speed") return;                  // Bühne ist ausgeblendet: nichts zu messen
+  const leer = !woerter.length;
+  $("leer").hidden = !leer; $("raster").hidden = leer; $("hinweis").hidden = leer;
+  $("balken").disabled = leer;
+  if (leer) {
+    $("leer").textContent = "Für dieses Kapitel gibt es keine KI-Felder (noch nicht getaggt).";
+    $("status").textContent = ""; $("pause").disabled = true;
+    return;
+  }
+  $("pause").disabled = false;
+  const w = woerter[i], t = SR.teileWort(w);
+  $("links").textContent = t.links; $("mitte").textContent = t.mitte; $("rechts").textContent = t.rechts;
+  $("raster").classList.toggle("marke", !!w.marke);
+  passeSchriftAn();
+  $("balken").value = i;
+  const rest = Math.round(SR.restdauer(woerter, i, wpm));
+  const zustand = laeuft ? "läuft" : (amEnde() ? "Ende" : "Pause");
+  $("status").textContent = `${namen[w.abschnitt]} · Wort ${i + 1}/${woerter.length} · ~${Math.floor(rest / 60)}:${String(rest % 60).padStart(2, "0")} übrig · ${zustand}`;
+  $("tempo").textContent = wpm;
+  $("pause").textContent = laeuft ? "Pause" : (amEnde() ? "Neu" : "Start");
+  $("hinweis").hidden = laeuft || i > 0;
+}
+
+const amEnde = () => woerter.length > 0 && i >= woerter.length - 1;
+
+// ---- Ablauf -------------------------------------------------------------------------
+function plane() {
+  clearTimeout(timer); timer = null;
+  if (!laeuft || !woerter.length) return;
+  if (i < woerter.length - 1) timer = setTimeout(tick, SR.dauer(woerter[i], wpm) * 1000);
+  else { laeuft = false; gibWakeLockFrei(); zeige(); }   // per Sprung ans Ende gelandet: Lauf beenden
+}
+function tick() {
+  timer = null;
+  if (!laeuft) return;
+  if (i < woerter.length - 1) i++;
+  if (i >= woerter.length - 1) { laeuft = false; gibWakeLockFrei(); }
+  zeige(); plane();
+}
+function springe(ziel) {
+  if (!woerter.length) return;
+  i = Math.min(Math.max(ziel, 0), woerter.length - 1);
+  zeige(); plane();
+}
+async function haltWakeLock() {
+  try { if ("wakeLock" in navigator && !wakeLock) { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => { wakeLock = null; }); } } catch { /* nicht erlaubt */ }
+}
+function gibWakeLockFrei() { try { if (wakeLock) wakeLock.release(); } catch { /* egal */ } wakeLock = null; }
+function stoppe() { laeuft = false; clearTimeout(timer); timer = null; gibWakeLockFrei(); }
+
+function setzeTempo(neu) {
+  wpm = SR.begrenzeTempo(neu); lsSet("wpm", wpm); zeige(); plane();
+}
+
+const AKTIONEN = {
+  pause() {
+    if (!woerter.length) return;
+    if (!laeuft && amEnde()) i = 0;
+    laeuft = !laeuft;
+    laeuft ? haltWakeLock() : gibWakeLockFrei();
+    zeige(); plane();
+  },
+  schneller: () => setzeTempo(wpm + SR.WPM_SCHRITT),
+  langsamer: () => setzeTempo(wpm - SR.WPM_SCHRITT),
+  fein_schneller: () => setzeTempo(wpm + SR.WPM_FEIN),
+  fein_langsamer: () => setzeTempo(wpm - SR.WPM_FEIN),
+  satz_zurueck: () => woerter.length && springe(SR.voriger_satzanfang(woerter, i)),
+  satz_vor: () => woerter.length && springe(SR.naechster_satzanfang(woerter, i)),
+  abschnitt_zurueck: () => woerter.length && springe(SR.voriger_abschnitt(woerter, i)),
+  abschnitt_vor: () => woerter.length && springe(SR.naechster_abschnitt(woerter, i)),
+  kap_zurueck() { const z = daten && kapitelNachbar(-1); if (z) oeffneKapitel(...z); },
+  kap_vor() { const z = daten && kapitelNachbar(1); if (z) oeffneKapitel(...z); },
+};
+
+document.querySelectorAll("[data-aktion]").forEach((b) => b.addEventListener("click", () => AKTIONEN[b.dataset.aktion]()));
+$("buehne").addEventListener("click", () => AKTIONEN.pause());
+$("kap-zurueck").addEventListener("click", AKTIONEN.kap_zurueck);
+$("kap-vor").addEventListener("click", AKTIONEN.kap_vor);
+$("balken").addEventListener("input", (e) => springe(Number(e.target.value)));
+
+document.addEventListener("keydown", (e) => {
+  if (e.ctrlKey || e.metaKey || e.altKey || !daten || $("wahl").open) return;
+  const gemeinsam = { "1": () => setzeAnsicht("speed"), "2": () => setzeAnsicht("ki"), "3": () => setzeAnsicht("original"),
+                      n: AKTIONEN.kap_vor, p: AKTIONEN.kap_zurueck };
+  let tat = gemeinsam[e.key];
+  if (!tat && ansicht === "speed") {
+    const karte = { " ": "pause", ArrowUp: "schneller", ArrowDown: "langsamer", "+": "fein_schneller", "=": "fein_schneller",
+                    "-": "fein_langsamer", ArrowLeft: "satz_zurueck", ArrowRight: "satz_vor",
+                    PageUp: "abschnitt_zurueck", PageDown: "abschnitt_vor" };
+    if (karte[e.key]) tat = AKTIONEN[karte[e.key]];
+  } else if (!tat && (e.key === "+" || e.key === "=")) tat = () => setzeSchrift(schrift + 0.1);
+  else if (!tat && e.key === "-") tat = () => setzeSchrift(schrift - 0.1);
+  if (tat) { e.preventDefault(); tat(); }      // Pfeile, Leertaste, Bild ↑/↓ scrollen in den Textansichten wie gewohnt
+});
+
+// ---- Ansichten: Speed / KI-Text / Original ----------------------------------------------------------
+function wendeAnsichtAn() {
+  const speed = ansicht === "speed";
+  for (const id of ["buehne", "fortschritt", "bedienung"]) $(id).hidden = !speed;
+  $("lesen").hidden = speed;
+  $("schrift-gruppe").hidden = speed;
+  document.querySelectorAll("[data-ansicht]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.ansicht === ansicht)));
+}
+
+function setzeSchrift(faktor) {
+  schrift = Math.min(2, Math.max(0.8, Math.round(faktor * 10) / 10));
+  lsSet("schrift", schrift);
+  $("lesen").style.setProperty("--s", String(schrift));
+}
+setzeSchrift(schrift);
+
+function setzeAnsicht(neu) {
+  if (!daten || neu === ansicht || !ANSICHTEN.includes(neu)) return;
+  const alt = ansicht;
+  let abschnittZiel = null, startWort = null;
+  if (alt === "speed") { stoppe(); if (woerter.length) abschnittZiel = woerter[i].abschnitt; }
+  if (neu === "speed" && alt === "ki") startWort = ersterSichtbarerAbschnitt();
+  ansicht = neu; lsSet("ansicht", neu);
+  wendeAnsichtAn();
+  if (neu === "speed") {
+    if (startWort !== null && woerter.length) { const w = woerter.findIndex((x) => x.abschnitt === startWort); if (w >= 0) i = w; }
+    zeige();
+  } else {
+    zeigeLesetext(null, abschnittZiel);
+  }
+}
+
+/** Abschnitt (Index wie in baueWoerter), der in der KI-Text-Ansicht oben im Bild steht. */
+function ersterSichtbarerAbschnitt() {
+  const oben = $("lesen").getBoundingClientRect().top;
+  for (const h of $("lesen-inhalt").querySelectorAll("[data-abschnitt]")) {
+    if (h.getBoundingClientRect().bottom > oben + 8) return Number(h.dataset.abschnitt);
+  }
+  return null;
+}
+
+const el = (tag, klasse, text) => { const e = document.createElement(tag); if (klasse) e.className = klasse; if (text !== undefined) e.textContent = text; return e; };
+const ohneFussnote = (t) => t.replace(/\s*\[\^[^\]]+\]/g, "");
+
+function fuegeInline(eltern, text, nummern) {
+  for (const s of Lesetext.inline(text)) {
+    if (s.fn !== undefined) { const n = nummern && nummern.get(s.fn); if (n) eltern.append(el("sup", "", String(n))); continue; }
+    if (!s.t) continue;
+    eltern.append(s.b ? el("strong", "", s.t) : s.em ? el("em", "", s.t) : document.createTextNode(s.t));
+  }
+}
+
+function baueKi(kap) {
+  const f = document.createDocumentFragment();
+  let a = 0;
+  for (const [feld, name] of SR.ABSCHNITTE) {
+    const eintraege = SR.feldEintraege(kap.felder[feld]).map(ohneFussnote).filter((e) => e.trim());
+    if (!eintraege.length) continue;
+    const h = el("h3", "abschnitt", name); h.dataset.abschnitt = String(a++); f.append(h);
+    if (feld === "zusammenfassung") {
+      for (const e of eintraege) { const p = el("p"); fuegeInline(p, e); f.append(p); }
+    } else {
+      const ul = el("ul");
+      for (const e of eintraege) { const li = el("li"); fuegeInline(li, e); ul.append(li); }
+      f.append(ul);
+    }
+  }
+  return a ? f : null;
+}
+
+function baueOriginal(text) {
+  const bloecke = Lesetext.parse(text);
+  if (!bloecke.length) return null;
+  const nummern = Lesetext.fussnotenNummern(bloecke);
+  const f = document.createDocumentFragment();
+  const anmerkungen = [];
+  let ul = null;
+  for (const b of bloecke) {
+    if (b.typ !== "li") ul = null;
+    if (b.typ === "h") { const h = el(b.stufe <= 1 ? "h2" : b.stufe === 2 ? "h3" : "h4"); fuegeInline(h, b.text, nummern); f.append(h); }
+    else if (b.typ === "p") { const p = el("p"); fuegeInline(p, b.text, nummern); f.append(p); }
+    else if (b.typ === "zitat") { const q = el("blockquote"); fuegeInline(q, b.text, nummern); f.append(q); }
+    else if (b.typ === "li") { if (!ul) { ul = el("ul"); f.append(ul); } const li = el("li"); fuegeInline(li, b.text, nummern); ul.append(li); }
+    else if (b.typ === "seite") f.append(el("div", "seite", b.text));
+    else if (b.typ === "bild") f.append(el("p", "bild", `[Abbildung: ${b.text}]`));
+    else if (b.typ === "hr") f.append(el("hr"));
+    else if (b.typ === "fn") anmerkungen.push(b);
+  }
+  if (anmerkungen.length) {
+    const box = el("div", "anmerkungen");
+    box.append(el("h4", "", "Anmerkungen"));
+    anmerkungen.sort((x, y) => (nummern.get(x.id) || 0) - (nummern.get(y.id) || 0));
+    for (const a of anmerkungen) { const p = el("p"); p.append(el("sup", "", String(nummern.get(a.id)))); p.append(" "); fuegeInline(p, a.text); box.append(p); }
+    f.append(box);
+  }
+  return f;
+}
+
+/** Volltext des Buchs: erst frisch vom Server (nur bei http), sonst die importierte Kopie. */
+async function ladeBuchText(buch) {
+  if (buch.id && buchText.id === buch.id && buchText.kapitel) return { status: "ok", kapitel: buchText.kapitel };
+  if (!buch.id) return { status: "fehlt" };            // daten.json aus einem älteren Export
+  let d = null;
+  if (location.protocol.startsWith("http")) {
+    try { const r = await fetch(`buecher/${buch.id}.json`, { cache: "no-cache" }); if (r.ok) { d = await r.json(); dbSchreib("text:" + buch.id, d).catch(() => {}); } } catch { /* offline */ }
+  }
+  if (!d) { try { d = await dbLies("text:" + buch.id); } catch { /* keine Kopie */ } }
+  if (!d || !d.kapitel) return { status: "fehlt" };
+  if (d.erstellt !== daten.erstellt) return { status: "veraltet" };
+  buchText = { id: buch.id, erstellt: d.erstellt, kapitel: d.kapitel };
+  return { status: "ok", kapitel: d.kapitel };
+}
+
+function zeigeHinweis(text, mitImport) {
+  const inhalt = $("lesen-inhalt"); inhalt.textContent = "";
+  const box = el("div", "hinweis-leer"); box.append(el("p", "", text));
+  if (mitImport) { const b = el("button", "", "Volltext importieren …"); b.addEventListener("click", () => $("ordner").click()); box.append(b); }
+  inhalt.append(box);
+}
+
+/** Füllt die Textansichten für das offene Kapitel. anteil: gemerkte Scrollposition (0..1, nur Original),
+ *  abschnittZiel: KI-Abschnitt, zu dem gescrollt wird (beim Wechsel aus dem Speedreader). */
+async function zeigeLesetext(anteil = null, abschnittZiel = null) {
+  const nr = ++ladeNr;
+  const lesen = $("lesen"), inhalt = $("lesen-inhalt");
+  const buch = daten.buecher[buchIx], kap = buch.kapitel[kapIx];
+  if (ansicht === "ki") {
+    const f = baueKi(kap);
+    inhalt.textContent = "";
+    if (!f) { zeigeHinweis("Für dieses Kapitel gibt es keine KI-Felder (noch nicht getaggt)."); return; }
+    inhalt.append(f);
+    const ziel = abschnittZiel === null ? null : inhalt.querySelector(`[data-abschnitt="${abschnittZiel}"]`);
+    lesen.scrollTop = ziel ? Math.max(0, ziel.offsetTop - 12) : 0;
+    return;
+  }
+  if (anteil === null) {                                              // Wechsel zurück ins Original: dort weiterlesen
+    const ort = lsGet("ort", null);
+    if (ort && ort.autor === buch.autor && ort.titel === buch.titel && ort.nr === kap.nr && typeof ort.anteil === "number") anteil = ort.anteil;
+  }
+  zeigeHinweis("Lade Originaltext …");
+  lesen.scrollTop = 0;
+  const erg = await ladeBuchText(buch);
+  if (nr !== ladeNr || ansicht !== "original") return;               // inzwischen weitergeschaltet
+  if (erg.status === "fehlt") return zeigeHinweis("Der Originaltext liegt nicht auf diesem Gerät. Den Ordner „buecher“ aus dem Export einmal importieren (oder die App über http von APIC öffnen).", true);
+  if (erg.status === "veraltet") return zeigeHinweis("Der importierte Volltext stammt von einem anderen Export als daten.json. Den Ordner „buecher“ erneut importieren.", true);
+  const text = erg.kapitel[String(kap.nr)];
+  if (text === undefined) return zeigeHinweis("Für dieses Kapitel liegt kein Originaltext vor.");
+  const f = baueOriginal(text);
+  if (!f) return zeigeHinweis("Das Kapitel enthält keinen Text.");
+  inhalt.textContent = "";
+  inhalt.append(f);
+  const max = lesen.scrollHeight - lesen.clientHeight;
+  lesen.scrollTop = anteil && max > 0 ? anteil * max : 0;
+}
+
+// Leseposition im Original merken (Anteil der Scrollhöhe), damit man nach dem Neuladen weiterlesen kann
+let scrollTimer = null;
+$("lesen").addEventListener("scroll", () => {
+  if (ansicht !== "original" || !daten) return;
+  clearTimeout(scrollTimer);
+  scrollTimer = setTimeout(() => {
+    const l = $("lesen"), max = l.scrollHeight - l.clientHeight;
+    if (max <= 0) return;
+    const buch = daten.buecher[buchIx], kap = buch.kapitel[kapIx];
+    lsSet("ort", { autor: buch.autor, titel: buch.titel, nr: kap.nr, anteil: Math.min(1, l.scrollTop / max) });
+  }, 400);
+});
+
+document.querySelectorAll("[data-ansicht]").forEach((b) => b.addEventListener("click", () => setzeAnsicht(b.dataset.ansicht)));
+$("schrift-klein").addEventListener("click", () => setzeSchrift(schrift - 0.1));
+$("schrift-gross").addEventListener("click", () => setzeSchrift(schrift + 0.1));
+
+// Tab im Hintergrund: Zeitgeber werden gedrosselt -> lieber anhalten
+document.addEventListener("visibilitychange", () => { if (document.hidden && laeuft) AKTIONEN.pause(); });
+window.addEventListener("resize", () => woerter.length && passeSchriftAn());
+
+// ---- Darstellung ----------------------------------------------------------------------------
+const THEMEN = ["auto", "hell", "dunkel"];
+function setzeThema(t) {
+  if (t === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.dataset.theme = t;
+  $("knopf-thema").title = `Darstellung: ${t}`; lsSet("thema", t);
+}
+$("knopf-thema").addEventListener("click", () => setzeThema(THEMEN[(THEMEN.indexOf(lsGet("thema", "auto")) + 1) % THEMEN.length]));
+setzeThema(lsGet("thema", "auto"));
+
+// ---- Kapitelwahl --------------------------------------------------------------------------------
+const norm = (s) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ß/g, "ss");
+
+function baueListe() {
+  const q = norm($("suche").value.trim());
+  const liste = $("liste"); liste.textContent = "";
+  let gezeigt = 0;
+  const treffer = q ? daten.buecher.filter((bu) => norm(`${bu.autor} ${bu.titel}`).includes(q) || bu.kapitel.some((k) => norm(k.titel).includes(q))).length : 0;
+  daten.buecher.forEach((buch, b) => {
+    const buchTreffer = !q || norm(`${buch.autor} ${buch.titel}`).includes(q);
+    const kapTreffer = q && !buchTreffer ? buch.kapitel.filter((k) => norm(k.titel).includes(q)) : buch.kapitel;
+    if (!buchTreffer && !kapTreffer.length) return;
+    gezeigt++;
+    const d = document.createElement("details");
+    const s = document.createElement("summary");
+    s.append(`${buch.autor} – ${buch.titel} `);
+    const n = document.createElement("small"); n.textContent = `(${kapTreffer.length} Kapitel)`; s.append(n);
+    d.append(s);
+    const fuelle = () => {
+      if (d.dataset.fertig) return; d.dataset.fertig = "1";
+      for (const kap of kapTreffer) {
+        const k = buch.kapitel.indexOf(kap);
+        const knopf = document.createElement("button");
+        knopf.className = "kap"; knopf.textContent = `${kap.nr}. ${kap.titel}`;
+        if (b === buchIx && k === kapIx) knopf.setAttribute("aria-current", "true");
+        knopf.addEventListener("click", () => { $("wahl").close(); oeffneKapitel(b, k); });
+        d.append(knopf);
+      }
+    };
+    d.addEventListener("toggle", () => d.open && fuelle());
+    if ((b === buchIx && !q) || (q && (!buchTreffer || treffer <= 3))) { d.open = true; fuelle(); }
+    liste.append(d);
+    if (d.open && b === buchIx && !q) requestAnimationFrame(() => d.scrollIntoView({ block: "start" }));
+  });
+  if (!gezeigt) liste.textContent = "Nichts gefunden.";
+}
+
+$("knopf-wahl").addEventListener("click", () => {
+  if (!daten) return;
+  stoppe(); zeige();
+  $("suche").value = ""; baueListe();
+  const kapitel = daten.buecher.reduce((s, b) => s + b.kapitel.length, 0);
+  $("stand").textContent = `${daten.buecher.length} Bücher, ${kapitel} Kapitel · Stand ${daten.erstellt || "unbekannt"}`;
+  $("wahl").showModal();
+});
+$("wahl-zu").addEventListener("click", () => $("wahl").close());
+let suchTimer = null;
+$("suche").addEventListener("input", () => { clearTimeout(suchTimer); suchTimer = setTimeout(baueListe, 150); });
+$("daten-neu").addEventListener("click", () => $("datei").click());
+$("knopf-datei").addEventListener("click", () => $("datei").click());
+$("datei").addEventListener("change", async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  try { $("start-fehler").textContent = ""; await dateiEinlesen(f); $("wahl").close(); }
+  catch (fehler) { $("start-fehler").textContent = String(fehler.message || fehler); $("start").hidden = !!daten; }
+  e.target.value = "";
+});
+
+// Volltext-Ordner (buecher\b001.json …) in den Browser-Speicher übernehmen
+const meldeImport = (text) => { $("import-status").textContent = text; $("start-info").textContent = text; };
+async function ordnerEinlesen(dateien) {
+  const liste = [...dateien].filter((f) => /^b\d+\.json$/.test(f.name));
+  if (!liste.length) return meldeImport("Keine Dateien b001.json … gefunden: den Ordner „buecher“ aus dem Export wählen.");
+  let ok = 0, fremd = 0, defekt = 0;
+  for (const f of liste) {
+    meldeImport(`Importiere … ${ok + fremd + defekt + 1}/${liste.length}`);
+    try {
+      const d = JSON.parse(await f.text());
+      if (!d.id || !d.kapitel) throw new Error("kein Volltext");
+      await dbSchreib("text:" + d.id, d);
+      if (daten && d.erstellt !== daten.erstellt) fremd++; else ok++;
+    } catch { defekt++; }
+  }
+  meldeImport(`${ok} Bücher importiert` + (fremd ? `, ${fremd} stammen von einem anderen Export als daten.json` : "") + (defekt ? `, ${defekt} fehlerhaft` : "") + ".");
+  buchText = { id: null, erstellt: null, kapitel: null };
+  if (daten && ansicht === "original") zeigeLesetext();
+}
+$("volltext-neu").addEventListener("click", () => $("ordner").click());
+$("knopf-ordner").addEventListener("click", () => $("ordner").click());
+$("ordner").addEventListener("change", async (e) => { const f = [...e.target.files]; e.target.value = ""; await ordnerEinlesen(f); });
+
+// ---- Start -----------------------------------------------------------------------------------------
+(async () => {
+  for (const id of ["buehne", "fortschritt", "bedienung", "lesen", "modus"]) $(id).hidden = true;
+  const d = await ladeDaten();
+  if (d) setzeDaten(d); else $("start").hidden = false;
+})();
+</script>
+</body>
+</html>

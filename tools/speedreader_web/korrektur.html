@@ -1,0 +1,1424 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>EPISTO Korrekturlesen</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --bg: #f7f5f0; --flaeche: #ffffff; --text: #1d1b18; --gedaempft: #6b665e;
+    --linie: #d8d3c8; --akzent: #0b7285; --warn: #d6291e; --knopf: #ebe7dd; --knopf-aktiv: #d9d3c4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="hell"]) {
+      --bg: #14130f; --flaeche: #1d1b16; --text: #ece8de; --gedaempft: #9a9486;
+      --linie: #38352d; --akzent: #4fc3d9; --warn: #ff6b5e; --knopf: #2a2720; --knopf-aktiv: #3a362c;
+    }
+  }
+  :root[data-theme="dunkel"] {
+    --bg: #14130f; --flaeche: #1d1b16; --text: #ece8de; --gedaempft: #9a9486;
+    --linie: #38352d; --akzent: #4fc3d9; --warn: #ff6b5e; --knopf: #2a2720; --knopf-aktiv: #3a362c;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--text); font: 16px/1.4 system-ui, "Segoe UI", Roboto, sans-serif;
+    display: grid; grid-template-rows: auto minmax(0, 1fr); height: 100dvh; padding: env(safe-area-inset-top) 12px 10px; gap: 8px;
+  }
+  button, select, input[type=number] {
+    font: inherit; color: var(--text); background: var(--knopf); border: 1px solid var(--linie); border-radius: 12px;
+    min-height: 48px; min-width: 48px; padding: 0 12px; cursor: pointer; touch-action: manipulation;
+  }
+  button:active { background: var(--knopf-aktiv); }
+  button:focus-visible, select:focus-visible, input:focus-visible, #griff:focus-visible { outline: 3px solid var(--akzent); outline-offset: 2px; }
+  button[disabled] { opacity: .4; cursor: default; }
+  button[aria-pressed="true"] { background: var(--akzent); color: var(--bg); font-weight: 700; border-color: var(--akzent); }
+  a.knopf { display: inline-grid; place-items: center; text-decoration: none; font: inherit; color: var(--text); background: var(--knopf);
+            border: 1px solid var(--linie); border-radius: 12px; min-height: 48px; padding: 0 12px; }
+
+  #kopf { display: flex; align-items: center; gap: 8px; padding-top: 8px; }
+  #titel { flex: 1; min-width: 0; line-height: 1.25; }
+  #titel b, #titel span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #titel span { color: var(--gedaempft); font-size: .85em; }
+
+  /* Geteilte Ansicht */
+  #teilung { --teil: .5; display: flex; min-height: 0; gap: 0; }
+  .pane { display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; min-height: 0; background: var(--flaeche);
+          border: 1px solid var(--linie); border-radius: 16px; overflow: hidden; }
+  #links { flex: 0 0 calc((100% - 18px) * var(--teil)); }
+  #rechts { flex: 1 1 0; grid-template-rows: auto minmax(0, 1fr) auto; }
+
+  /* Änderungsleiste (Redaktion) */
+  #aenderungen-leiste { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px 8px; border-top: 1px solid var(--linie); background: var(--knopf); }
+  #aenderungen-text { flex: 1 1 12em; min-width: 0; font-size: .85em; color: var(--gedaempft); }
+  #aenderungen-leiste[data-zustand="fehler"] #aenderungen-text { color: var(--warn); font-weight: 700; }
+  #aenderungen-hinweis { flex: 1 1 100%; font-size: .85em; color: var(--akzent); }
+  #aenderungen-leiste button { min-height: 44px; min-width: 44px; padding: 0 12px; }
+  #aenderungsliste-kopf { display: flex; align-items: center; gap: 8px; padding: 12px; border-bottom: 1px solid var(--linie); }
+  #aenderungsliste-kopf b { flex: 1; min-width: 0; }
+  #aenderungsliste-inhalt { padding: 8px 12px 12px; overflow: auto; max-height: calc(92dvh - 90px); }
+  #aenderungsliste-inhalt ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .aenderung { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--linie); border-radius: 12px; background: var(--bg); }
+  .aenderung .text { flex: 1 1 14em; min-width: 0; }
+  .aenderung .text small { display: block; color: var(--gedaempft); overflow-wrap: anywhere; }
+  .aenderung[data-status="konflikt"] { border-color: var(--warn); }
+  .aenderung button { min-height: 44px; min-width: 44px; padding: 0 12px; }
+  #aenderungsliste-leer { color: var(--gedaempft); padding: 8px 0; }
+  #verbindung form { display: grid; gap: 10px; padding: 14px; }
+  #verbindung label { display: grid; gap: 4px; font-size: .9em; color: var(--gedaempft); }
+  #verbindung input { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--linie); border-radius: 12px; padding: 0 14px; min-height: 48px; }
+  #verbindung .zeile { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  #verbindung-status { font-weight: 700; }
+  #verbindung-status[data-ok="ja"] { color: var(--akzent); }
+  #verbindung-status[data-ok="nein"] { color: var(--warn); }
+  #griff { flex: 0 0 18px; cursor: col-resize; touch-action: none; display: grid; place-items: center; }
+  #griff::before { content: ""; width: 4px; height: 56px; border-radius: 2px; background: var(--linie); }
+  #griff:hover::before, #griff.zieht::before { background: var(--akzent); }
+  .leiste { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px; border-bottom: 1px solid var(--linie); }
+  .leiste b { padding: 0 4px; }
+  .leiste button, .leiste select, .leiste input[type=number], .leiste a.knopf { min-height: 44px; min-width: 44px; padding: 0 10px; }
+  .leiste .gruppe { display: flex; border: 1px solid var(--linie); border-radius: 12px; overflow: hidden; }
+  #rechts-leiste .gruppe { flex: 1 1 100%; }            /* Quelle (Rohchunks / Bereinigt / Übersetzung) in eigener Zeile */
+  #rechts-leiste .gruppe button { flex: 1; }
+  .info:empty { display: none; }
+  .leiste .gruppe button { border: 0; border-radius: 0; }
+  .leiste .gruppe button + button { border-left: 1px solid var(--linie); }
+  .leiste select { max-width: 16em; flex: 1 1 8em; min-width: 0; }
+  .leiste input[type=number] { width: 5.5em; cursor: text; }
+  .leiste .platz { flex: 1; }
+  .info { color: var(--gedaempft); font-size: .8em; padding: 0 4px; }
+
+  #links-inhalt { position: relative; min-height: 0; background: #fff; }
+  #links-inhalt iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
+  #links-hinweis { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 10px; padding: 20px;
+                   color: var(--gedaempft); background: var(--flaeche); }
+  #links-hinweis p { margin: 0; max-width: 28em; }
+  #rechts-koerper { display: grid; min-height: 0; grid-template-rows: auto minmax(0, 1fr) auto auto; }
+  #rechts-koerper[data-ansicht="paar"] { grid-template-rows: auto minmax(0, 1fr) auto minmax(0, 1fr); }
+  #original-kopf { grid-row: 1; } #rechts-inhalt { grid-row: 2; } #uebersetzung-kopf { grid-row: 3; } #uebersetzung-inhalt { grid-row: 4; }
+  #rechts-inhalt, #uebersetzung-inhalt {
+                   margin: 0; padding: 12px 14px 40px; overflow: auto; min-height: 0; overscroll-behavior: contain; tab-size: 4;
+                   white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; -webkit-user-select: text;
+                   font: calc(.95rem * var(--s, 1)) / 1.55 ui-monospace, "Cascadia Mono", "Roboto Mono", Consolas, monospace; }
+  #rechts-inhalt:focus-visible, #uebersetzung-inhalt:focus-visible { outline: 3px solid var(--akzent); outline-offset: -3px; }
+  .teilkopf { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px 8px; background: var(--knopf);
+              border-top: 1px solid var(--linie); border-bottom: 1px solid var(--linie); font-size: .85em; }
+  #original-kopf { border-top: 0; }
+  .teilkopf button { min-height: 36px; min-width: 36px; padding: 0 8px; border-radius: 10px; }
+  .teilkopf .platz { flex: 1; }
+  .auffaellig { color: var(--warn); font-weight: 700; }
+  .steuer { color: var(--warn); font-weight: 700; opacity: .85; }
+
+  /* Chunk-Ansicht A: Verdachtsstellen, Konflikte (Texte stehen in data-label, damit textContent der Chunk-Text bleibt) */
+  :root { --v-gelb: rgba(240,190,40,.30); --v-rot: rgba(214,41,30,.22); --v-blau: rgba(11,114,133,.24); --v-konflikt: var(--warn); }
+  .verdacht { border-radius: 4px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+  .verdacht-gelb { background: var(--v-gelb); } .verdacht-rot { background: var(--v-rot); } .verdacht-blau { background: var(--v-blau); }
+  .markiert { text-decoration: underline dotted var(--gedaempft); text-underline-offset: 3px; }
+  .chip, .aktion { font: 600 .8rem/1.2 system-ui, "Segoe UI", Roboto, sans-serif; user-select: none; -webkit-user-select: none; }
+  .chip { display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; margin-left: .5em; padding: 0 12px; min-height: 44px; min-width: 44px; border-radius: 12px; }
+  .chip::before, .aktion::before, .grund::before, .vorschlag::before, .konflikt-chip::before, .konflikt-grund::before { content: attr(data-label); }
+  .chip[aria-expanded="true"] { background: var(--akzent); color: var(--bg); border-color: var(--akzent); }
+  .verdacht-leiste, .konflikt { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0; padding: 6px 8px; border: 1px solid var(--linie); border-radius: 12px; background: var(--knopf);
+                                font: .85rem/1.35 system-ui, "Segoe UI", Roboto, sans-serif; white-space: normal; user-select: none; -webkit-user-select: none; }
+  .verdacht-leiste .grund, .konflikt-grund { flex: 1 1 100%; min-width: 0; } .verdacht-leiste .vorschlag { flex: 1 1 100%; color: var(--gedaempft); }
+  .aktion { min-height: 44px; min-width: 44px; padding: 0 14px; border-radius: 12px; }
+  .konflikt { border-color: var(--v-konflikt); }
+  .konflikt-chip { font-weight: 700; color: var(--bg); background: var(--v-konflikt); border-radius: 12px; padding: 4px 12px; }
+  #rechts-verdacht { font-weight: 700; } #rechts-verdacht[data-konflikt="ja"] { color: var(--warn); }
+  .markiert[data-marke] { background: rgba(11,114,133,.12); }
+
+  /* Chunk-Ansicht B: Werkzeugleiste unter der Auswahl */
+  #rechts-koerper { position: relative; }
+  #werkzeugleiste { position: absolute; z-index: 20; max-width: min(100%, 560px); padding: 6px 8px;
+                    border: 1px solid var(--linie); border-radius: 14px; background: var(--flaeche); box-shadow: 0 6px 22px rgba(0,0,0,.28);
+                    font: .85rem/1.3 system-ui, "Segoe UI", Roboto, sans-serif; user-select: none; -webkit-user-select: none; }
+  .werkzeug-reihe { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  #werkzeugleiste.verschiebt { width: 100%; box-sizing: border-box; max-width: 100%; }
+  #werkzeugleiste.verschiebt button:not([data-was="abbrechen"]), #werkzeugleiste.verschiebt input { display: none; }
+  #werkzeugleiste.kompakt { max-width: 100%; box-sizing: border-box; width: 100%; }
+  #werkzeugleiste.kompakt .werkzeug-reihe { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+  #werkzeugleiste.kompakt .werkzeug-reihe > * { flex: 0 0 auto; }
+  #werkzeugleiste.kompakt #werkzeug-notiz { width: 11em; }
+  #werkzeugleiste button { min-height: 44px; min-width: 44px; padding: 0 12px; border-radius: 12px; }
+  #werkzeugleiste button:disabled { opacity: .45; }
+  #werkzeug-notiz { flex: 1 1 10em; min-width: 8em; min-height: 44px; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--linie); border-radius: 12px; padding: 0 12px;
+                    user-select: text; -webkit-user-select: text; }
+  .werkzeug-status { display: block; margin-top: 2px; color: var(--gedaempft); } .werkzeug-status:empty { display: none; }
+  #rechts-inhalt[data-verschieben] { cursor: crosshair; outline: 3px dashed var(--akzent); outline-offset: -3px; }
+
+  /* Neu übersetzen (Übersetzungsmodus) und Vergleich */
+  #neu-zeile { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  #neu-zeile button { min-height: 44px; min-width: 44px; padding: 0 12px; border-radius: 12px; }
+  #neu-status { flex: 1 1 12em; min-width: 0; color: var(--gedaempft); }
+  #neu-status[data-art="fehler"] { color: var(--warn); font-weight: 700; }
+  #vergleich { width: min(960px, 98vw); }
+  #vergleich-kopf { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--linie); }
+  #vergleich-kopf b { flex: 1; min-width: 0; }
+  #vergleich-status { padding: 6px 12px; min-height: 1.4em; color: var(--gedaempft); }
+  #vergleich-status[data-art="fehler"] { color: var(--warn); font-weight: 700; }
+  #vergleich-spalten { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 12px; }
+  #vergleich-spalten section { min-width: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+  #vergleich-spalten h3 { margin: 0 0 4px; font-size: .9rem; color: var(--gedaempft); }
+  #vergleich-spalten pre { margin: 0; padding: 8px 10px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; tab-size: 4;
+                           height: calc(92dvh - 230px); min-height: 6em; border: 1px solid var(--linie); border-radius: 12px; background: var(--bg);
+                           font: .85rem/1.5 ui-monospace, "Cascadia Mono", "Roboto Mono", Consolas, monospace; user-select: text; -webkit-user-select: text; }
+  #vergleich-fuss { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 12px; justify-content: flex-end; }
+  #vergleich-fuss button, #vergleich-kopf button { min-height: 44px; min-width: 44px; }
+
+  /* Hochformat / schmales Fenster: untereinander */
+  @media (max-width: 720px), (max-aspect-ratio: 1/1) {
+    #teilung { flex-direction: column; }
+    #links { flex: 0 0 calc((100% - 18px) * var(--teil)); }
+    #griff { cursor: row-resize; flex: 0 0 18px; }
+    #griff::before { width: 56px; height: 4px; }
+    #vergleich-spalten { grid-template-columns: 1fr; }
+    #vergleich-spalten pre { height: calc((92dvh - 250px) / 2); }
+  }
+
+  dialog { border: 1px solid var(--linie); border-radius: 20px; background: var(--flaeche); color: var(--text); width: min(720px, 96vw); max-height: 92dvh; padding: 0; }
+  dialog::backdrop { background: rgba(0,0,0,.5); }
+  #wahl-kopf { display: flex; gap: 8px; padding: 12px; position: sticky; top: 0; background: var(--flaeche); border-bottom: 1px solid var(--linie); }
+  #suche { flex: 1; min-width: 0; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--linie); border-radius: 12px; padding: 0 14px; min-height: 48px; }
+  #liste { padding: 8px 12px 12px; overflow: auto; max-height: calc(92dvh - 150px); }
+  .buch { display: block; width: 100%; text-align: left; margin: 0 0 6px; min-height: 56px; background: var(--bg); padding: 6px 12px; }
+  .buch[aria-current="true"] { border: 2px solid var(--akzent); }
+  .buch small { display: block; color: var(--gedaempft); }
+  #wahl-fuss { padding: 10px 12px; border-top: 1px solid var(--linie); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; color: var(--gedaempft); font-size: .8em; }
+
+  #start { grid-row: 2; display: grid; place-items: center; text-align: center; padding: 24px; }
+  #start > div { max-width: 36em; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header id="kopf">
+  <button id="knopf-buch" aria-label="Buch wählen">☰ Buch</button>
+  <div id="titel"><b id="titel-buch">EPISTO Korrekturlesen</b><span id="titel-info">Original links · Extraktion rechts</span></div>
+  <a class="knopf" href="index.html" title="Zur Leseansicht">Lesen ↗</a>
+  <button id="knopf-verbindung" aria-label="Verbindung zu APIC" title="Verbindung zu APIC (Änderungen senden)">⇄ APIC</button>
+  <button id="knopf-thema" aria-label="Darstellung wechseln" title="Hell / Dunkel / automatisch">◐</button>
+</header>
+
+<main id="teilung" hidden>
+  <section id="links" class="pane" aria-label="Original-Ebook">
+    <div class="leiste">
+      <b>Original</b>
+      <button id="ebook-oeffnen">Ebook öffnen …</button>
+      <span id="pdf-steuer" hidden>
+        <label class="info" for="pdf-seite">Seite</label>
+        <input id="pdf-seite" type="number" min="1" value="1" inputmode="numeric">
+        <button id="pdf-los">Los</button>
+      </span>
+      <span id="epub-steuer" hidden style="display:contents">
+        <button id="epub-zurueck" aria-label="Voriger Abschnitt">⏴</button>
+        <select id="epub-abschnitt" aria-label="Abschnitt"></select>
+        <button id="epub-vor" aria-label="Nächster Abschnitt">⏵</button>
+      </span>
+      <button id="auswahl-suchen" title="Markierten Text aus der rechten Seite im Original suchen" hidden>Auswahl suchen</button>
+      <span class="platz"></span>
+      <span class="info" id="ebook-info"></span>
+    </div>
+    <div id="links-inhalt">
+      <iframe id="pdf" title="PDF" hidden></iframe>
+      <iframe id="epub" title="EPUB" sandbox="allow-same-origin" hidden></iframe>
+      <div id="links-hinweis"><p id="links-text">Kein Ebook geöffnet.</p><button id="hinweis-oeffnen">Ebook öffnen …</button></div>
+    </div>
+  </section>
+
+  <div id="griff" role="separator" aria-orientation="vertical" aria-label="Teiler verschieben" tabindex="0"></div>
+
+  <section id="rechts" class="pane" aria-label="Extrahierter Text">
+    <div class="leiste" id="rechts-leiste">
+      <div class="gruppe" role="group" aria-label="Quelle">
+        <button id="modus-chunks" data-modus="chunks" title="Rohchunks aus der Extraktion (en\chunk_NNN.md)">Rohchunks</button>
+        <button id="modus-text" data-modus="text" title="Bereinigter Kapiteltext (quelle\*.md)">Bereinigt</button>
+        <button id="modus-uebersetzung" data-modus="uebersetzung" title="Übersetzung prüfen: Rohchunk der Quelle und übersetzter Chunk untereinander">Übersetzung</button>
+      </div>
+      <button id="rechts-zurueck" aria-label="Zurück">⏴</button>
+      <select id="rechts-wahl" aria-label="Chunk oder Kapitel"></select>
+      <button id="rechts-vor" aria-label="Weiter">⏵</button>
+      <button id="kapitel-sprung" hidden>→ Kapitel</button>
+      <span id="anzeige-knoepfe" style="display:contents">
+        <button id="steuer" aria-pressed="false" title="Tabs, geschützte und weiche Trennstriche sichtbar machen">¶</button>
+        <button id="schrift-klein" aria-label="Schrift kleiner">A−</button>
+        <button id="schrift-gross" aria-label="Schrift größer">A+</button>
+      </span>
+      <span class="info" id="rechts-info"></span>
+      <span class="info" id="rechts-verdacht" role="status"></span>
+    </div>
+    <div id="rechts-koerper" data-ansicht="einzeln">
+      <div id="original-kopf" class="teilkopf" hidden><b id="original-titel">Quelltext</b><span class="platz"></span><span id="original-info" class="info"></span></div>
+      <pre id="rechts-inhalt" tabindex="0"></pre>
+      <div id="uebersetzung-kopf" class="teilkopf" hidden>
+        <b id="uebersetzung-titel">Übersetzung (de)</b>
+        <button id="de-zurueck" aria-label="Übersetzung: vorheriger Chunk" title="Übersetzungs-Chunk früher (verschiebt die Zuordnung)">⏴</button>
+        <button id="de-vor" aria-label="Übersetzung: nächster Chunk" title="Übersetzungs-Chunk später (verschiebt die Zuordnung)">⏵</button>
+        <button id="de-reset" aria-label="Zuordnung zurücksetzen" title="Zuordnung zurücksetzen" hidden>↺</button>
+        <span id="de-hinweis" class="info"></span><span class="platz"></span><span id="uebersetzung-info" class="info"></span>
+        <div id="neu-zeile" hidden>
+          <b id="veraltet-hinweis" class="auffaellig" hidden>Original geändert, Übersetzung veraltet</b>
+          <button id="neu-uebersetzen" hidden>Neu übersetzen</button>
+          <span id="neu-status" role="status" aria-live="polite"></span>
+          <button id="vergleich-zeigen" hidden>Vergleich ansehen</button>
+        </div>
+      </div>
+      <pre id="uebersetzung-inhalt" tabindex="0" hidden></pre>
+    </div>
+    <div id="aenderungen-leiste" data-zustand="ok">
+      <span id="aenderungen-text" role="status" aria-live="polite">0 Änderungen · 0 Markierungen · 0 warten auf APIC</span>
+      <span id="aenderungen-hinweis" role="status" hidden></span>
+      <button id="aenderungen-liste-knopf" title="Alle Änderungen und Markierungen dieses Buchs anzeigen, zurücknehmen oder dorthin springen">Änderungen anzeigen</button>
+      <button id="aenderungen-sichern" title="Alle noch nicht angewendeten Änderungen dieses Buchs als JSON-Datei speichern">Änderungen als Datei sichern</button>
+    </div>
+  </section>
+</main>
+
+<section id="start" hidden>
+  <div>
+    <h2>Korrekturdaten laden</h2>
+    <p>Die geteilte Ansicht braucht den Ordner <code>korrektur</code>, erzeugt am PC mit
+       <code>python speedreader_web/export_korrektur.py</code> (enthält <code>index.json</code>, eine Datei je Buch und die
+       Quell-Ebooks, zusammen mehrere hundert MB). Er wird einmalig importiert und danach im Browser gespeichert;
+       das dauert einen Moment.</p>
+    <button id="knopf-ordner">Ordner „korrektur“ importieren</button>
+    <p id="start-fehler" style="color:var(--warn)"></p>
+  </div>
+</section>
+
+<dialog id="wahl" aria-label="Buch wählen">
+  <div id="wahl-kopf">
+    <input id="suche" type="search" placeholder="Autor oder Buch suchen …" autocomplete="off">
+    <button id="wahl-zu">Schließen</button>
+  </div>
+  <div id="liste"></div>
+  <div id="wahl-fuss">
+    <span id="stand"></span>
+    <button id="daten-neu">Daten aktualisieren …</button>
+    <span id="import-status" role="status"></span>
+  </div>
+</dialog>
+
+<dialog id="verbindung" aria-label="Verbindung zu APIC">
+  <form method="dialog" onsubmit="return false">
+    <label>Adresse von APIC
+      <input id="apic-adresse" type="url" placeholder="http://192.168.1.20:8080" autocomplete="off" autocapitalize="off" spellcheck="false">
+    </label>
+    <label>Token
+      <input id="apic-token" type="password" autocomplete="off" autocapitalize="off" spellcheck="false">
+    </label>
+    <label>Gerätename
+      <input id="apic-geraet" type="text" placeholder="epistopheles" autocomplete="off" spellcheck="false">
+    </label>
+    <div class="zeile">
+      <button type="button" id="verbindung-testen">Verbindung testen</button>
+      <span id="verbindung-status" role="status"></span>
+      <span class="platz" style="flex:1"></span>
+      <button type="button" id="verbindung-zu">Schließen</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="vergleich" aria-label="Vergleich: bisherige und neue Übersetzung">
+  <div id="vergleich-kopf"><b id="vergleich-titel">Vergleich</b><button id="vergleich-zu">Schließen</button></div>
+  <div id="vergleich-status" role="status" aria-live="polite"></div>
+  <div id="vergleich-spalten">
+    <section><h3>Bisherige Übersetzung</h3><pre id="vergleich-alt" tabindex="0"></pre></section>
+    <section><h3>Neue Übersetzung (Vorschlag)</h3><pre id="vergleich-neu" tabindex="0"></pre></section>
+  </div>
+  <div id="vergleich-fuss">
+    <button id="vergleich-nochmal" hidden>Erneut laden</button>
+    <button id="vergleich-verwerfen" disabled>Verwerfen</button>
+    <button id="vergleich-uebernehmen" disabled>Übernehmen</button>
+  </div>
+</dialog>
+
+<dialog id="aenderungsliste" aria-label="Änderungen dieses Buchs">
+  <div id="aenderungsliste-kopf"><b id="aenderungsliste-titel">Änderungen</b><button id="aenderungsliste-zu">Schließen</button></div>
+  <div id="aenderungsliste-inhalt"></div>
+</dialog>
+
+<input id="ordner" type="file" webkitdirectory multiple hidden>
+<input id="ebook-datei" type="file" accept=".pdf,.epub,application/pdf,application/epub+zip" hidden>
+
+<script src="epub.js"></script>
+<script src="redaktion.js"></script>
+<script src="verdacht.js"></script>
+<script src="chunkansicht.js"></script>
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const el = (tag, klasse, text) => { const e = document.createElement(tag); if (klasse) e.className = klasse; if (text !== undefined) e.textContent = text; return e; };
+
+// ---- Zustand nur auf diesem Gerät -----------------------------------------------------------------
+const lsGet = (k, std) => { try { const v = localStorage.getItem(k); return v === null ? std : JSON.parse(v); } catch { return std; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* egal */ } };
+
+let index = null;                     // {erstellt, buecher:[{id,autor,titel,quellsprache,quelldatei,chunks,kapitel}]}
+let buch = null;                      // Eintrag aus index.buecher
+let daten = null;                     // Inhalt von k0xx.json des offenen Buchs: {chunks:[], kapitel:[{nr,titel,text}]}
+let wunschModus = lsGet("kmodus", "chunks");     // was die Person zuletzt gewählt hat
+let modus = wunschModus;                          // tatsächlich gezeigt: Rohchunks nur, wenn das Buch welche hat
+let pos = { chunk: 0, kap: 0, epub: 0, seite: 1 };
+let schrift = Math.min(2, Math.max(0.7, Number(lsGet("kschrift", 1)) || 1));
+let steuerzeichen = !!lsGet("ksteuer", false);
+let epub = null, pdfUrl = null, ladeNr = 0;
+let abgelehnt = [];                   // abgelehnte Verdachtshinweise des offenen Buchs: [{anfang, art, zeile}]
+const ansichtCache = new Map();       // Chunk -> {sig, ansicht}: Verdachtserkennung je Chunk nur einmal
+let gezeigteSig = null, gezeigterChunk = -1, chunkBusy = false;
+const gespeichertEbook = new Set();   // Buch-IDs, zu denen ein Ebook im Browser liegt
+
+// ---- IndexedDB ----------------------------------------------------------------------------------------
+let dbVerbindung = null;              // eine Verbindung für alle Zugriffe (bei Fehler/versionchange verworfen)
+const dbOffen = () => {
+  if (dbVerbindung) return dbVerbindung;
+  const p = new Promise((ok, fehler) => {
+    let a; try { a = indexedDB.open("episto-korrektur", 1); } catch (e) { return fehler(e); }
+    a.onupgradeneeded = () => a.result.createObjectStore("kv");
+    a.onsuccess = () => {
+      const db = a.result;
+      const vergessen = () => { if (dbVerbindung === p) dbVerbindung = null; };
+      db.onversionchange = () => { vergessen(); db.close(); };
+      db.onclose = vergessen;
+      ok(db);
+    };
+    a.onerror = () => fehler(a.error);
+    a.onblocked = () => fehler(new Error("IndexedDB blockiert"));
+  });
+  dbVerbindung = p;
+  p.catch(() => { if (dbVerbindung === p) dbVerbindung = null; });
+  return p;
+};
+const dbLies = async (k) => { const db = await dbOffen(); return new Promise((ok, f) => { const r = db.transaction("kv").objectStore("kv").get(k); r.onsuccess = () => ok(r.result); r.onerror = () => f(r.error); }); };
+const dbSchreib = async (k, v) => { const db = await dbOffen(); return new Promise((ok, f) => { const t = db.transaction("kv", "readwrite"); t.objectStore("kv").put(v, k); t.oncomplete = ok; t.onerror = () => f(t.error); }); };
+const dbLoesche = async (k) => { const db = await dbOffen(); return new Promise((ok, f) => { const t = db.transaction("kv", "readwrite"); t.objectStore("kv").delete(k); t.oncomplete = ok; t.onerror = () => f(t.error); }); };
+const dbSchluessel = async () => { const db = await dbOffen(); return new Promise((ok, f) => { const r = db.transaction("kv").objectStore("kv").getAllKeys(); r.onsuccess = () => ok(r.result); r.onerror = () => f(r.error); }); };
+
+// ---- Daten laden (Server bei http, sonst importierte Kopie) ----------------------------------------------------
+function pruefeIndex(d) {
+  if (!d || !Array.isArray(d.buecher) || !d.buecher.length) throw new Error("Kein Index: das ist nicht die index.json von export_korrektur.py.");
+  return d;
+}
+async function ladeIndex() {
+  if (location.protocol.startsWith("http")) {
+    try { const r = await fetch("korrektur/index.json", { cache: "no-cache" }); if (r.ok) { const d = pruefeIndex(await r.json()); dbSchreib("kindex", d).catch(() => {}); return d; } } catch { /* offline */ }
+  }
+  try { const d = await dbLies("kindex"); if (d) return pruefeIndex(d); } catch { /* keine Kopie */ }
+  return null;
+}
+async function ladeBuchDaten(b) {
+  let d = null;
+  if (location.protocol.startsWith("http")) {
+    try { const r = await fetch(`korrektur/${b.id}.json`, { cache: "no-cache" }); if (r.ok) { d = await r.json(); dbSchreib("kk:" + b.id, d).catch(() => {}); } } catch { /* offline */ }
+  }
+  if (!d) { try { d = await dbLies("kk:" + b.id); } catch { /* keine Kopie */ } }
+  if (!d) return { status: "fehlt" };
+  if (d.erstellt !== index.erstellt) return { status: "veraltet" };
+  return { status: "ok", daten: d };
+}
+
+const meldeImport = (t) => { $("import-status").textContent = t; $("start-fehler").textContent = t; };
+async function ordnerEinlesen(dateien) {
+  const liste = [...dateien].filter((f) => f.name === "index.json" || /^k\d+\.(json|pdf|epub)$/i.test(f.name));
+  const idxDatei = liste.find((f) => f.name === "index.json");
+  if (!idxDatei) return meldeImport("index.json nicht gefunden: den Ordner „korrektur“ aus dem Export wählen.");
+  let neu;
+  try { neu = pruefeIndex(JSON.parse(await idxDatei.text())); } catch (e) { return meldeImport(String(e.message || e)); }
+  let ok = 0, fremd = 0, defekt = 0, ebooks = 0;
+  const buecher = liste.filter((f) => /\.json$/i.test(f.name) && f !== idxDatei);
+  const ebookDateien = liste.filter((f) => /\.(pdf|epub)$/i.test(f.name));
+  for (const f of buecher) {
+    meldeImport(`Importiere Bücher … ${ok + fremd + defekt + 1}/${buecher.length}`);
+    try {
+      const d = JSON.parse(await f.text());
+      if (!d.id || !Array.isArray(d.chunks) || !Array.isArray(d.kapitel)) throw new Error("kein Buch");
+      await dbSchreib("kk:" + d.id, d);
+      if (d.erstellt !== neu.erstellt) fremd++; else ok++;
+    } catch { defekt++; }
+  }
+  for (const f of ebookDateien) {                                 // Ebooks des Exports: k001.pdf, k002.epub …
+    meldeImport(`Importiere Ebooks … ${ebooks + 1}/${ebookDateien.length}`);
+    const id = f.name.replace(/\.[^.]+$/, "").toLowerCase();
+    const b = neu.buecher.find((x) => x.id === id);
+    try { await dbSchreib("ebook:" + id, { name: (b && b.quelldatei) || f.name, blob: f, erstellt: neu.erstellt }); ebooks++; gespeichertEbook.add(id); } catch { defekt++; }
+  }
+  await dbSchreib("kindex", neu);
+  meldeImport(`${ok} Bücher und ${ebooks} Ebooks importiert` + (fremd ? `, ${fremd} Buchdateien stammen von einem anderen Export` : "") + (defekt ? `, ${defekt} fehlerhaft` : "") + ".");
+  const bisher = buch && buch.id;
+  index = neu;
+  starte(bisher);
+}
+
+// ---- Buch öffnen ---------------------------------------------------------------------------------------------------
+async function starte(bevorzugteId) {
+  $("start").hidden = true; $("teilung").hidden = false;
+  try { for (const k of await dbSchluessel()) if (String(k).startsWith("ebook:")) gespeichertEbook.add(String(k).slice(6)); } catch { /* ohne DB */ }
+  const id = bevorzugteId || lsGet("kbuch", null);
+  const b = index.buecher.find((x) => x.id === id) || index.buecher[0];
+  oeffneBuch(b);
+}
+
+async function oeffneBuch(b) {
+  const nr = ++ladeNr;
+  buch = b; daten = null; lsSet("kbuch", b.id);
+  vergleichNr++; vergleich = null; if ($("vergleich").open) $("vergleich").close();      // ein Vergleich gehört zum Buch, in dem er geöffnet wurde
+  ladeAenderungen(b);
+  abgelehnt = lsGet("kabgelehnt:" + b.id, []); if (!Array.isArray(abgelehnt)) abgelehnt = [];
+  ansichtCache.clear(); gezeigteSig = null;
+  pos = Object.assign({ chunk: 0, kap: 0, epub: 0, seite: 1, deVerschub: 0 }, lsGet("kpos:" + b.id, {}));
+  $("titel-buch").textContent = `${b.autor} – ${b.titel}`;
+  $("titel-info").textContent = [b.quellsprache && `Sprache ${b.quellsprache}`, b.chunks ? `${b.chunks} Rohchunks${b.chunkSprache ? ` (${b.chunkSprache})` : ""}${b.chunkQuelle === "en-chunks" ? " aus en-chunks" : ""}` : "keine Rohchunks", b.kapitel.length ? `${b.kapitel.length} Kapitel` : "noch kein bereinigter Text"].filter(Boolean).join(" · ");
+  document.title = `${b.titel} · EPISTO Korrekturlesen`;
+  const kann = { chunks: b.chunks > 0, text: b.kapitel.length > 0, uebersetzung: b.chunks > 0 && b.uebersetzung > 0 };   // nur, was es für dieses Buch gibt
+  modus = [wunschModus, "chunks", "text"].find((m) => kann[m]) || "chunks";
+  zeigeRechts();                                          // zeigt zunächst "Lade …"
+  const erg = await ladeBuchDaten(b);
+  if (nr !== ladeNr) return;
+  if (erg.status !== "ok") { zeigeRechtsHinweis(erg.status === "fehlt" ? "Die Daten dieses Buchs liegen nicht auf diesem Gerät. Den Ordner „korrektur“ erneut importieren (Buch-Menü → Daten aktualisieren)." : "Die Buchdaten stammen von einem anderen Export als index.json. Den Ordner „korrektur“ erneut importieren."); return; }
+  daten = erg.daten;
+  zeigeRechts();
+  ladeEbookAusSpeicher(b, nr);
+}
+
+function speicherePos() { if (buch) lsSet("kpos:" + buch.id, pos); }
+
+// ---- Rechte Seite: Rohchunks / bereinigter Text -----------------------------------------------------------------------
+function sichtbar(text) {
+  return steuerzeichen ? text.replace(/\t/g, "→\t").replace(/ /g, "⍽").replace(/­/g, "‐") : text;
+}
+
+function zeigeRechtsHinweis(text) {
+  gezeigteSig = null; delete $("rechts-inhalt").dataset.fuer;
+  $("rechts-inhalt").textContent = text; $("rechts-info").textContent = ""; $("rechts-verdacht").textContent = "";
+  $("uebersetzung-inhalt").textContent = "";
+}
+
+const deZahl = (zahl) => zahl.toLocaleString("de-DE");
+const istChunkModus = () => modus === "chunks" || modus === "uebersetzung";
+
+function haengeText(eltern, text) {                      // Text anhängen (bei ¶ mit hervorgehobenen Steuerzeichen)
+  if (steuerzeichen) {
+    // Tab: Pfeil (data-leer: zählt nicht zum Text) + Tab; geschütztes Leerzeichen und weicher Trennstrich ersetzen je ein Zeichen
+    for (const teil of text.split(/([	 ­])/)) {
+      if (teil === "	") { const pfeil = el("span", "steuer", "→"); pfeil.dataset.leer = "1"; eltern.append(pfeil, document.createTextNode("	")); }
+      else if (teil === " ") eltern.append(el("span", "steuer", "⍽"));
+      else if (teil === "­") eltern.append(el("span", "steuer", "‐"));
+      else if (teil) eltern.append(document.createTextNode(teil));
+    }
+  } else eltern.append(document.createTextNode(text));
+}
+function fuelleText(pre, text) {
+  pre.textContent = "";
+  haengeText(pre, text);
+  pre.scrollTop = 0;
+  delete pre.dataset.fuer;
+}
+
+/** Index des übersetzten Chunks zum Rohchunk i. Bei gleicher Chunkzahl 1:1; sonst proportional geschätzt.
+ *  pos.deVerschub korrigiert von Hand (die Person verschiebt, wenn die Schätzung danebenliegt). */
+function uebersetzungsIndex(i) {
+  const n = buch.chunks, m = buch.uebersetzung || 0;
+  const basis = n === m ? i : Math.round(i * (m - 1) / Math.max(1, n - 1));
+  return Math.min(Math.max(basis + (pos.deVerschub || 0), 0), Math.max(0, m - 1));
+}
+
+/** Kapitelgrenzen (rohdaten\Lektor\…\kapitel.json, `segmente`, nach chunk/position sortiert):
+ *  Index des Kapitels, das Chunk i enthält (-1 vor der ersten Grenze oder ohne Grenzen). */
+function segmentFuerChunk(i) {
+  const s = daten && daten.segmente;
+  if (!s || !s.length) return -1;
+  let r = -1;
+  for (let k = 0; k < s.length; k++) { if (s[k].chunk <= i) r = k; else break; }
+  return r;
+}
+const segmentName = (s) => (s.nr ? `${s.nr}. ` : "") + (s.titel || "");
+const kapitelZuChunk = (i) => { const k = segmentFuerChunk(i); return k >= 0 ? segmentName(daten.segmente[k]) : ""; };
+/** Chunk ↔ bereinigtes Kapitel nur verknüpfen, wenn es gleich viele Kapitelgrenzen wie Kapitel gibt (gleiche Reihenfolge). */
+const sprungMoeglich = () => !!(buch && daten && daten.segmente && daten.segmente.length && daten.segmente.length === buch.kapitel.length && buch.chunks > 0);
+
+function zeigeUebersetzung(ix, text) {
+  const m = buch.uebersetzung || 0, n = buch.chunks, j = uebersetzungsIndex(ix);
+  const de = (daten.uebersetzung || [])[j];
+  zeigeAuftragsKopf();
+  const kap = kapitelZuChunk(ix);
+  $("original-titel").textContent = `Quelltext (${buch.chunkSprache || buch.quellsprache || "en"}) · Chunk ${ix} / ${n - 1}` + (kap ? ` · ${kap}` : "");
+  $("original-info").textContent = `${deZahl(text.length)} Zeichen`;
+  $("uebersetzung-titel").textContent = `Übersetzung (de) · Chunk ${j} / ${m - 1}`;
+  const schaetzung = n !== m;
+  $("de-hinweis").textContent = [schaetzung ? `Chunkzahl ${n} ↔ ${m}: Zuordnung geschätzt` : "", pos.deVerschub ? `Verschiebung ${pos.deVerschub > 0 ? "+" : ""}${pos.deVerschub}` : ""].filter(Boolean).join(" · ");
+  $("de-reset").hidden = !pos.deVerschub;
+  $("de-zurueck").disabled = j <= 0 && (pos.deVerschub || 0) <= 0; $("de-vor").disabled = j >= m - 1;
+  if (de === undefined) { $("uebersetzung-inhalt").textContent = "Kein übersetzter Chunk an dieser Stelle."; $("uebersetzung-info").textContent = ""; return; }
+  fuelleText($("uebersetzung-inhalt"), de);
+  const verhaeltnis = de.length / Math.max(1, text.length);
+  const auffaellig = !schaetzung && (verhaeltnis < 0.8 || verhaeltnis > 1.5);     // Median im Bestand 1,12
+  const info = $("uebersetzung-info");
+  info.textContent = `${deZahl(de.length)} Zeichen` + (schaetzung ? "" : ` · de/${buch.chunkSprache || "en"} ${verhaeltnis.toFixed(2).replace(".", ",")}${auffaellig ? " ⚠ Länge auffällig" : ""}`);
+  info.classList.toggle("auffaellig", auffaellig);
+}
+
+function zeigeRechts() {
+  if (werkzeugLeiste) werkzeugLeiste.verberge();        // Verschieben-Modus und Auswahl überleben keinen Wechsel
+  document.querySelectorAll("[data-modus]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.modus === modus)));
+  $("modus-chunks").disabled = !buch || buch.chunks === 0;
+  $("modus-text").disabled = !buch || buch.kapitel.length === 0;
+  $("modus-uebersetzung").disabled = !buch || buch.chunks === 0 || !(buch.uebersetzung > 0);
+  const paar = modus === "uebersetzung";
+  $("rechts-koerper").dataset.ansicht = paar ? "paar" : "einzeln";
+  // ¶ / A− / A+ wandern in die Kopfzeile des Quelltexts: spart im Paarmodus eine Leistenzeile
+  const ziel = paar ? $("original-kopf") : $("rechts-leiste");
+  if ($("anzeige-knoepfe").parentElement !== ziel) ziel.append($("anzeige-knoepfe"));
+  for (const id of ["original-kopf", "uebersetzung-kopf", "uebersetzung-inhalt"]) $(id).hidden = !paar;
+  const wahl = $("rechts-wahl");
+  const liste = !buch ? [] : istChunkModus() ? Array.from({ length: buch.chunks }, (_, i) => { const kap = kapitelZuChunk(i); return `Chunk ${i} / ${buch.chunks - 1}` + (kap ? ` · ${kap}` : ""); }) : buch.kapitel.map((k) => `${k.nr}. ${k.titel}`);
+  const schluessel = `${buch && buch.id}:${istChunkModus() ? "chunks" : "text"}:${daten ? "m" : "o"}`;     // m/o: mit/ohne Kapitelgrenzen aus den geladenen Buchdaten
+  const sprung = $("kapitel-sprung");
+  sprung.hidden = !sprungMoeglich();
+  sprung.textContent = istChunkModus() ? "→ Kapitel" : "→ Chunk";
+  sprung.title = istChunkModus() ? "Zum bereinigten Kapitel, zu dem dieser Chunk gehört" : "Zum ersten Chunk dieses Kapitels";
+  if (wahl.dataset.fuer !== schluessel) {
+    wahl.textContent = "";
+    liste.forEach((t, i) => { const o = el("option", "", t); o.value = String(i); wahl.append(o); });
+    wahl.dataset.fuer = schluessel;
+  }
+  const ix = Math.min(Math.max(istChunkModus() ? pos.chunk : pos.kap, 0), Math.max(0, liste.length - 1));
+  wahl.value = String(ix);
+  $("rechts-zurueck").disabled = ix <= 0; $("rechts-vor").disabled = ix >= liste.length - 1;
+  if (!daten) { zeigeRechtsHinweis(buch ? "Lade …" : ""); return; }
+  const text = istChunkModus() ? daten.chunks[ix] : (daten.kapitel[ix] || {}).text;
+  if (text === undefined) { zeigeRechtsHinweis(istChunkModus() ? "Dieses Buch hat keine extrahierten Rohchunks." : "Keine Kapitel."); return; }
+  let gezeigt = text;
+  if (istChunkModus()) gezeigt = zeigeChunkText($("rechts-inhalt"), ix, text);
+  else { fuelleText($("rechts-inhalt"), text); gezeigteSig = null; $("rechts-verdacht").textContent = ""; }
+  markiereWahl(wahl);
+  if (paar) { zeigeUebersetzung(ix, text); $("rechts-info").textContent = ""; return; }
+  const zeilen = gezeigt.split("\n").length;
+  const kap = istChunkModus() ? kapitelZuChunk(ix) : "";
+  $("rechts-info").textContent = `${deZahl(gezeigt.length)} Zeichen · ${deZahl(zeilen)} Zeilen` + (kap ? ` · ${kap}` : "");
+}
+
+// ---- Chunk-Ansicht A: Verdachtsstellen (chunkansicht.js) ------------------------------------------------------------
+const CA = window.Chunkansicht && window.Redaktion && window.Verdacht ? window.Chunkansicht : null;
+const ansichtSig = (ix) => `${buch.id}#${ix}#${CA.signatur(eintraege, ix, abgelehnt.length, eintraegeBuchId === buch.id)}`;
+
+/** Zeigt den Roh-Chunk mit den offenen Einträgen abgespielt und den Verdachtsstellen; gibt den gezeigten Text zurück. */
+function zeigeChunkText(pre, ix, roh) {
+  const info = $("rechts-verdacht");
+  if (!CA) { fuelleText(pre, roh); info.textContent = ""; return roh; }
+  const bereit = eintraegeBuchId === buch.id;           // vor dem Laden der Einträge wäre ein "vorher" veraltet: keine Hinweise
+  const sig = ansichtSig(ix);
+  let c = ansichtCache.get(ix);
+  if (!c || c.sig !== sig) { c = { sig: sig, ansicht: CA.bereite(roh, eintraege, ix, abgelehnt, bereit) }; ansichtCache.set(ix, c); }
+  const kennung = `${buch.id}:${ix}`, oben = pre.dataset.fuer === kennung ? pre.scrollTop : 0;
+  CA.rendere(pre, c.ansicht, { fuelle: haengeText, aktion: chunkAktion });
+  werkzeuge();
+  pre.dataset.fuer = kennung; pre.scrollTop = oben;
+  gezeigteSig = sig; gezeigterChunk = ix;
+  const n = c.ansicht.hinweise.length, k = c.ansicht.konflikte.length;
+  info.textContent = bereit ? [`Verdacht: ${n} offen`, k ? `${k} ${k === 1 ? "Konflikt" : "Konflikte"}` : ""].filter(Boolean).join(" · ") : "Änderungen werden geladen …";
+  info.dataset.konflikt = k ? "ja" : "nein";
+  return c.ansicht.text;
+}
+
+/** ● im Chunk-Wähler bei Chunks, deren (bereits berechnete) Ansicht offene Hinweise hat. */
+function markiereWahl(wahl) {
+  if (!istChunkModus() || !CA) return;
+  for (const o of wahl.options) {
+    const kap = kapitelZuChunk(Number(o.value));
+    const c = ansichtCache.get(Number(o.value)), basis = `Chunk ${o.value} / ${buch.chunks - 1}` + (kap ? ` · ${kap}` : "");
+    o.textContent = c && c.ansicht.hinweise.length ? `● ${basis}` : basis;
+  }
+}
+
+async function chunkAktion(was, objekt, ansicht) {
+  if (chunkBusy || !buch || !CA) return;
+  const b = buch, ix = ansicht.chunk, c = ansichtCache.get(ix);
+  if (!c || c.ansicht !== ansicht || c.sig !== ansichtSig(ix)) { zeigeRechts(); return; }       // Ansicht veraltet: neu zeichnen, nichts ändern
+  if (was === "ablehnen") {
+    const zeile = (CA.absatzText(ansicht, objekt.absatz_index) || "").split(/\r?\n/)[objekt.zeile] || "";
+    abgelehnt = abgelehnt.concat([{ anfang: objekt.anfang, art: objekt.art, zeile: CA.zeilenSchluessel(zeile) }]);
+    lsSet("kabgelehnt:" + b.id, abgelehnt); zeigeRechts();
+    return;
+  }
+  chunkBusy = true;
+  const geraet = verbindung.geraet || "epistopheles";
+  const ruecknahme = (e) => R.ruecknahmeFuer(e, geraet, "Konflikt verworfen", buchSchluessel(b));
+  let fehler = "";
+  try {
+    if (was === "verwerfen") await neueAenderung(ruecknahme(objekt.eintrag));
+    else {
+      const d = CA.entwurf(ansicht, was, objekt);
+      if (!d) throw new Error("Absatz nicht gefunden");
+      const neu = R.neuerEintrag(buchSchluessel(b), "chunk-orig", d.ziel, d.art, d.parameter, d.vorherText, d.hinweis, geraet);
+      // Neu anwenden: neuer Eintrag und Rücknahme des alten in EINER Runde der Kette (beide oder keiner)
+      if (was === "neu") await neueAenderungen([neu, ruecknahme(objekt.eintrag)]);
+      else await neueAenderung(neu);
+    }
+  } catch (e) {
+    fehler = "Änderung nicht gespeichert: " + (e.message || e);
+  } finally {
+    chunkBusy = false;
+    if (buch === b) { zeigeRechts(); if (fehler) $("rechts-verdacht").textContent = fehler; }
+  }
+}
+
+/** Ansicht B: Werkzeugleiste an der freien Auswahl im rechten Feld (einmal installiert). */
+let werkzeugLeiste = null;
+function werkzeuge() {
+  if (werkzeugLeiste || !CA) return;
+  werkzeugLeiste = CA.installiereWerkzeuge($("rechts-inhalt"), {
+    ansicht: () => { const c = buch && istChunkModus() ? ansichtCache.get(gezeigterChunk) : null; return c && c.sig === gezeigteSig && c.sig === ansichtSig(gezeigterChunk) ? c.ansicht : null; },
+    ausfuehren: werkzeugAktion,
+  });
+}
+/** Legt die Entwürfe der Werkzeugleiste als Einträge ab (alle auf einmal, über die serialisierte Kette). */
+async function werkzeugAktion(ansicht, liste) {
+  if (chunkBusy || !buch || !CA) throw new Error("bitte kurz warten");
+  const b = buch, ix = ansicht.chunk, c = ansichtCache.get(ix);
+  if (!c || c.ansicht !== ansicht || c.sig !== ansichtSig(ix)) { zeigeRechts(); throw new Error("Der Text hat sich geändert, bitte noch einmal auswählen"); }
+  chunkBusy = true;
+  const geraet = verbindung.geraet || "epistopheles";
+  try {
+    await neueAenderungen(liste.map((d) => R.neuerEintrag(buchSchluessel(b), "chunk-orig", d.ziel, d.art, d.parameter, d.vorherText, d.hinweis, geraet)));
+  } finally {
+    chunkBusy = false;
+    if (buch === b) zeigeRechts();
+  }
+}
+
+/** Chunk ↔ Kapitel: aus einem Chunk zum bereinigten Kapitel springen und umgekehrt zum ersten Chunk des Kapitels. */
+$("kapitel-sprung").addEventListener("click", () => {
+  if (!sprungMoeglich()) return;
+  if (istChunkModus()) {
+    pos.kap = Math.max(0, segmentFuerChunk(pos.chunk));
+    modus = wunschModus = "text";
+  } else {
+    const seg = daten.segmente[Math.min(pos.kap, daten.segmente.length - 1)];
+    pos.chunk = Math.min(Math.max(seg.chunk, 0), buch.chunks - 1);
+    modus = wunschModus = "chunks";
+  }
+  lsSet("kmodus", modus); speicherePos(); zeigeRechts();
+});
+
+function rechtsSpringe(ix) {
+  const max = (istChunkModus() ? buch.chunks : buch.kapitel.length) - 1;
+  ix = Math.min(Math.max(ix, 0), max);
+  if (istChunkModus()) pos.chunk = ix; else pos.kap = ix;
+  speicherePos(); zeigeRechts();
+}
+const aktuell = () => (istChunkModus() ? pos.chunk : pos.kap);
+
+function verschiebeUebersetzung(delta) {
+  if (!buch || modus !== "uebersetzung") return;
+  pos.deVerschub = (pos.deVerschub || 0) + delta;
+  speicherePos(); zeigeRechts();
+}
+$("de-zurueck").addEventListener("click", () => verschiebeUebersetzung(-1));
+$("de-vor").addEventListener("click", () => verschiebeUebersetzung(1));
+$("de-reset").addEventListener("click", () => { pos.deVerschub = 0; speicherePos(); zeigeRechts(); });
+
+document.querySelectorAll("[data-modus]").forEach((b) => b.addEventListener("click", () => {
+  if (!buch || b.dataset.modus === modus || b.disabled) return;
+  modus = wunschModus = b.dataset.modus; lsSet("kmodus", modus); zeigeRechts();
+}));
+$("rechts-wahl").addEventListener("change", (e) => rechtsSpringe(Number(e.target.value)));
+$("rechts-zurueck").addEventListener("click", () => rechtsSpringe(aktuell() - 1));
+$("rechts-vor").addEventListener("click", () => rechtsSpringe(aktuell() + 1));
+$("steuer").addEventListener("click", () => { steuerzeichen = !steuerzeichen; lsSet("ksteuer", steuerzeichen); $("steuer").setAttribute("aria-pressed", String(steuerzeichen)); if (daten) zeigeRechts(); });
+function setzeSchrift(f) { schrift = Math.min(2, Math.max(0.7, Math.round(f * 10) / 10)); lsSet("kschrift", schrift); $("rechts-koerper").style.setProperty("--s", String(schrift)); }
+$("schrift-klein").addEventListener("click", () => setzeSchrift(schrift - 0.1));
+$("schrift-gross").addEventListener("click", () => setzeSchrift(schrift + 0.1));
+setzeSchrift(schrift); $("steuer").setAttribute("aria-pressed", String(steuerzeichen));
+
+// ---- Linke Seite: Original-Ebook -------------------------------------------------------------------------------------------
+function linksZustand(art, text) {                       // art: "leer" | "pdf" | "epub"
+  $("pdf").hidden = art !== "pdf"; $("epub").hidden = art !== "epub";
+  $("links-hinweis").hidden = art !== "leer";
+  $("pdf-steuer").hidden = art !== "pdf"; $("epub-steuer").hidden = art !== "epub";
+  $("auswahl-suchen").hidden = art === "leer";
+  if (text) {
+    const erwartet = buch && buch.quelldatei ? ` Erwartet: „${buch.quelldatei}“.` : "";
+    $("links-text").textContent = text + erwartet;
+  }
+}
+
+function freigeben() {
+  if (pdfUrl) { URL.revokeObjectURL(pdfUrl); pdfUrl = null; }
+  epub = null; $("pdf").removeAttribute("src"); $("epub").removeAttribute("srcdoc");
+  $("pdf-extern")?.remove();
+}
+
+/** Reihenfolge: gespeichertes Ebook (von Hand gewählt oder vom aktuellen Export importiert/geladen),
+ *  sonst bei http das Ebook des Exports vom Server; ein veraltetes gespeichertes Ebook dient als Notnagel. */
+async function ladeEbookAusSpeicher(b, nr) {
+  freigeben();
+  linksZustand("leer", b.ebook
+    ? "Das Ebook aus dem Export liegt nicht auf diesem Gerät: den Ordner „korrektur“ erneut importieren, die App über http von APIC öffnen, oder von Hand wählen."
+    : "Zu diesem Buch gibt es keine Quelldatei im Export. Ebook von Hand wählen.");
+  $("ebook-info").textContent = "";
+  let g = null;
+  try { g = await dbLies("ebook:" + b.id); } catch { /* ohne DB */ }
+  const passt = g && (!g.erstellt || g.erstellt === index.erstellt);
+  if (!passt && b.ebook && location.protocol.startsWith("http")) {
+    $("ebook-info").textContent = "Lade Ebook vom Server …";
+    try {
+      const r = await fetch(`korrektur/${b.ebook}`, { cache: "no-cache" });
+      if (r.ok) {
+        g = { name: b.quelldatei || b.ebook, blob: await r.blob(), erstellt: index.erstellt };
+        dbSchreib("ebook:" + b.id, g).then(() => gespeichertEbook.add(b.id)).catch(() => {});
+      }
+    } catch { /* offline: Notnagel */ }
+  }
+  if (nr !== ladeNr || !g) { if (nr === ladeNr) $("ebook-info").textContent = ""; return; }
+  try { await zeigeEbook(g.blob, g.name, b); } catch (e) { linksZustand("leer", "Das Ebook ließ sich nicht öffnen: " + (e.message || e) + "."); }
+}
+
+async function ebookWaehlen(datei) {
+  if (!buch || !datei) return;
+  const b = buch;
+  try {
+    await zeigeEbook(datei, datei.name, b);
+    try { await dbSchreib("ebook:" + b.id, { name: datei.name, blob: datei }); gespeichertEbook.add(b.id); }
+    catch { $("ebook-info").textContent += " (nicht gespeichert: zu wenig Platz?)"; }
+  } catch (e) { linksZustand("leer", "Datei nicht lesbar: " + (e.message || e) + "."); }
+}
+
+async function zeigeEbook(blob, name, b) {
+  const kopf = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+  const istPdf = kopf[0] === 0x25 && kopf[1] === 0x50 && kopf[2] === 0x44 && kopf[3] === 0x46;   // %PDF
+  const istZip = kopf[0] === 0x50 && kopf[1] === 0x4b;                                              // PK
+  freigeben();
+  $("ebook-info").textContent = name;
+  if (istPdf) {
+    pdfUrl = URL.createObjectURL(blob);
+    if (navigator.pdfViewerEnabled === false) {
+      linksZustand("leer", "Dieser Browser hat keinen eingebauten PDF-Betrachter.");
+      const a = el("button", "", "PDF in neuem Tab öffnen"); a.addEventListener("click", () => window.open(pdfUrl));
+      $("links-hinweis").append(a); a.id = "pdf-extern";
+      return;
+    }
+    $("pdf-extern")?.remove();
+    linksZustand("pdf");
+    pdfSeite(pos.seite || 1);
+  } else if (istZip) {
+    epub = await Epub.oeffneEpub(await blob.arrayBuffer());
+    const wahl = $("epub-abschnitt"); wahl.textContent = "";
+    epub.abschnitte.forEach((a, i) => { const o = el("option", "", a.titel); o.value = String(i); wahl.append(o); });
+    linksZustand("epub");
+    await epubZeige(Math.min(pos.epub || 0, epub.abschnitte.length - 1));
+  } else throw new Error("weder PDF noch EPUB");
+}
+
+function pdfSeite(n) {
+  n = Math.max(1, Math.floor(n) || 1); pos.seite = n; speicherePos();
+  $("pdf-seite").value = String(n);
+  $("pdf").src = `${pdfUrl}#page=${n}`;
+}
+$("pdf-los").addEventListener("click", () => pdfSeite(Number($("pdf-seite").value)));
+$("pdf-seite").addEventListener("keydown", (e) => { if (e.key === "Enter") pdfSeite(Number($("pdf-seite").value)); e.stopPropagation(); });
+
+async function epubZeige(i, suche) {
+  if (!epub) return;
+  i = Math.min(Math.max(i, 0), epub.abschnitte.length - 1);
+  pos.epub = i; speicherePos();
+  $("epub-abschnitt").value = String(i);
+  $("epub-zurueck").disabled = i <= 0; $("epub-vor").disabled = i >= epub.abschnitte.length - 1;
+  const nr = ++epubNr;
+  const html = await epub.dokument(i);
+  if (nr !== epubNr) return;
+  const rahmen = $("epub");
+  await new Promise((ok) => { rahmen.addEventListener("load", ok, { once: true }); rahmen.srcdoc = html; });
+  if (suche) { try { rahmen.contentWindow.find(suche, false, false, true); } catch { /* ohne find */ } }
+}
+let epubNr = 0;
+$("epub-zurueck").addEventListener("click", () => epubZeige(pos.epub - 1));
+$("epub-vor").addEventListener("click", () => epubZeige(pos.epub + 1));
+$("epub-abschnitt").addEventListener("change", (e) => epubZeige(Number(e.target.value)));
+$("ebook-oeffnen").addEventListener("click", () => $("ebook-datei").click());
+$("hinweis-oeffnen").addEventListener("click", () => $("ebook-datei").click());
+$("ebook-datei").addEventListener("change", (e) => { const f = e.target.files[0]; e.target.value = ""; ebookWaehlen(f); });
+
+/** Markierten Text der rechten Seite im Original suchen: EPUB springt zum Abschnitt und markiert,
+ *  beim PDF kommt der Suchtext in die Zwischenablage (Strg+F im Betrachter). */
+let letzteSuche = "";
+function suchtext() {
+  const s = String(window.getSelection() || "").replace(/[­]/g, "");
+  const zeilen = s.split(/\n+/).map((z) => z.replace(/[\t ]+/g, " ").replace(/\s+/g, " ").trim()).filter((z) => z.length >= 8);
+  return (zeilen[0] || s.replace(/\s+/g, " ").trim()).slice(0, 60).trim();
+}
+$("auswahl-suchen").addEventListener("mousedown", (e) => e.preventDefault());      // Auswahl nicht verlieren
+$("auswahl-suchen").addEventListener("click", async () => {
+  const t = suchtext();
+  const info = $("ebook-info");
+  if (!t) { info.textContent = "Erst rechts Text markieren."; return; }
+  if (epub) {
+    const wiederholt = t === letzteSuche;                      // zweiter Klick auf denselben Text: nächste Fundstelle
+    letzteSuche = t;
+    const i = await epub.finde(t, wiederholt ? pos.epub + 1 : pos.epub);
+    if (i < 0) { info.textContent = `Nicht gefunden: „${t}“`; return; }
+    await epubZeige(i, t); info.textContent = `Gefunden in: ${epub.abschnitte[i].titel}${wiederholt ? "" : " (erneut klicken: nächste Fundstelle)"}`;
+  } else if (pdfUrl) {
+    try { await navigator.clipboard.writeText(t); info.textContent = "Suchtext kopiert: im PDF Strg+F, Strg+V."; } catch { info.textContent = `Im PDF suchen: „${t}“`; }
+  }
+});
+
+// ---- Teiler ziehen ----------------------------------------------------------------------------------------------------------------
+const teilung = $("teilung"), griff = $("griff");
+function setzeTeil(t) { t = Math.min(0.85, Math.max(0.15, t)); teilung.style.setProperty("--teil", String(t)); lsSet("kteil", t); }
+setzeTeil(Number(lsGet("kteil", 0.5)) || 0.5);
+griff.addEventListener("pointerdown", (e) => { griff.setPointerCapture(e.pointerId); griff.classList.add("zieht"); });
+griff.addEventListener("pointermove", (e) => {
+  if (!griff.hasPointerCapture(e.pointerId)) return;
+  const r = teilung.getBoundingClientRect(), senkrecht = getComputedStyle(teilung).flexDirection === "column";
+  setzeTeil(senkrecht ? (e.clientY - r.top - 9) / (r.height - 18) : (e.clientX - r.left - 9) / (r.width - 18));
+});
+griff.addEventListener("pointerup", (e) => { griff.releasePointerCapture(e.pointerId); griff.classList.remove("zieht"); });
+griff.addEventListener("keydown", (e) => {
+  const t = Number(getComputedStyle(teilung).getPropertyValue("--teil"));
+  if (e.key === "ArrowLeft" || e.key === "ArrowUp") { setzeTeil(t - 0.05); e.preventDefault(); }
+  if (e.key === "ArrowRight" || e.key === "ArrowDown") { setzeTeil(t + 0.05); e.preventDefault(); }
+});
+
+// ---- Redaktion: Verbindung, Änderungsspeicher, Senden, Änderungsleiste ------------------------------------------------------------
+// Änderungen sind Protokolleinträge (redaktion.js). Sie liegen je Buch in IndexedDB ("redaktion:<buchId>"), werden
+// zu APIC geschickt (alle 30 s, beim Sichtbarwerden, nach jeder neuen Änderung) und bekommen dort Status.
+// Testhaken: window.KSENDE_INTERVALL_MS (vor dem Laden gesetzt) verkürzt das 30-s-Intervall.
+// Bewusst so: gesendet wird nur das GEÖFFNETE Buch; Änderungen anderer Bücher warten, bis man sie öffnet.
+// Der Token liegt im Klartext in localStorage (kverbindung).
+const SENDE_INTERVALL_MS = Math.max(500, Number(window.KSENDE_INTERVALL_MS) || 30000);
+const R = window.Redaktion || null;
+const eintragsSpeicher = R ? R.speicher({ get: dbLies, set: dbSchreib }) : null;
+let verbindung = Object.assign({ adresse: "", token: "", geraet: "epistopheles" }, lsGet("kverbindung", {}));
+let eintraege = [];                   // Einträge des offenen Buchs
+let eintraegeBuchId = null;           // Buch-ID, zu der `eintraege` gehört (null: noch nicht geladen)
+let sendeZustand = "ok";              // "ok" | "netz" | "token" | "server" | "nicht-eingerichtet" (letzter Sendeversuch)
+let sendeCode = 0;                    // HTTP-Code bei "server"
+let ladeZaehler = 0;                  // nur das jüngste Laden darf die Liste setzen
+let sendeLaeuft = false, sendeNochmal = false;
+let kette = Promise.resolve();        // serialisiert alle Änderungen am Speicher (kein verlorenes Update)
+
+const buchSchluessel = (b) => `${b.autor}/${b.titel}`;          // so kennt APIC das Buch
+const verbindungFertig = () => !!(verbindung.adresse && verbindung.token);
+const mitZeitlimit = (url, opt) => fetch(url, Object.assign({}, opt, AbortSignal.timeout ? { signal: AbortSignal.timeout(10000) } : {}));
+
+function zeigeLeiste() {
+  const leiste = $("aenderungen-leiste");
+  const z = R ? R.zaehler(eintraege) : { aenderungen: 0, markierungen: 0, wartend: 0 };
+  const zahlen = `${z.aenderungen} ${z.aenderungen === 1 ? "Änderung" : "Änderungen"} · ${z.markierungen} ${z.markierungen === 1 ? "Markierung" : "Markierungen"} · ${z.wartend} ${z.wartend === 1 ? "wartet" : "warten"} auf APIC`;
+  const meldung = { netz: "APIC nicht erreichbar", token: "Token abgelehnt", server: `APIC meldet Fehler (${sendeCode})`, "nicht-eingerichtet": "APIC nicht eingerichtet" }[sendeZustand];
+  const stoerung = !!meldung && z.wartend > 0;
+  let text = zahlen;
+  if (stoerung) text = `${meldung} · ${zahlen}`;
+  else if (z.wartend === 0 && z.aenderungen + z.markierungen > 0) text = "alles bei APIC angekommen";
+  leiste.dataset.zustand = stoerung ? "fehler" : "ok";
+  $("aenderungen-text").textContent = text;
+  $("aenderungen-text").title = zahlen;
+  // Am PC eingearbeitete Textänderungen stehen erst nach einem neuen Export in der Ansicht: darauf hinweisen
+  const eingearbeitet = eintraege.filter((e) => e && e.status === "angewendet" && e.art !== "marke" && e.art !== "ruecknahme").length;
+  const hinweis = $("aenderungen-hinweis");
+  hinweis.hidden = !eingearbeitet;
+  hinweis.textContent = eingearbeitet
+    ? `${eingearbeitet} ${eingearbeitet === 1 ? "Änderung ist" : "Änderungen sind"} am PC eingearbeitet. Neuer Export nötig, damit die Ansicht sie zeigt.`
+    : "";
+  $("aenderungen-sichern").disabled = !buch || !eintraege.length;
+  $("aenderungen-liste-knopf").disabled = !buch;
+  if ($("aenderungsliste").open) zeigeAenderungsliste();
+  zeigeAuftragsKopf();
+  // Chunk-Ansicht: haben sich die Einträge dieses Chunks geändert (Laden, Konflikt von APIC), neu zeichnen
+  if (CA && daten && buch && istChunkModus() && gezeigteSig !== null && gezeigteSig !== ansichtSig(gezeigterChunk)) zeigeRechts();
+}
+
+/** Ändert die Einträge eines Buchs (nacheinander, über den Speicher) und gibt die neue Liste zurück. */
+function aendereEintraege(buchId, aendere) {
+  const lauf = kette.then(async () => {
+    if (!eintragsSpeicher) throw new Error("redaktion.js fehlt");
+    const liste = buchId === eintraegeBuchId ? eintraege : await eintragsSpeicher.laden(buchId);
+    const neu = aendere(liste.slice()) || liste;
+    await eintragsSpeicher.speichern(buchId, neu);
+    if (buchId === eintraegeBuchId) { eintraege = neu; zeigeLeiste(); }
+    return neu;
+  });
+  kette = lauf.catch(() => {});
+  return lauf;
+}
+
+function ladeAenderungen(b) {
+  eintraege = []; eintraegeBuchId = null; zeigeLeiste();
+  if (!eintragsSpeicher) return;
+  const nr = ++ladeZaehler;
+  // Laden läuft in `kette`: vorher angestoßene Schreibvorgänge sind fertig, ein spätes Laden setzt nichts Veraltetes ein.
+  kette = kette.then(async () => {
+    const liste = await eintragsSpeicher.laden(b.id);
+    if (nr === ladeZaehler && buch && buch.id === b.id) { eintraege = liste; eintraegeBuchId = b.id; zeigeLeiste(); sendeJetzt(); bearbeiteAuftraege(); }
+  }).catch(() => { /* ohne Speicher keine Änderungen */ });
+}
+
+/** Legt eine neue Änderung/Markierung ab (Eintrag aus Redaktion.neuerEintrag) und stößt das Senden an. */
+function neueAenderung(eintrag) {
+  if (!buch) return Promise.reject(new Error("Kein Buch geöffnet"));
+  const b = buch;
+  const e = Object.assign({ status: "offen", geraet: verbindung.geraet || "epistopheles", buch: buchSchluessel(b) }, eintrag);
+  return aendereEintraege(b.id, (liste) => { liste.push(e); return liste; }).then((liste) => { sendeJetzt(); return liste; });
+}
+/** Mehrere Einträge auf einmal (gemeinsam gespeichert, gemeinsam gesendet). */
+function neueAenderungen(eintragListe) {
+  if (!buch) return Promise.reject(new Error("Kein Buch geöffnet"));
+  const b = buch, geraet = verbindung.geraet || "epistopheles";
+  const neu = eintragListe.map((eintrag) => Object.assign({ status: "offen", geraet: geraet, buch: buchSchluessel(b) }, eintrag));
+  return aendereEintraege(b.id, (liste) => liste.concat(neu)).then((liste) => { sendeJetzt(); return liste; });
+}
+window.neueAenderung = neueAenderung;
+window.neueAenderungen = neueAenderungen;
+
+async function sendeJetzt() {
+  if (!R || !buch || eintraegeBuchId !== buch.id) return;
+  if (sendeLaeuft) { sendeNochmal = true; return; }
+  sendeLaeuft = true;
+  const b = buch;
+  try {
+    const optionen = { adresse: verbindung.adresse, token: verbindung.token, buch: buchSchluessel(b), geraet: verbindung.geraet || "epistopheles" };
+    const offen = eintraege.filter((e) => e.status === "offen");
+    if (!verbindungFertig()) { sendeZustand = offen.length ? "nicht-eingerichtet" : "ok"; zeigeLeiste(); return; }
+    sendeZustand = "ok";
+    if (offen.length) {
+      const { gesendet, fehler } = await R.sendeStapel(offen, optionen, mitZeitlimit);
+      const ids = new Set(gesendet);
+      if (ids.size) {
+        await aendereEintraege(b.id, (liste) => {
+          const neu = liste.map((e) => (ids.has(e.id) && e.status === "offen" ? Object.assign({}, e, { status: "gesendet" }) : e));
+          // Während des Sendens zurückgenommen: APIC hat den Eintrag, also die Rücknahme nachmelden
+          const verloren = offen.filter((e) => ids.has(e.id) && !liste.some((x) => x.id === e.id));
+          if (!verloren.length) return neu;
+          sendeNochmal = true;
+          return neu.concat(verloren.map((e) => R.ruecknahmeFuer(e, verbindung.geraet || "epistopheles", "Zurückgenommen", buchSchluessel(b))));
+        });
+      }
+      if (fehler) { sendeZustand = fehler.art; sendeCode = fehler.code; if (fehler.art !== "server") return; }
+    }
+    const noetig = R.brauchtStand(await eintragsSpeicher.laden(b.id));
+    if (noetig) {
+      const stand = await R.stand(buchSchluessel(b), optionen, mitZeitlimit);
+      await aendereEintraege(b.id, (liste) => R.uebernehmeStand(liste, stand));
+    }
+  } catch {
+    sendeZustand = "netz"; sendeCode = 0;           // Netzfehler (auch beim Stand): nichts ändern, später wieder versuchen
+  } finally {
+    sendeLaeuft = false;
+    zeigeLeiste();
+    bearbeiteAuftraege();                 // gemerkte Wünsche warten ggf. auf das Senden der Korrekturen
+    if (sendeNochmal) { sendeNochmal = false; sendeJetzt(); }
+  }
+}
+setInterval(sendeJetzt, SENDE_INTERVALL_MS);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") sendeJetzt(); });
+window.addEventListener("online", sendeJetzt);
+
+$("aenderungen-sichern").addEventListener("click", () => {
+  if (!buch) return;
+  const offen = eintraege.filter((e) => e.status !== "angewendet");
+  const text = JSON.stringify({ geraet: verbindung.geraet || "epistopheles", buch: buchSchluessel(buch), eintraege: offen }, null, 2);
+  const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+  const a = el("a"); a.href = url;
+  a.download = `aenderungen-${buch.id}-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+});
+
+// Änderungsliste mit Rücknahme (Spec 5.1: möglich, solange der Eintrag nicht angewendet ist)
+const ART_KLAR = { ersetzen: "Text ersetzt", verbinden: "Zeilen verbunden", trennen: "Absatz getrennt", loeschen: "Gelöscht", verschieben: "Verschoben",
+                   marke: "Markierung", "uebersetzung-uebernehmen": "Übersetzung übernehmen", "neu-uebersetzen": "Neu übersetzen" };
+const KATEGORIE_KLAR = { markiert: "markiert", "kapitelgrenze-vermutet": "Kapitel beginnt hier", verzeichnis: "Inhaltsverzeichnis", glossar: "Glossar" };
+const STATUS_KLAR = { offen: "wartet auf APIC", gesendet: "bereits bei APIC", bestaetigt: "bei APIC bestätigt", angewendet: "angewendet",
+                      konflikt: "Konflikt", abgelehnt: "abgelehnt", uebersprungen: "übersprungen" };
+const artKlar = (e) => {
+  const art = ART_KLAR[e.art] || String(e.art);
+  const kat = e.art === "marke" && e.parameter && e.parameter.kategorie;
+  return kat ? `${art}: ${KATEGORIE_KLAR[kat] || kat}` : art;
+};
+const zeitKlar = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" }); };
+const chunkNr = (e) => (e.ziel && Number.isInteger(e.ziel.chunk) ? e.ziel.chunk : null);
+
+function zeigeAenderungsliste() {
+  const inhalt = $("aenderungsliste-inhalt");
+  inhalt.textContent = "";
+  const wirksam = R ? R.wirksame(eintraege) : [];
+  const zuSpaet = eintraege.filter((e) => e.art === "ruecknahme" && e.status === "konflikt");    // Ziel war schon angewendet
+  $("aenderungsliste-titel").textContent = buch ? `Änderungen · ${buch.titel}` : "Änderungen";
+  if (!wirksam.length && !zuSpaet.length) {
+    const leer = el("p", "", "Noch keine Änderungen oder Markierungen in diesem Buch.");
+    leer.id = "aenderungsliste-leer";
+    inhalt.append(leer);
+    return;
+  }
+  const ul = el("ul");
+  for (const e of wirksam) {
+    const li = el("li", "aenderung"); li.dataset.id = e.id; li.dataset.status = e.status;
+    const text = el("div", "text");
+    const nr = chunkNr(e);
+    text.append(el("b", "", artKlar(e)), ` · ${nr === null ? "ohne Chunk" : "Chunk " + nr} · ${STATUS_KLAR[e.status] || e.status}${e.erstellt ? " · " + zeitKlar(e.erstellt) : ""}`);
+    const detail = e.status === "konflikt" && e.grund ? e.grund
+      : e.art === "uebersetzung-uebernehmen" ? "Die neue Übersetzung wird erst am PC unter Kontrolle angewendet."
+      : (e.vorher && e.vorher.ausschnitt) || "";
+    if (detail) text.append(el("small", "", detail));
+    if (e.status === "gesendet" || e.status === "bestaetigt") text.append(el("small", "", "Bereits bei APIC: die Rücknahme wird dorthin nachgemeldet."));
+    li.append(text);
+    const zurueck = el("button", "", "Zurücknehmen"); zurueck.dataset.aktion = "zurueck";
+    if (e.status === "angewendet") { zurueck.disabled = true; zurueck.title = "Schon am PC angewendet: Rücknahme nicht möglich"; }
+    const springen = el("button", "", "Springen"); springen.dataset.aktion = "springen";
+    if (nr === null) springen.disabled = true;
+    li.append(zurueck, springen);
+    ul.append(li);
+  }
+  for (const e of zuSpaet) {
+    const li = el("li", "aenderung"); li.dataset.id = e.id; li.dataset.status = "konflikt";
+    const text = el("div", "text");
+    text.append(el("b", "", "Rücknahme nicht möglich"), el("small", "", e.grund || "Der Eintrag war schon angewendet."));
+    li.append(text);
+    ul.append(li);
+  }
+  inhalt.append(ul);
+}
+
+async function nimmZurueck(id) {
+  if (!buch || !R) return;
+  await aendereEintraege(buch.id, (liste) => R.zuruecknehmen(liste, id, { geraet: verbindung.geraet || "epistopheles" }));
+  sendeJetzt();
+}
+function springeZuEintrag(id) {
+  const e = eintraege.find((x) => x.id === id), nr = e ? chunkNr(e) : null;
+  if (nr === null || !buch) return;
+  $("aenderungsliste").close();
+  if (!istChunkModus()) { if ($("modus-chunks").disabled) return; $("modus-chunks").click(); }
+  rechtsSpringe(nr);
+}
+$("aenderungen-liste-knopf").addEventListener("click", () => { zeigeAenderungsliste(); $("aenderungsliste").showModal(); });
+$("aenderungsliste-zu").addEventListener("click", () => $("aenderungsliste").close());
+$("aenderungsliste-inhalt").addEventListener("click", (ev) => {
+  const k = ev.target.closest("button[data-aktion]"), li = k && k.closest("li[data-id]");
+  if (!k || !li || k.disabled) return;
+  if (k.dataset.aktion === "zurueck") nimmZurueck(li.dataset.id).catch(() => { k.title = "Rücknahme nicht gespeichert"; });
+  else springeZuEintrag(li.dataset.id);
+});
+
+// Verbindungsdialog
+const normAdresse = (a) => { a = a.trim().replace(/\/+$/, ""); return a && !/^https?:\/\//i.test(a) ? "http://" + a : a; };
+let dialogGeaendert = false;          // nur gespeichert, wenn die Person etwas eingegeben hat (nicht der Vorschlag)
+const eingabe = () => ({ adresse: normAdresse($("apic-adresse").value), token: $("apic-token").value.trim(), geraet: $("apic-geraet").value.trim() || "epistopheles" });
+function speichereVerbindung() {
+  if (!dialogGeaendert) return;
+  verbindung = eingabe();
+  lsSet("kverbindung", verbindung);
+  dialogGeaendert = false;
+}
+for (const id of ["apic-adresse", "apic-token", "apic-geraet"]) $(id).addEventListener("input", () => { dialogGeaendert = true; });
+$("knopf-verbindung").addEventListener("click", () => {
+  $("apic-adresse").value = verbindung.adresse;
+  $("apic-adresse").placeholder = location.protocol.startsWith("http") ? location.origin : "http://192.168.1.20:8080";   // nur Vorschlag
+  $("apic-token").value = verbindung.token;
+  $("apic-geraet").value = verbindung.geraet;
+  dialogGeaendert = false;
+  $("verbindung-status").textContent = ""; delete $("verbindung-status").dataset.ok;
+  $("verbindung").showModal();
+});
+$("verbindung-zu").addEventListener("click", () => $("verbindung").close());
+$("verbindung").addEventListener("close", () => { speichereVerbindung(); sendeJetzt(); });
+$("verbindung-testen").addEventListener("click", async () => {
+  const status = $("verbindung-status");
+  delete status.dataset.ok;
+  const v = eingabe();
+  if (!v.adresse) { status.textContent = "Bitte zuerst die Adresse von APIC eintragen."; status.dataset.ok = "nein"; return; }
+  speichereVerbindung();
+  status.textContent = "teste …";
+  let ok = false;
+  try {
+    const r = await mitZeitlimit(v.adresse + "/api/ping", { headers: { "X-Redaktion-Token": v.token } });
+    ok = r.ok && (await r.json()).ok === true;
+  } catch { ok = false; }
+  status.textContent = ok ? "verbunden" : "nicht erreichbar";
+  status.dataset.ok = ok ? "ja" : "nein";
+  if (ok) sendeJetzt();
+});
+
+// ---- Neu übersetzen und Vergleich (Übersetzungsmodus) -----------------------------------------------------------------------------
+// Ein Wunsch "Neu übersetzen" gilt einem Original-Chunk und bleibt je Buch in localStorage ("kauftraege:<buchId>"), bis er
+// erledigt ist: {"<chunk>": {zustand, nr, id, meldung, hinweis, angefordert}}. zustand: gemerkt (noch nicht bei APIC),
+// wartet, laeuft, fertig, fehler. `hinweis` = Störung beim letzten Versuch (APIC nicht erreichbar, Token abgelehnt …),
+// `meldung` = Text von APIC. Aufträge laufen nur auf ausdrücklichen Wunsch. Das Übernehmen ändert NIE den Text: es legt den
+// Eintrag `uebersetzung-uebernehmen` ab (rücknehmbar); der Text wird erst am PC unter Kontrolle angewendet.
+// Testhaken: window.KAUFTRAG_POLL_MS (vor dem Laden gesetzt) verkürzt die Abfrage laufender Aufträge (Standard 3 s).
+const AUFTRAG_POLL_MS = Math.max(50, Number(window.KAUFTRAG_POLL_MS) || 3000);
+const TEXT_ARTEN = ["ersetzen", "verbinden", "trennen", "loeschen", "verschieben"];
+const AUFTRAG_ZUSTAENDE = ["gemerkt", "wartet", "laeuft", "fertig", "fehler"];
+const AUFTRAG_OFFEN = ["gemerkt", "wartet", "laeuft"];
+const AUSSTEHEND = ["offen", "gesendet", "bestaetigt"];       // noch nicht am PC angewendet
+const auftragCache = new Map();                              // buchId -> {chunk: Wunsch}
+let auftragSpeicherFehler = false;
+let auftragLaeuft = false, auftragNochmal = false, auftragTimer = null;
+let vergleichNr = 0, vergleich = null, vergleichBusy = false, vergleichZiel = null;   // vergleich = {buchId, chunk, alt, neu}
+
+function auftraegeVon(buchId) {
+  if (!auftragCache.has(buchId)) {
+    const roh = lsGet("kauftraege:" + buchId, {}), aus = {};
+    if (roh && typeof roh === "object" && !Array.isArray(roh)) {
+      for (const [k, v] of Object.entries(roh)) if (/^\d+$/.test(k) && v && typeof v === "object" && AUFTRAG_ZUSTAENDE.includes(v.zustand)) aus[k] = v;
+    }
+    auftragCache.set(buchId, aus);
+  }
+  return auftragCache.get(buchId);
+}
+function sichereAuftraege(buchId) {
+  try { localStorage.setItem("kauftraege:" + buchId, JSON.stringify(auftraegeVon(buchId))); auftragSpeicherFehler = false; }
+  catch { auftragSpeicherFehler = true; }                  // sichtbar in der Statuszeile, nicht still
+}
+/** Ändert den Wunsch `w` (Stand beim Aufruf) für Chunk `key`, solange er noch derselbe ist; sonst null (inzwischen verworfen/ersetzt). */
+function setzeAuftrag(buchId, key, w, patch) {
+  const a = auftraegeVon(buchId);
+  if (a[key] !== w) return null;
+  a[key] = Object.assign({}, w, patch);
+  sichereAuftraege(buchId);
+  if (buch && buch.id === buchId) zeigeAuftragsKopf();
+  return a[key];
+}
+function entferneAuftrag(buchId, key) {
+  delete auftraegeVon(buchId)[key];
+  sichereAuftraege(buchId);
+  if (buch && buch.id === buchId) zeigeAuftragsKopf();
+}
+
+const aktuellerChunk = () => (buch ? Math.min(Math.max(pos.chunk, 0), Math.max(0, buch.chunks - 1)) : 0);
+const wirksameDesBuchs = () => (R && buch && eintraegeBuchId === buch.id ? R.wirksame(eintraege) : []);
+/** Korrekturen am Original-Chunk, die noch nicht am PC angewendet sind: die Übersetzung passt nicht mehr dazu. */
+const veraltetFuer = (ix) => wirksameDesBuchs().some((e) => e.ebene === "chunk-orig" && chunkNr(e) === ix && TEXT_ARTEN.includes(e.art) && AUSSTEHEND.includes(e.status));
+const uebernahmeVorgemerkt = (ix) => wirksameDesBuchs().some((e) => e.art === "uebersetzung-uebernehmen" && chunkNr(e) === ix && AUSSTEHEND.includes(e.status));
+/** Neu übersetzen schreibt de/chunk_<ix>: nur sicher, wenn die gezeigte Übersetzung genau dieser Chunk ist. */
+const zuordnungSicher = () => !!buch && buch.chunks === (buch.uebersetzung || 0) && !pos.deVerschub;
+
+const netzFehler = (e) => !(e && typeof e.status === "number" && e.status > 0);
+const apicHinweis = (e) => (netzFehler(e) ? "APIC nicht erreichbar" : e.status === 401 || e.status === 403 ? "Token abgelehnt" : `APIC meldet Fehler (${e.status})`);
+const optApic = () => ({ adresse: verbindung.adresse, token: verbindung.token });
+
+function zeigeAuftragsKopf() {
+  const zeile = $("neu-zeile");
+  if (!buch || !daten || modus !== "uebersetzung" || eintraegeBuchId !== buch.id) { zeile.hidden = true; return; }
+  const ix = aktuellerChunk(), w = auftraegeVon(buch.id)[String(ix)];
+  const veraltet = veraltetFuer(ix), vorgemerkt = uebernahmeVorgemerkt(ix), offen = !!w && AUFTRAG_OFFEN.includes(w.zustand);
+  $("veraltet-hinweis").hidden = !veraltet;
+  const knopf = $("neu-uebersetzen");
+  knopf.hidden = !(veraltet || (w && (w.zustand === "fertig" || w.zustand === "fehler")));
+  let sperre = "";
+  if (offen) sperre = "Für diesen Chunk läuft schon ein Auftrag.";
+  else if (vorgemerkt) sperre = "Eine Übernahme ist schon vorgemerkt: erst am PC anwenden oder zurücknehmen.";
+  else if (!zuordnungSicher()) sperre = "Die Zuordnung der Übersetzung ist geschätzt oder verschoben: Neu übersetzen geht nur bei sicherer Zuordnung.";
+  knopf.disabled = !!sperre;
+  knopf.title = sperre || "Diesen Chunk auf APIC neu übersetzen lassen (die Korrekturen sind eingerechnet); das Ergebnis ist ein Vorschlag.";
+  const teile = [];
+  let art = "";
+  if (w) {
+    if (w.zustand === "gemerkt") teile.push(w.hinweis || "Wunsch gemerkt, wird an APIC geschickt");
+    else if (w.zustand === "wartet") teile.push("wartet in der Warteschlange von APIC");
+    else if (w.zustand === "laeuft") teile.push("läuft auf APIC …");
+    else if (w.zustand === "fertig") teile.push("fertig: Vorschlag liegt bereit");
+    else { teile.push("Fehler: " + (w.meldung || "unbekannter Fehler")); art = "fehler"; }
+    if (w.hinweis && w.zustand !== "gemerkt") teile.push(w.hinweis);
+    if (w.hinweis) art = "fehler";
+  }
+  if (vorgemerkt) teile.push("Übernahme vorgemerkt: wird am PC unter Kontrolle angewendet");
+  else if (sperre && !offen) teile.push(sperre);
+  if (auftragSpeicherFehler) { teile.push("Wunsch nicht dauerhaft gespeichert (Speicher voll?)"); art = "fehler"; }
+  const st = $("neu-status");
+  st.textContent = teile.join(" · "); st.dataset.art = art;
+  $("vergleich-zeigen").hidden = !(w && w.zustand === "fertig");
+  zeile.hidden = !(veraltet || w || vorgemerkt);
+}
+
+/** Schickt/fragt die Aufträge des geöffneten Buchs, einer nach dem anderen. Nie zwei Läufe gleichzeitig. */
+async function bearbeiteAuftraege() {
+  if (!R || !buch) return;
+  if (auftragLaeuft) { auftragNochmal = true; return; }
+  auftragLaeuft = true;
+  const b = buch;
+  let schnell = false;
+  try {
+    const a = auftraegeVon(b.id);
+    for (const key of Object.keys(a)) {
+      if (buch !== b) break;                                   // Buchwechsel: der Rest wartet, bis das Buch wieder offen ist
+      const w = a[key];
+      if (!w) continue;
+      if (w.zustand === "gemerkt") await sendeWunsch(b, key, w);
+      else if (w.zustand === "wartet" || w.zustand === "laeuft") await frageAuftrag(b, key, w);
+      const jetzt = a[key];
+      if (jetzt && (jetzt.zustand === "wartet" || jetzt.zustand === "laeuft") && !jetzt.hinweis) schnell = true;
+    }
+  } finally {
+    auftragLaeuft = false;
+    clearTimeout(auftragTimer);
+    if (schnell) auftragTimer = setTimeout(bearbeiteAuftraege, AUFTRAG_POLL_MS);
+    if (buch === b) zeigeAuftragsKopf();
+    if (auftragNochmal) { auftragNochmal = false; bearbeiteAuftraege(); }
+  }
+}
+
+async function sendeWunsch(b, key, w) {
+  const ix = Number(key);
+  if (eintraegeBuchId !== b.id) return;                        // Korrekturen noch nicht geladen
+  if (!verbindungFertig()) { setzeAuftrag(b.id, key, w, { hinweis: "APIC nicht eingerichtet, Wunsch gemerkt" }); return; }
+  // APIC spielt nur ab, was dort angekommen ist: erst müssen alle Einträge dieses Chunks (auch Rücknahmen) gesendet sein
+  if (eintraege.some((e) => e.status === "offen" && e.ebene === "chunk-orig" && e.art !== "marke" && chunkNr(e) === ix)) {
+    const grund = sendeZustand === "netz" ? "APIC nicht erreichbar" : sendeZustand === "token" ? "Token abgelehnt"
+      : sendeZustand === "server" ? `APIC meldet Fehler (${sendeCode})` : "";
+    setzeAuftrag(b.id, key, w, { hinweis: grund ? grund + ", Wunsch gemerkt" : "Wunsch gemerkt, wartet auf das Senden der Korrekturen" });
+    return;
+  }
+  try {
+    const r = await R.auftrag(buchSchluessel(b), ix, optApic(), mitZeitlimit);
+    setzeAuftrag(b.id, key, w, { zustand: "wartet", id: r.id, meldung: "", hinweis: "" });
+  } catch (e) {
+    if (e && (e.status === 400 || e.status === 404)) {
+      setzeAuftrag(b.id, key, w, { zustand: "fehler", hinweis: "", meldung: e.status === 404 ? "APIC findet diesen Chunk nicht" : "APIC hat den Auftrag abgelehnt" });
+    } else {
+      setzeAuftrag(b.id, key, w, { hinweis: netzFehler(e) ? "APIC nicht erreichbar, Wunsch gemerkt" : apicHinweis(e) + ", Wunsch gemerkt" });
+    }
+  }
+}
+
+async function frageAuftrag(b, key, w) {
+  if (!verbindungFertig()) { setzeAuftrag(b.id, key, w, { hinweis: "APIC nicht eingerichtet" }); return; }
+  try {
+    const s = await R.auftragStatus(w.id, optApic(), mitZeitlimit);
+    const neu = setzeAuftrag(b.id, key, w, { zustand: s.zustand, meldung: s.meldung, hinweis: "" });
+    if (neu && neu.zustand === "fertig" && w.zustand !== "fertig") zeigeFertigenVergleich(b, Number(key));
+  } catch (e) {
+    if (e && e.status === 404) setzeAuftrag(b.id, key, w, { zustand: "fehler", hinweis: "", meldung: "APIC kennt den Auftrag nicht mehr (neu gestartet?). Bitte noch einmal „Neu übersetzen“." });
+    else setzeAuftrag(b.id, key, w, { hinweis: apicHinweis(e) });
+  }
+}
+
+/** Ist ein Auftrag fertig und die Person noch bei diesem Chunk (nichts anderes offen), öffnet sich der Vergleich von selbst. */
+function zeigeFertigenVergleich(b, ix) {
+  if (buch && buch.id === b.id && modus === "uebersetzung" && aktuellerChunk() === ix && !document.querySelector("dialog[open]")) oeffneVergleich(ix);
+}
+
+function wuensche(ix) {
+  if (!buch || !R || $("neu-uebersetzen").disabled) return;
+  const b = buch, a = auftraegeVon(b.id), alt = a[String(ix)];
+  if ((alt && AUFTRAG_OFFEN.includes(alt.zustand)) || uebernahmeVorgemerkt(ix) || !zuordnungSicher()) return;
+  a[String(ix)] = { zustand: "gemerkt", nr: Math.random().toString(16).slice(2), id: "", meldung: "", hinweis: "", angefordert: new Date().toISOString() };
+  sichereAuftraege(b.id);
+  zeigeAuftragsKopf();
+  bearbeiteAuftraege();
+}
+$("neu-uebersetzen").addEventListener("click", () => wuensche(aktuellerChunk()));
+$("vergleich-zeigen").addEventListener("click", () => oeffneVergleich(aktuellerChunk()));
+
+function vergleichStatus(text, art) { const s = $("vergleich-status"); s.textContent = text; s.dataset.art = art || ""; }
+function vergleichKnoepfe(uebernehmen, verwerfen) { $("vergleich-uebernehmen").disabled = !uebernehmen; $("vergleich-verwerfen").disabled = !verwerfen; }
+
+async function oeffneVergleich(ix) {
+  if (!buch || !R) return;
+  const b = buch, nr = ++vergleichNr;
+  vergleich = null; vergleichZiel = { buchId: b.id, chunk: ix };
+  $("vergleich-titel").textContent = `Vergleich · ${b.titel} · Chunk ${ix}`;
+  $("vergleich-alt").textContent = ""; $("vergleich-neu").textContent = "";
+  $("vergleich-nochmal").hidden = true;
+  vergleichKnoepfe(false, false);
+  if (!$("vergleich").open) $("vergleich").showModal();
+  if (!verbindungFertig()) { vergleichStatus("APIC ist nicht eingerichtet: der Vorschlag kann nicht geladen werden.", "fehler"); $("vergleich-nochmal").hidden = false; return; }
+  vergleichStatus("Lade Vorschlag von APIC …", "");
+  try {
+    const v = await R.vorschlag(buchSchluessel(b), ix, optApic(), mitZeitlimit);
+    if (nr !== vergleichNr || buch !== b) return;              // inzwischen anderer Vergleich, geschlossen oder Buch gewechselt
+    vergleich = { buchId: b.id, chunk: ix, alt: v.alt, neu: v.neu };
+    $("vergleich-alt").textContent = v.alt; $("vergleich-neu").textContent = v.neu;
+    const schon = uebernahmeVorgemerkt(ix);
+    vergleichStatus(schon ? "Für diesen Chunk ist schon eine Übernahme vorgemerkt." : v.alt === v.neu ? "Kein Unterschied zur bisherigen Übersetzung."
+      : "Beim Übernehmen wird nichts überschrieben: die Übernahme wird vorgemerkt und erst am PC unter Kontrolle angewendet.", "");
+    vergleichKnoepfe(!schon, true);
+  } catch (e) {
+    if (nr !== vergleichNr || buch !== b) return;
+    vergleichStatus(e && e.status === 404 ? "Bei APIC liegt kein Vorschlag (mehr). Bitte neu übersetzen lassen." : "Vorschlag nicht abrufbar: " + apicHinweis(e) + ".", "fehler");
+    $("vergleich-nochmal").hidden = false;
+    vergleichKnoepfe(false, true);
+  }
+}
+$("vergleich-nochmal").addEventListener("click", () => { if (vergleichZiel && buch && buch.id === vergleichZiel.buchId) oeffneVergleich(vergleichZiel.chunk); });
+$("vergleich-zu").addEventListener("click", () => $("vergleich").close());
+$("vergleich").addEventListener("close", () => { vergleichNr++; vergleich = null; });
+
+$("vergleich-uebernehmen").addEventListener("click", async () => {
+  const v = vergleich;
+  if (!v || vergleichBusy || !buch || buch.id !== v.buchId || uebernahmeVorgemerkt(v.chunk)) return;
+  vergleichBusy = true; vergleichKnoepfe(false, false);
+  const b = buch, nr = vergleichNr;
+  try {
+    // vorher = Prüfsumme der bisherigen Übersetzung, neu_hash = Prüfsumme des Vorschlags: nur das hier Gesehene wird am PC übernommen
+    const e = R.neuerEintrag(buchSchluessel(b), "uebersetzung", { chunk: v.chunk }, "uebersetzung-uebernehmen",
+                             { neu_hash: R.pruefsumme(v.neu) }, v.alt, "Vergleich geprüft", verbindung.geraet || "epistopheles");
+    await neueAenderung(e);
+    entferneAuftrag(b.id, String(v.chunk));
+    if (nr === vergleichNr) $("vergleich").close();
+  } catch (x) {
+    if (nr === vergleichNr) { vergleichStatus("Übernahme nicht gespeichert: " + (x.message || x), "fehler"); vergleichKnoepfe(!uebernahmeVorgemerkt(v.chunk), true); }
+  } finally {
+    vergleichBusy = false;
+  }
+});
+$("vergleich-verwerfen").addEventListener("click", () => {
+  if (!vergleichZiel || !buch || buch.id !== vergleichZiel.buchId || vergleichBusy) return;
+  entferneAuftrag(vergleichZiel.buchId, String(vergleichZiel.chunk));        // der Vorschlag bleibt bei APIC liegen, bis neu übersetzt wird
+  $("vergleich").close();
+});
+
+zeigeLeiste();
+
+// ---- Darstellung, Buchwahl, Start -------------------------------------------------------------------------------------------------
+const THEMEN = ["auto", "hell", "dunkel"];
+function setzeThema(t) { if (t === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.dataset.theme = t; $("knopf-thema").title = `Darstellung: ${t}`; lsSet("thema", t); }
+$("knopf-thema").addEventListener("click", () => setzeThema(THEMEN[(THEMEN.indexOf(lsGet("thema", "auto")) + 1) % THEMEN.length]));
+setzeThema(lsGet("thema", "auto"));
+
+const norm = (s) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ß/g, "ss");
+function baueListe() {
+  const q = norm($("suche").value.trim());
+  const liste = $("liste"); liste.textContent = "";
+  for (const b of index.buecher) {
+    if (q && !norm(`${b.autor} ${b.titel}`).includes(q)) continue;
+    const k = el("button", "buch");
+    k.append(`${b.autor} – ${b.titel}`);
+    k.append(el("small", "", [b.chunks ? `${b.chunks} Rohchunks` : "keine Rohchunks", `${b.kapitel.length} Kapitel`, gespeichertEbook.has(b.id) ? "Ebook gespeichert" : b.ebook ? "Ebook im Export" : "Ebook fehlt", b.quelldatei].filter(Boolean).join(" · ")));
+    if (buch && b.id === buch.id) k.setAttribute("aria-current", "true");
+    k.addEventListener("click", () => { $("wahl").close(); if (!buch || b.id !== buch.id) oeffneBuch(b); });
+    liste.append(k);
+  }
+  if (!liste.children.length) liste.textContent = "Nichts gefunden.";
+}
+$("knopf-buch").addEventListener("click", () => {
+  if (!index) return;
+  $("suche").value = ""; baueListe();
+  $("stand").textContent = `${index.buecher.length} Bücher · Stand ${index.erstellt || "unbekannt"}`;
+  $("wahl").showModal();
+});
+$("wahl-zu").addEventListener("click", () => $("wahl").close());
+let suchTimer = null;
+$("suche").addEventListener("input", () => { clearTimeout(suchTimer); suchTimer = setTimeout(baueListe, 150); });
+$("daten-neu").addEventListener("click", () => $("ordner").click());
+$("knopf-ordner").addEventListener("click", () => $("ordner").click());
+$("ordner").addEventListener("change", async (e) => { const f = [...e.target.files]; e.target.value = ""; await ordnerEinlesen(f); });
+
+document.addEventListener("keydown", (e) => {
+  if (e.ctrlKey || e.metaKey || e.altKey || !buch || $("wahl").open || $("verbindung").open || $("aenderungsliste").open || $("vergleich").open) return;
+  if (/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
+  if (e.key === "n") { rechtsSpringe(aktuell() + 1); e.preventDefault(); }
+  else if (e.key === "p") { rechtsSpringe(aktuell() - 1); e.preventDefault(); }
+  else if (e.key === "1" && !$("modus-chunks").disabled) $("modus-chunks").click();
+  else if (e.key === "2") $("modus-text").click();
+  else if (e.key === "3") $("modus-uebersetzung").click();
+});
+
+(async () => {
+  index = await ladeIndex();
+  if (index) starte(); else $("start").hidden = false;
+})();
+</script>
+</body>
+</html>

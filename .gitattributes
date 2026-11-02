@@ -1,0 +1,2 @@
+*.sh text eol=lf
+.stignore text eol=lf

@@ -1,0 +1,82 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Entwuerfe Chunk-Bearbeitung</title><style>body{font-family:system-ui,sans-serif;max-width:920px;margin:0 auto;padding:16px;background:#f7f5f0;color:#222}.options{display:grid;gap:16px}.option{background:#fff;border:1px solid #d8d3c8;border-radius:12px;padding:14px;position:relative}.letter{position:absolute;top:10px;right:12px;font-weight:700;color:#0b7285;font-size:1.4em}.subtitle{color:#6b665e}</style></head><body><p><small>Entwurf aus dem Gespraech vom 2026-11-02 (Konzept A + B kombiniert wurde gewaehlt). Gehoert zu <code>dok/2026-11-02-redaktion-epistopheles-design.md</code>. Nur Bedienkonzepte, keine fertige Gestaltung.</small></p><style>
+  .txt { font: 14px/1.7 "Noto Serif", Georgia, serif; background: #fff; color: #222; border: 1px solid #d8d3c8; border-radius: 8px; padding: 12px 14px; }
+  .zeile { display: block; position: relative; padding: 1px 0; }
+  .fehl { background: #fff3cd; border-left: 4px solid #e0a800; padding-left: 8px; margin-left: -12px; }
+  .frag { background: #fde2e1; border-left: 4px solid #d6291e; padding-left: 8px; margin-left: -12px; }
+  .kap  { background: #dff3f6; border-left: 4px solid #0b7285; padding-left: 8px; margin-left: -12px; font-weight: 700; }
+  .chip { display: inline-block; font: 11px system-ui, sans-serif; background: #0b7285; color: #fff; border-radius: 999px; padding: 2px 9px; margin-left: 6px; white-space: nowrap; }
+  .chip.rot { background: #d6291e; } .chip.grau { background: #6b665e; } .chip.gelb { background: #b88600; }
+  .bar { display: flex; flex-wrap: wrap; gap: 6px; background: #1d1b18; padding: 8px; border-radius: 10px; margin: 8px 0; }
+  .bar span { font: 12px system-ui, sans-serif; color: #fff; background: #3a362c; padding: 6px 10px; border-radius: 8px; }
+  .bar span.neu { background: #0b7285; }
+  .sel { background: #b4d5fe; }
+  .liste { font: 13px system-ui, sans-serif; background: #fff; border: 1px solid #d8d3c8; border-radius: 8px; }
+  .liste div.z { padding: 8px 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+  .liste div.z:last-child { border-bottom: 0; }
+  .liste .an { background: #fff3cd; }
+  .st { font: 12px system-ui, sans-serif; color: #6b665e; margin-top: 8px; }
+  .kopf { font: 12px system-ui, sans-serif; color: #6b665e; padding-bottom: 6px; }
+</style>
+
+<h2>Wie soll man einen Chunk korrigieren?</h2>
+<p class="subtitle">Derselbe Ausschnitt eines Roh-Chunks, drei Bedienkonzepte. Links daneben läge immer das Original-Ebook. Wähle das, das sich am ehesten richtig anfühlt, oder sag, was du kombinieren würdest.</p>
+
+<div class="options">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Hinweise direkt an den Zeilen</h3>
+      <p>Die App erkennt Verdachtsstellen und zeigt an der Zeile, was sie vorschlägt. Antippen genügt.</p>
+      <div class="kopf">Chunk 27 / 127 · Kapitel 2 · Rohtext</div>
+      <div class="txt">
+        <span class="zeile">… und seine Bedeutung hat sich im 20. Jahrhundert</span>
+        <span class="zeile">gewandelt. Schon Burke betonte¹</span>
+        <span class="zeile fehl">12 Vgl. Pitkin (1967), S. 8.<span class="chip gelb">Zeile bricht ab</span><span class="chip">↧ mit nächster verbinden</span></span>
+        <span class="zeile fehl">dass die Abgeordneten dem Gewissen folgen<span class="chip">↧ verbinden</span></span>
+        <span class="zeile">sollen, nicht ihren Wählern.</span>
+        <span class="zeile frag">— 47 —<span class="chip rot">Fragment (Seitenzahl?)</span><span class="chip grau">löschen</span><span class="chip grau">markieren</span></span>
+        <span class="zeile">Kapitel 3</span>
+        <span class="zeile kap">Die Krise der Repräsentation<span class="chip">⇅ Kapitelgrenze verschieben</span></span>
+      </div>
+      <p class="st">Unten: „4 Änderungen · 1 Markierung · 5 warten auf APIC“</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Text markieren, Werkzeugleiste erscheint</h3>
+      <p>Du markierst mit dem Finger eine Stelle; die passenden Werkzeuge erscheinen darunter. Du entscheidest selbst, was ein Fehler ist.</p>
+      <div class="kopf">Chunk 27 / 127 · Kapitel 2 · Rohtext</div>
+      <div class="txt">
+        <span class="zeile">… und seine Bedeutung hat sich im 20. Jahrhundert</span>
+        <span class="zeile">gewandelt. Schon Burke betonte¹</span>
+        <span class="zeile"><span class="sel">12 Vgl. Pitkin (1967), S. 8.</span></span>
+        <span class="zeile">dass die Abgeordneten dem Gewissen folgen</span>
+      </div>
+      <div class="bar">
+        <span class="neu">⤴ Zeilen verbinden</span><span>⎘ Ausschneiden / verschieben</span><span>✕ Löschen</span><span>¶ Absatz hier trennen</span>
+        <span>§ Kapitel beginnt hier</span><span>▤ Inhaltsverzeichnis</span><span>▤ Glossar</span><span>⚑ Nur markieren</span>
+      </div>
+      <p class="st">Unten: „2 Änderungen · 1 Markierung · 3 warten auf APIC“</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Verdachtsliste abarbeiten</h3>
+      <p>Die App sammelt alle Verdachtsstellen eines Buchs in einer Liste. Du gehst sie nacheinander durch (wie ein Posteingang): beheben, überspringen oder markieren. Das Ebook und der Chunk springen mit.</p>
+      <div class="liste">
+        <div class="z"><b>Offen: 14</b><span>Zeile bricht ab 7 · Fragment 4 · Absatz 2 · Inhalt/Glossar 1</span></div>
+        <div class="z an"><span><b>Chunk 27</b> · „betonte¹ / 12 Vgl. Pitkin …“<br><small>Zeile endet mitten im Satz, Fußnote dazwischen</small></span><span><span class="chip">verbinden</span><span class="chip grau">überspringen</span><span class="chip gelb">markieren</span></span></div>
+        <div class="z"><span><b>Chunk 27</b> · „— 47 —“<br><small>sieht nach Seitenzahl aus</small></span><span class="chip grau">…</span></div>
+        <div class="z"><span><b>Chunk 31</b> · „Inhalt …“<br><small>Inhaltsverzeichnis endet unklar</small></span><span class="chip grau">…</span></div>
+      </div>
+      <p class="st">Unten: „1 von 14 erledigt“</p>
+    </div>
+  </div>
+
+</div>
+</body></html>

@@ -1,0 +1,1124 @@
+[
+ {
+  "name": "ersetzen_einfach",
+  "text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "eintraege": [
+   {
+    "id": "e1aaaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Beta zwei."
+    },
+    "art": "ersetzen",
+    "parameter": {
+     "nachher": "Beta ZWEI."
+    },
+    "vorher": {
+     "hash": "1c64c78d6c4d68f2",
+     "ausschnitt": "Beta zwei."
+    },
+    "nachher": "Beta ZWEI.",
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Alpha eins.\n\nBeta ZWEI.\n\nGamma drei.",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "ersetzen_vorzustand_geaendert",
+  "text": "Alpha eins.\n\nBeta zwei!\n\nGamma drei.",
+  "eintraege": [
+   {
+    "id": "e2aaaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Beta zwei."
+    },
+    "art": "ersetzen",
+    "parameter": {
+     "nachher": "Beta ZWEI."
+    },
+    "vorher": {
+     "hash": "1c64c78d6c4d68f2",
+     "ausschnitt": "Beta zwei."
+    },
+    "nachher": "Beta ZWEI.",
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Alpha eins.\n\nBeta zwei!\n\nGamma drei.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "absatz_nicht_gefunden",
+  "text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "eintraege": [
+   {
+    "id": "e3aaaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Epsilon fuenf."
+    },
+    "art": "ersetzen",
+    "parameter": {
+     "nachher": "x"
+    },
+    "vorher": {
+     "hash": "f7cd3c72906c8631",
+     "ausschnitt": "Epsilon fuenf."
+    },
+    "nachher": "x",
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "ersetzen_tabs_und_crlf",
+  "text": "Eins\tmit Tab.\r\n\r\nZwei\tmit Tab.\r\n\r\nDrei ohne Newline",
+  "eintraege": [
+   {
+    "id": "e4aaaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 2,
+     "anfang": "Drei ohne Newline"
+    },
+    "art": "ersetzen",
+    "parameter": {
+     "nachher": "Drei."
+    },
+    "vorher": {
+     "hash": "dfd67ba0857f2709",
+     "ausschnitt": "Drei ohne Newline"
+    },
+    "nachher": "Drei.",
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Eins\tmit Tab.\r\n\r\nZwei\tmit Tab.\r\n\r\nDrei.",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "verbinden_silbentrennung",
+  "text": "Die Reprä-\nsentation der Welt.\nEin Satz.\nNeu beginnt es.",
+  "eintraege": [
+   {
+    "id": "e5aaaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 0,
+     "anfang": "Die Reprä- sentation der Welt. Ein Satz.",
+     "zeile": 0
+    },
+    "art": "verbinden",
+    "parameter": {},
+    "vorher": {
+     "hash": "98271a4e11d41b3b",
+     "ausschnitt": "Die Reprä-\nsentation der Welt.\nEin Satz.\nNeu beginnt es."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Die Repräsentation der Welt.\nEin Satz.\nNeu beginnt es.",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "verbinden_satzende",
+  "text": "Die Reprä-\nsentation der Welt.\nEin Satz.\nNeu beginnt es.",
+  "eintraege": [
+   {
+    "id": "e6aaaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 0,
+     "anfang": "Die Reprä- sentation der Welt. Ein Satz.",
+     "zeile": 2
+    },
+    "art": "verbinden",
+    "parameter": {},
+    "vorher": {
+     "hash": "98271a4e11d41b3b",
+     "ausschnitt": "Die Reprä-\nsentation der Welt.\nEin Satz.\nNeu beginnt es."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Die Reprä-\nsentation der Welt.\nEin Satz. Neu beginnt es.",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "verbinden_letzte_zeile_ist_konflikt",
+  "text": "Die Reprä-\nsentation der Welt.\nEin Satz.\nNeu beginnt es.",
+  "eintraege": [
+   {
+    "id": "e7aaaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 0,
+     "anfang": "Die Reprä- sentation der Welt. Ein Satz.",
+     "zeile": 3
+    },
+    "art": "verbinden",
+    "parameter": {},
+    "vorher": {
+     "hash": "98271a4e11d41b3b",
+     "ausschnitt": "Die Reprä-\nsentation der Welt.\nEin Satz.\nNeu beginnt es."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Die Reprä-\nsentation der Welt.\nEin Satz.\nNeu beginnt es.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "trennen",
+  "text": "Die Reprä-\nsentation der Welt.\nEin Satz.\nNeu beginnt es.",
+  "eintraege": [
+   {
+    "id": "e8aaaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 0,
+     "anfang": "Die Reprä- sentation der Welt. Ein Satz.",
+     "zeile": 2
+    },
+    "art": "trennen",
+    "parameter": {},
+    "vorher": {
+     "hash": "98271a4e11d41b3b",
+     "ausschnitt": "Die Reprä-\nsentation der Welt.\nEin Satz.\nNeu beginnt es."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Die Reprä-\nsentation der Welt.\n\nEin Satz.\nNeu beginnt es.",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "trennen_crlf",
+  "text": "A eins.\r\nB zwei.\r\n\r\nC drei.",
+  "eintraege": [
+   {
+    "id": "e9aaaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 0,
+     "anfang": "A eins. B zwei.",
+     "zeile": 1
+    },
+    "art": "trennen",
+    "parameter": {},
+    "vorher": {
+     "hash": "766068c986431cc4",
+     "ausschnitt": "A eins.\r\nB zwei."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "A eins.\r\n\r\nB zwei.\r\n\r\nC drei.",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "loeschen_zeilen",
+  "text": "Die Reprä-\nsentation der Welt.\nEin Satz.\nNeu beginnt es.",
+  "eintraege": [
+   {
+    "id": "eaaaaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 0,
+     "anfang": "Die Reprä- sentation der Welt. Ein Satz.",
+     "zeile": 1,
+     "zeile_bis": 2
+    },
+    "art": "loeschen",
+    "parameter": {},
+    "vorher": {
+     "hash": "98271a4e11d41b3b",
+     "ausschnitt": "Die Reprä-\nsentation der Welt.\nEin Satz.\nNeu beginnt es."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Die Reprä-\nNeu beginnt es.",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "loeschen_absatz_mitte",
+  "text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "eintraege": [
+   {
+    "id": "ebaaaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Beta zwei."
+    },
+    "art": "loeschen",
+    "parameter": {},
+    "vorher": {
+     "hash": "1c64c78d6c4d68f2",
+     "ausschnitt": "Beta zwei."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Alpha eins.\n\nGamma drei.",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "loeschen_absatz_letzter",
+  "text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "eintraege": [
+   {
+    "id": "ecaaaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 2,
+     "anfang": "Gamma drei."
+    },
+    "art": "loeschen",
+    "parameter": {},
+    "vorher": {
+     "hash": "02d7432930106df0",
+     "ausschnitt": "Gamma drei."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Alpha eins.\n\nBeta zwei.",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "loeschen_zeilen_ausserhalb",
+  "text": "Die Reprä-\nsentation der Welt.\nEin Satz.\nNeu beginnt es.",
+  "eintraege": [
+   {
+    "id": "edaaaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 0,
+     "anfang": "Die Reprä- sentation der Welt. Ein Satz.",
+     "zeile": 2,
+     "zeile_bis": 9
+    },
+    "art": "loeschen",
+    "parameter": {},
+    "vorher": {
+     "hash": "98271a4e11d41b3b",
+     "ausschnitt": "Die Reprä-\nsentation der Welt.\nEin Satz.\nNeu beginnt es."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Die Reprä-\nsentation der Welt.\nEin Satz.\nNeu beginnt es.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "verschieben_zeile_nach_absatz",
+  "text": "Eins a.\nEins b.\n\nZwei.\n\nDrei.",
+  "eintraege": [
+   {
+    "id": "eeaaaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 0,
+     "anfang": "Eins a. Eins b.",
+     "zeile": 1
+    },
+    "art": "verschieben",
+    "parameter": {
+     "nach_anfang": "Zwei."
+    },
+    "vorher": {
+     "hash": "ae588b30a1899dce",
+     "ausschnitt": "Eins a.\nEins b."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Eins a.\n\nZwei.\n\nEins b.\n\nDrei.",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "verschieben_ganzer_absatz",
+  "text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "eintraege": [
+   {
+    "id": "efaaaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 0,
+     "anfang": "Alpha eins.",
+     "zeile": 0
+    },
+    "art": "verschieben",
+    "parameter": {
+     "nach_anfang": "Gamma drei."
+    },
+    "vorher": {
+     "hash": "f245490e9ca7a5ca",
+     "ausschnitt": "Alpha eins."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Beta zwei.\n\nGamma drei.\n\nAlpha eins.",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "verschieben_ziel_fehlt",
+  "text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "eintraege": [
+   {
+    "id": "f0aaaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 0,
+     "anfang": "Alpha eins.",
+     "zeile": 0
+    },
+    "art": "verschieben",
+    "parameter": {
+     "nach_anfang": "Nirgends"
+    },
+    "vorher": {
+     "hash": "f245490e9ca7a5ca",
+     "ausschnitt": "Alpha eins."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "marke_aendert_nichts",
+  "text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "eintraege": [
+   {
+    "id": "f1aaaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Beta zwei."
+    },
+    "art": "marke",
+    "parameter": {
+     "kategorie": "pruefen",
+     "text": "komisch"
+    },
+    "vorher": {
+     "hash": "1c64c78d6c4d68f2",
+     "ausschnitt": "Beta zwei."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "ruecknahme_uebersprungen",
+  "text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "eintraege": [
+   {
+    "id": "f2aaaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Beta zwei."
+    },
+    "art": "ruecknahme",
+    "parameter": {
+     "id": "e1aaaaaaaaaa"
+    },
+    "vorher": {
+     "hash": "1c64c78d6c4d68f2",
+     "ausschnitt": "Beta zwei."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "erwartet_status": "uebersprungen"
+ },
+ {
+  "name": "uebersetzung_uebernehmen_uebersprungen",
+  "text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "eintraege": [
+   {
+    "id": "f3aaaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Beta zwei."
+    },
+    "art": "uebersetzung-uebernehmen",
+    "parameter": {},
+    "vorher": {
+     "hash": "1c64c78d6c4d68f2",
+     "ausschnitt": "Beta zwei."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "erwartet_status": "uebersprungen"
+ },
+ {
+  "name": "neu_uebersetzen_uebersprungen",
+  "text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "eintraege": [
+   {
+    "id": "f4aaaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Beta zwei."
+    },
+    "art": "neu-uebersetzen",
+    "parameter": {},
+    "vorher": {
+     "hash": "1c64c78d6c4d68f2",
+     "ausschnitt": "Beta zwei."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "erwartet_status": "uebersprungen"
+ },
+ {
+  "name": "unbekannte_art_ist_konflikt",
+  "text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "eintraege": [
+   {
+    "id": "f5aaaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Beta zwei."
+    },
+    "art": "zaubern",
+    "parameter": {},
+    "vorher": {
+     "hash": "1c64c78d6c4d68f2",
+     "ausschnitt": "Beta zwei."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "doppelter_anker_mit_index_trifft",
+  "text": "Kopfzeile des Buches, die sich oft wiederholt: eins\n\nKopfzeile des Buches, die sich oft wiederholt: zwei\n\nKopfzeile des Buches, die sich oft wiederholt: drei",
+  "eintraege": [
+   {
+    "id": "f6aaaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Kopfzeile des Buches, die sich oft wiede"
+    },
+    "art": "ersetzen",
+    "parameter": {
+     "nachher": "X"
+    },
+    "vorher": {
+     "hash": "059155adc2a8cda4",
+     "ausschnitt": "Kopfzeile des Buches, die sich oft wiederholt: zwei"
+    },
+    "nachher": "X",
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopfzeile des Buches, die sich oft wiederholt: eins\n\nX\n\nKopfzeile des Buches, die sich oft wiederholt: drei",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "doppelter_anker_ohne_passenden_index_ist_konflikt",
+  "text": "Kopfzeile des Buches, die sich oft wiederholt: eins\n\nKopfzeile des Buches, die sich oft wiederholt: zwei\n\nKopfzeile des Buches, die sich oft wiederholt: drei",
+  "eintraege": [
+   {
+    "id": "f7aaaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 7,
+     "anfang": "Kopfzeile des Buches, die sich oft wiede"
+    },
+    "art": "ersetzen",
+    "parameter": {
+     "nachher": "X"
+    },
+    "vorher": {
+     "hash": "059155adc2a8cda4",
+     "ausschnitt": "Kopfzeile des Buches, die sich oft wiederholt: zwei"
+    },
+    "nachher": "X",
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopfzeile des Buches, die sich oft wiederholt: eins\n\nKopfzeile des Buches, die sich oft wiederholt: zwei\n\nKopfzeile des Buches, die sich oft wiederholt: drei",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "kette_am_selben_absatz",
+  "text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "eintraege": [
+   {
+    "id": "f8aaaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 0,
+     "anfang": "Alpha eins."
+    },
+    "art": "ersetzen",
+    "parameter": {
+     "nachher": "Alpha EINS."
+    },
+    "vorher": {
+     "hash": "f245490e9ca7a5ca",
+     "ausschnitt": "Alpha eins."
+    },
+    "nachher": "Alpha EINS.",
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   },
+   {
+    "id": "f9aaaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 0,
+     "anfang": "Alpha EINS."
+    },
+    "art": "ersetzen",
+    "parameter": {
+     "nachher": "Alpha EINS!"
+    },
+    "vorher": {
+     "hash": "477742b38ea68cca",
+     "ausschnitt": "Alpha EINS."
+    },
+    "nachher": "Alpha EINS!",
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Alpha EINS!\n\nBeta zwei.\n\nGamma drei.",
+  "erwartet_status": "angewendet",
+  "erwartet_stati": [
+   "angewendet",
+   "angewendet"
+  ]
+ },
+ {
+  "name": "kette_abhaengig_wird_konflikt",
+  "text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "eintraege": [
+   {
+    "id": "faaaaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 0,
+     "anfang": "Alpha eins."
+    },
+    "art": "ersetzen",
+    "parameter": {
+     "nachher": "Alpha EINS."
+    },
+    "vorher": {
+     "hash": "0000000000000000",
+     "ausschnitt": "Alpha eins."
+    },
+    "nachher": "Alpha EINS.",
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   },
+   {
+    "id": "fbaaaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 0,
+     "anfang": "Alpha EINS."
+    },
+    "art": "ersetzen",
+    "parameter": {
+     "nachher": "Alpha EINS!"
+    },
+    "vorher": {
+     "hash": "477742b38ea68cca",
+     "ausschnitt": "Alpha EINS."
+    },
+    "nachher": "Alpha EINS!",
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   },
+   {
+    "id": "fcaaaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 2,
+     "anfang": "Gamma drei."
+    },
+    "art": "ersetzen",
+    "parameter": {
+     "nachher": "G."
+    },
+    "vorher": {
+     "hash": "02d7432930106df0",
+     "ausschnitt": "Gamma drei."
+    },
+    "nachher": "G.",
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Alpha eins.\n\nBeta zwei.\n\nG.",
+  "erwartet_status": "angewendet",
+  "erwartet_stati": [
+   "konflikt",
+   "konflikt",
+   "angewendet"
+  ]
+ },
+ {
+  "name": "kaputt_ziel_none",
+  "text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "eintraege": [
+   {
+    "id": "aaziel_none0",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": null,
+    "art": "ersetzen",
+    "parameter": {
+     "nachher": "A."
+    },
+    "vorher": {
+     "hash": "f245490e9ca7a5ca",
+     "ausschnitt": "Alpha eins."
+    },
+    "nachher": "A.",
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "kaputt_parameter_none",
+  "text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "eintraege": [
+   {
+    "id": "aaparameter_",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 0,
+     "anfang": "Alpha eins."
+    },
+    "art": "ersetzen",
+    "parameter": null,
+    "vorher": {
+     "hash": "f245490e9ca7a5ca",
+     "ausschnitt": "Alpha eins."
+    },
+    "nachher": "A.",
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "kaputt_ziel_fehlt",
+  "text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "eintraege": [
+   {
+    "id": "aaziel_fehlt",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "art": "ersetzen",
+    "parameter": {
+     "nachher": "A."
+    },
+    "vorher": {
+     "hash": "f245490e9ca7a5ca",
+     "ausschnitt": "Alpha eins."
+    },
+    "nachher": "A.",
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "kaputt_vorher_fehlt",
+  "text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "eintraege": [
+   {
+    "id": "aavorher_feh",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 0,
+     "anfang": "Alpha eins."
+    },
+    "art": "ersetzen",
+    "parameter": {
+     "nachher": "A."
+    },
+    "nachher": "A.",
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "kaputt_nachher_none",
+  "text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "eintraege": [
+   {
+    "id": "aanachher_no",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 0,
+     "anfang": "Alpha eins."
+    },
+    "art": "ersetzen",
+    "parameter": {
+     "nachher": null
+    },
+    "vorher": {
+     "hash": "f245490e9ca7a5ca",
+     "ausschnitt": "Alpha eins."
+    },
+    "nachher": "A.",
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "kaputt_nachher_zahl",
+  "text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "eintraege": [
+   {
+    "id": "aanachher_za",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 0,
+     "anfang": "Alpha eins."
+    },
+    "art": "ersetzen",
+    "parameter": {
+     "nachher": 123
+    },
+    "vorher": {
+     "hash": "f245490e9ca7a5ca",
+     "ausschnitt": "Alpha eins."
+    },
+    "nachher": "A.",
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "kaputt_nachher_fehlt",
+  "text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "eintraege": [
+   {
+    "id": "aanachher_fe",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 0,
+     "anfang": "Alpha eins."
+    },
+    "art": "ersetzen",
+    "parameter": {},
+    "vorher": {
+     "hash": "f245490e9ca7a5ca",
+     "ausschnitt": "Alpha eins."
+    },
+    "nachher": "A.",
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "kaputt_nachher_leer",
+  "text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "eintraege": [
+   {
+    "id": "aanachher_le",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 0,
+     "anfang": "Alpha eins."
+    },
+    "art": "ersetzen",
+    "parameter": {
+     "nachher": "  \n "
+    },
+    "vorher": {
+     "hash": "f245490e9ca7a5ca",
+     "ausschnitt": "Alpha eins."
+    },
+    "nachher": "A.",
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "kaputt_nachher_leerzeile",
+  "text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "eintraege": [
+   {
+    "id": "aanachher_le",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 0,
+     "anfang": "Alpha eins."
+    },
+    "art": "ersetzen",
+    "parameter": {
+     "nachher": "Eins.\n\nZwei."
+    },
+    "vorher": {
+     "hash": "f245490e9ca7a5ca",
+     "ausschnitt": "Alpha eins."
+    },
+    "nachher": "A.",
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "kaputter_eintrag_stoppt_den_rest_nicht",
+  "text": "Alpha eins.\n\nBeta zwei.\n\nGamma drei.",
+  "eintraege": [
+   {
+    "id": "ba00000000aa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": null,
+    "art": "ersetzen",
+    "parameter": {
+     "nachher": "A."
+    },
+    "vorher": {
+     "hash": "f245490e9ca7a5ca",
+     "ausschnitt": "Alpha eins."
+    },
+    "nachher": "A.",
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   },
+   {
+    "id": "ba00000000bb",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Beta zwei."
+    },
+    "art": "ersetzen",
+    "parameter": {
+     "nachher": "B."
+    },
+    "vorher": {
+     "hash": "1c64c78d6c4d68f2",
+     "ausschnitt": "Beta zwei."
+    },
+    "nachher": "B.",
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Alpha eins.\n\nB.\n\nGamma drei.",
+  "erwartet_status": "angewendet",
+  "erwartet_stati": [
+   "konflikt",
+   "angewendet"
+  ]
+ }
+]

@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.log
+**/notizen/_backup/
+**/notizen/highlights.json
+.superpowers/
+.worktrees/
+.stfolder/
+.playwright-mcp/
+# rohdaten\: alles Rohe (Inbox, Lektor, Outbox, Transfer, en-chunks): Daten, nicht versioniert
+rohdaten/
+# erzeugte Exporte fuer Epistopheles (Daten und kopierte App-Dateien), regenerierbar
+reader/export-epistopheles/
+# Altlast bis zum Umzug: der alte Ordner eBooks\ (Skripte liegen jetzt in tools\pipeline)
+eBooks/
+
+**/notizen/zusammenfassung_neu.json
