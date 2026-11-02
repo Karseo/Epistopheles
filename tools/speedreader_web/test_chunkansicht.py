@@ -151,3 +151,87 @@ def test_verschieben_markieren_und_werkzeugwahl():
     assert [e["werkZwei"][k] for k in ("verbinden", "verschieben", "loeschen", "trennen", "kapitel")] == [False] * 5
     assert [e["werkZwei"][k] for k in ("verzeichnis", "glossar", "markieren")] == [True] * 3
     assert e["werkLetzte"]["verbinden"] is False and e["werkErste"]["trennen"] is False and e["werkErste"]["verbinden"] is True
+
+
+# --- P2 Task 9: Ebene volltext -------------------------------------------------------------------------
+
+SKRIPT_VT = r"""
+const C = require(process.argv[1]);
+const R = require(process.argv[2]);
+const a = JSON.parse(require("fs").readFileSync(0, "utf8"));
+const roh = a.roh, D = "0001_a.md";
+const VT = { ebene: "volltext", zielfeld: "datei", verdacht: false };
+const mk = (art, ziel, parameter, vorher, status) => Object.assign(R.neuerEintrag("A/B", "volltext", ziel, art, parameter, vorher, "", "g"), { status: status || "offen" });
+const abs1 = roh.split("\n\n")[1];
+const eV = mk("fussnote", { datei: D, anfang: R.ankerVon(abs1), absatz_index: 1 },
+              { aktion: "marker-umbenennen", alt: "2", neu: "7", vorkommen: 0 }, abs1);
+const eChunk = mk("ersetzen", { chunk: 0, anfang: R.ankerVon(abs1), absatz_index: 1 }, { nachher: "X." }, abs1);
+eChunk.ebene = "chunk-orig";
+const eAndere = mk("ersetzen", { datei: "0002_b.md", anfang: R.ankerVon(abs1), absatz_index: 1 }, { nachher: "Y." }, abs1);
+
+const leer = C.bereite(roh, [], D, [], true, VT);
+const mitV = C.bereite(roh, [eV, eChunk, eAndere], D, [], true, VT);
+const mitVAngewendet = Object.assign({}, eV, { status: "angewendet" });
+const nichtImExport = C.bereite(roh, [mitVAngewendet], D, [], true, Object.assign({ enthalten: new Set([]) }, VT));
+const imExport = C.bereite(roh.replace("Note[^2]", "Note[^7]"), [mitVAngewendet], D, [], true, Object.assign({ enthalten: new Set([eV.id]) }, VT));
+const luecke = C.bereite(roh.replace("Note[^2]", "Note[^9]"), [mitVAngewendet], D, [], true, Object.assign({ enthalten: new Set([]) }, VT));
+const h = leer.hinweise[0];
+const d = C.entwurf(leer, "annehmen", h);
+const ent = C.entwuerfe(leer, "loeschen", C.auswahlAbbilden(leer, roh.indexOf("Zweiter"), roh.indexOf("Zweiter") + 6));
+const chunkNeben = C.bereite(roh, [eV], 0, [], true);
+process.stdout.write(JSON.stringify({
+  hinweiseLeer: leer.hinweise.map(x => [x.art, x.absatz_index, x.zeile]), ebene: leer.ebene, zielfeld: leer.zielfeld, chunk: leer.chunk,
+  mitV: mitV.text, mitVKonflikte: mitV.konflikte.length,
+  nichtImExport: nichtImExport.text, nichtImExportLuecke: nichtImExport.luecke.length,
+  imExport: imExport.text, imExportLuecke: imExport.luecke.length, imExportKonflikte: imExport.konflikte.length,
+  lueckeKonflikte: luecke.konflikte.length, lueckeLuecke: luecke.luecke.length,
+  entwurf: d, entwuerfeZiel: ent.liste && ent.liste[0].ziel, chunkNebenText: chunkNeben.text === roh,
+  sigVt: C.signatur([eV], D, 0, true, VT), sigVtAnderes: C.signatur([eV], "0002_b.md", 0, true, VT), sigChunk: C.signatur([eV], 0, 0, true),
+  hatKapitelHinweisKategorien: leer.hinweise.every(x => x.vorschlag.art === "marke"),
+  verdachtFuerChunkStandard: C.bereite("Zeile eins ohne Ende\nund klein weiter.", [], 0, [], true).hinweise.length,
+}));
+"""
+
+ROH_VT = "# Kapitel\n\nDer Satz hat eine Note[^1] und noch eine Note[^2] hier.\n\nNoch ein Absatz.\n\n[^1]: Erste Note."
+
+
+def lauf_vt():
+    r = subprocess.run([NODE, "-e", SKRIPT_VT, str(HIER / "chunkansicht.js"), str(HIER / "redaktion.js")],
+                       input=json.dumps({"roh": ROH_VT}), capture_output=True, text=True, encoding="utf-8", check=True)
+    return json.loads(r.stdout)
+
+
+def test_volltext_ansicht_zeigt_fussnotenhinweise_statt_chunk_verdacht():
+    e = lauf_vt()
+    assert e["ebene"] == "volltext" and e["zielfeld"] == "datei" and e["chunk"] == "0001_a.md"
+    assert e["hinweiseLeer"] == [["marker-ohne-definition", 1, 0]]          # [^2] hat keinen Fußnotentext
+    assert e["hatKapitelHinweisKategorien"] is True
+    assert e["verdachtFuerChunkStandard"] == 1                              # Standard (Chunk) unverändert
+
+
+def test_volltext_ansicht_nimmt_nur_eigene_datei_und_ebene():
+    e = lauf_vt()
+    assert e["mitV"] == ROH_VT.replace("Note[^2]", "Note[^7]")              # nur der Eintrag dieser Datei wird abgespielt
+    assert e["mitVKonflikte"] == 0
+    assert e["chunkNebenText"] is True                                      # Volltext-Eintrag stört die Chunk-Ansicht nicht
+
+
+def test_angewendet_aber_nicht_im_export_wird_abgespielt_sonst_nicht():
+    e = lauf_vt()
+    assert e["nichtImExport"] == ROH_VT.replace("Note[^2]", "Note[^7]") and e["nichtImExportLuecke"] == 0
+    assert e["imExport"] == ROH_VT.replace("Note[^2]", "Note[^7]") and e["imExportLuecke"] == 0 and e["imExportKonflikte"] == 0
+    # angewendet, nicht im Export und trotzdem nicht abspielbar: Lücke im Export, kein Konflikt der Person
+    assert e["lueckeKonflikte"] == 0 and e["lueckeLuecke"] == 1
+
+
+def test_volltext_entwuerfe_tragen_datei_und_ebene():
+    e = lauf_vt()
+    assert e["entwurf"]["ziel"] == {"datei": "0001_a.md", "anfang": e["entwurf"]["ziel"]["anfang"], "absatz_index": 1, "zeile": 0, "zeile_bis": 0}
+    assert e["entwurf"]["art"] == "marke" and e["entwurf"]["parameter"] == {"kategorie": "fussnote"}
+    assert e["entwuerfeZiel"]["datei"] == "0001_a.md" and "chunk" not in e["entwuerfeZiel"]
+
+
+def test_signatur_volltext_haengt_nur_von_eigener_datei_und_ebene_ab():
+    e = lauf_vt()
+    assert e["sigVt"] != e["sigVtAnderes"]
+    assert "b|0" == e["sigChunk"]                                           # Chunk-Ansicht sieht den Volltext-Eintrag nicht

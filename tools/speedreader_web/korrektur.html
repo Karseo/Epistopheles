@@ -345,6 +345,7 @@
 <script src="epub.js"></script>
 <script src="redaktion.js"></script>
 <script src="verdacht.js"></script>
+<script src="fussnoten.js"></script>
 <script src="chunkansicht.js"></script>
 <script>
 "use strict";
@@ -366,6 +367,7 @@ let steuerzeichen = !!lsGet("ksteuer", false);
 let epub = null, pdfUrl = null, ladeNr = 0;
 let abgelehnt = [];                   // abgelehnte Verdachtshinweise des offenen Buchs: [{anfang, art, zeile}]
 const ansichtCache = new Map();       // Chunk -> {sig, ansicht}: Verdachtserkennung je Chunk nur einmal
+const kapitelCache = new Map();       // Kapitel (Index) -> {sig, ansicht}: Volltext mit Einträgen und Fußnotenhinweisen
 let gezeigteSig = null, gezeigterChunk = -1, chunkBusy = false;
 const gespeichertEbook = new Set();   // Buch-IDs, zu denen ein Ebook im Browser liegt
 
@@ -465,7 +467,7 @@ async function oeffneBuch(b) {
   vergleichNr++; vergleich = null; if ($("vergleich").open) $("vergleich").close();      // ein Vergleich gehört zum Buch, in dem er geöffnet wurde
   ladeAenderungen(b);
   abgelehnt = lsGet("kabgelehnt:" + b.id, []); if (!Array.isArray(abgelehnt)) abgelehnt = [];
-  ansichtCache.clear(); gezeigteSig = null;
+  ansichtCache.clear(); kapitelCache.clear(); gezeigteSig = null;
   pos = Object.assign({ chunk: 0, kap: 0, epub: 0, seite: 1, deVerschub: 0 }, lsGet("kpos:" + b.id, {}));
   $("titel-buch").textContent = `${b.autor} – ${b.titel}`;
   $("titel-info").textContent = [b.quellsprache && `Sprache ${b.quellsprache}`, b.chunks ? `${b.chunks} Rohchunks${b.chunkSprache ? ` (${b.chunkSprache})` : ""}${b.chunkQuelle === "en-chunks" ? " aus en-chunks" : ""}` : "keine Rohchunks", b.kapitel.length ? `${b.kapitel.length} Kapitel` : "noch kein bereinigter Text"].filter(Boolean).join(" · ");
@@ -590,7 +592,8 @@ function zeigeRechts() {
   if (text === undefined) { zeigeRechtsHinweis(istChunkModus() ? "Dieses Buch hat keine extrahierten Rohchunks." : "Keine Kapitel."); return; }
   let gezeigt = text;
   if (istChunkModus()) gezeigt = zeigeChunkText($("rechts-inhalt"), ix, text);
-  else { fuelleText($("rechts-inhalt"), text); gezeigteSig = null; $("rechts-verdacht").textContent = ""; }
+  else if (kapitelBereit(ix)) gezeigt = zeigeKapitelText($("rechts-inhalt"), ix, text);
+  else { fuelleText($("rechts-inhalt"), text); gezeigteSig = null; $("rechts-verdacht").textContent = daten.kapitel[ix] && !daten.kapitel[ix].datei ? "Bearbeiten gesperrt: Daten neu exportieren" : ""; }
   markiereWahl(wahl);
   if (paar) { zeigeUebersetzung(ix, text); $("rechts-info").textContent = ""; return; }
   const zeilen = gezeigt.split("\n").length;
@@ -599,8 +602,39 @@ function zeigeRechts() {
 }
 
 // ---- Chunk-Ansicht A: Verdachtsstellen (chunkansicht.js) ------------------------------------------------------------
-const CA = window.Chunkansicht && window.Redaktion && window.Verdacht ? window.Chunkansicht : null;
+const CA = window.Chunkansicht && window.Redaktion && window.Verdacht && window.Fussnoten ? window.Chunkansicht : null;
 const ansichtSig = (ix) => `${buch.id}#${ix}#${CA.signatur(eintraege, ix, abgelehnt.length, eintraegeBuchId === buch.id)}`;
+
+// ---- Volltext (Modus „Bereinigt“): Kapitel mit den Einträgen der Ebene "volltext" -------------------------------------
+/** Nur mit neuen Daten (Dateiname je Kapitel, Stand `enthalten`) lässt sich der Volltext sicher bearbeiten. */
+const kapitelBereit = (ix) => !!CA && !!daten && Array.isArray(daten.enthalten) && !!daten.kapitel[ix] && typeof daten.kapitel[ix].datei === "string" && !!daten.kapitel[ix].datei;
+const kapitelOptionen = (ix) => {
+  if (!daten._enthaltenSet) daten._enthaltenSet = new Set(daten.enthalten);
+  return { ebene: "volltext", zielfeld: "datei", verdacht: false, enthalten: daten._enthaltenSet, nr: ix };
+};
+const kapitelSig = (ix) => `${buch.id}#k${ix}#${CA.signatur(eintraege, daten.kapitel[ix].datei, abgelehnt.length, eintraegeBuchId === buch.id, kapitelOptionen(ix))}`;
+/** Signatur der gerade gezeigten Ansicht (Chunk oder Kapitel), für „muss neu gezeichnet werden?“. */
+const sigAktuell = () => (modus === "text" ? kapitelSig(gezeigterChunk) : ansichtSig(gezeigterChunk));
+const cacheVon = (ansicht) => (ansicht.ebene === "volltext" ? kapitelCache : ansichtCache);
+const sigVon = (ansicht) => (ansicht.ebene === "volltext" ? kapitelSig(ansicht.nr) : ansichtSig(ansicht.chunk));
+
+/** Zeigt das Kapitel mit den offenen Einträgen abgespielt und den Fußnotenhinweisen; gibt den gezeigten Text zurück. */
+function zeigeKapitelText(pre, ix, roh) {
+  const info = $("rechts-verdacht"), datei = daten.kapitel[ix].datei;
+  const bereit = eintraegeBuchId === buch.id;           // vor dem Laden der Einträge wäre ein "vorher" veraltet: keine Hinweise
+  const sig = kapitelSig(ix);
+  let c = kapitelCache.get(ix);
+  if (!c || c.sig !== sig) { c = { sig: sig, ansicht: CA.bereite(roh, eintraege, datei, abgelehnt, bereit, kapitelOptionen(ix)) }; kapitelCache.set(ix, c); }
+  const kennung = `${buch.id}:k:${datei}`, oben = pre.dataset.fuer === kennung ? pre.scrollTop : 0;
+  CA.rendere(pre, c.ansicht, { fuelle: haengeText, aktion: chunkAktion });
+  pre.dataset.fuer = kennung; pre.scrollTop = oben;
+  gezeigteSig = sig; gezeigterChunk = ix;
+  const n = c.ansicht.hinweise.length, k = c.ansicht.konflikte.length, l = c.ansicht.luecke.length;
+  info.textContent = bereit ? [`Fußnoten: ${n} ${n === 1 ? "Hinweis" : "Hinweise"}`, k ? `${k} ${k === 1 ? "Konflikt" : "Konflikte"}` : "",
+    l ? `${l} am PC angewendet, im Export noch nicht enthalten` : ""].filter(Boolean).join(" · ") : "Änderungen werden geladen …";
+  info.dataset.konflikt = k ? "ja" : "nein";
+  return c.ansicht.text;
+}
 
 /** Zeigt den Roh-Chunk mit den offenen Einträgen abgespielt und den Verdachtsstellen; gibt den gezeigten Text zurück. */
 function zeigeChunkText(pre, ix, roh) {
@@ -623,6 +657,14 @@ function zeigeChunkText(pre, ix, roh) {
 
 /** ● im Chunk-Wähler bei Chunks, deren (bereits berechnete) Ansicht offene Hinweise hat. */
 function markiereWahl(wahl) {
+  if (modus === "text" && CA && daten) {
+    for (const o of wahl.options) {
+      const k = daten.kapitel[Number(o.value)], c = kapitelCache.get(Number(o.value));
+      const basis = k ? `${k.nr}. ${k.titel}` : o.textContent.replace(/^● /, "");
+      o.textContent = c && c.ansicht.hinweise.length ? `● ${basis}` : basis;
+    }
+    return;
+  }
   if (!istChunkModus() || !CA) return;
   for (const o of wahl.options) {
     const kap = kapitelZuChunk(Number(o.value));
@@ -633,8 +675,8 @@ function markiereWahl(wahl) {
 
 async function chunkAktion(was, objekt, ansicht) {
   if (chunkBusy || !buch || !CA) return;
-  const b = buch, ix = ansicht.chunk, c = ansichtCache.get(ix);
-  if (!c || c.ansicht !== ansicht || c.sig !== ansichtSig(ix)) { zeigeRechts(); return; }       // Ansicht veraltet: neu zeichnen, nichts ändern
+  const b = buch, c = cacheVon(ansicht).get(ansicht.nr);
+  if (!c || c.ansicht !== ansicht || c.sig !== sigVon(ansicht)) { zeigeRechts(); return; }       // Ansicht veraltet: neu zeichnen, nichts ändern
   if (was === "ablehnen") {
     const zeile = (CA.absatzText(ansicht, objekt.absatz_index) || "").split(/\r?\n/)[objekt.zeile] || "";
     abgelehnt = abgelehnt.concat([{ anfang: objekt.anfang, art: objekt.art, zeile: CA.zeilenSchluessel(zeile) }]);
@@ -650,7 +692,7 @@ async function chunkAktion(was, objekt, ansicht) {
     else {
       const d = CA.entwurf(ansicht, was, objekt);
       if (!d) throw new Error("Absatz nicht gefunden");
-      const neu = R.neuerEintrag(buchSchluessel(b), "chunk-orig", d.ziel, d.art, d.parameter, d.vorherText, d.hinweis, geraet);
+      const neu = R.neuerEintrag(buchSchluessel(b), ansicht.ebene, d.ziel, d.art, d.parameter, d.vorherText, d.hinweis, geraet);
       // Neu anwenden: neuer Eintrag und Rücknahme des alten in EINER Runde der Kette (beide oder keiner)
       if (was === "neu") await neueAenderungen([neu, ruecknahme(objekt.eintrag)]);
       else await neueAenderung(neu);
@@ -925,7 +967,7 @@ function zeigeLeiste() {
   $("aenderungen-text").textContent = text;
   $("aenderungen-text").title = zahlen;
   // Am PC eingearbeitete Textänderungen stehen erst nach einem neuen Export in der Ansicht: darauf hinweisen
-  const eingearbeitet = eintraege.filter((e) => e && e.status === "angewendet" && e.art !== "marke" && e.art !== "ruecknahme").length;
+  const eingearbeitet = eintraege.filter((e) => e && e.status === "angewendet" && e.art !== "marke" && e.art !== "ruecknahme" && e.ebene !== "volltext").length;
   const hinweis = $("aenderungen-hinweis");
   hinweis.hidden = !eingearbeitet;
   hinweis.textContent = eingearbeitet
@@ -936,7 +978,7 @@ function zeigeLeiste() {
   if ($("aenderungsliste").open) zeigeAenderungsliste();
   zeigeAuftragsKopf();
   // Chunk-Ansicht: haben sich die Einträge dieses Chunks geändert (Laden, Konflikt von APIC), neu zeichnen
-  if (CA && daten && buch && istChunkModus() && gezeigteSig !== null && gezeigteSig !== ansichtSig(gezeigterChunk)) zeigeRechts();
+  if (CA && daten && buch && (istChunkModus() || kapitelBereit(gezeigterChunk)) && gezeigteSig !== null && gezeigteSig !== sigAktuell()) zeigeRechts();
 }
 
 /** Ändert die Einträge eines Buchs (nacheinander, über den Speicher) und gibt die neue Liste zurück. */
@@ -1037,7 +1079,7 @@ $("aenderungen-sichern").addEventListener("click", () => {
 
 // Änderungsliste mit Rücknahme (Spec 5.1: möglich, solange der Eintrag nicht angewendet ist)
 const ART_KLAR = { ersetzen: "Text ersetzt", verbinden: "Zeilen verbunden", trennen: "Absatz getrennt", loeschen: "Gelöscht", verschieben: "Verschoben",
-                   marke: "Markierung", "uebersetzung-uebernehmen": "Übersetzung übernehmen", "neu-uebersetzen": "Neu übersetzen" };
+                   marke: "Markierung", fussnote: "Fußnote geändert", "uebersetzung-uebernehmen": "Übersetzung übernehmen", "neu-uebersetzen": "Neu übersetzen" };
 const KATEGORIE_KLAR = { markiert: "markiert", "kapitelgrenze-vermutet": "Kapitel beginnt hier", verzeichnis: "Inhaltsverzeichnis", glossar: "Glossar" };
 const STATUS_KLAR = { offen: "wartet auf APIC", gesendet: "bereits bei APIC", bestaetigt: "bei APIC bestätigt", angewendet: "angewendet",
                       konflikt: "Konflikt", abgelehnt: "abgelehnt", uebersprungen: "übersprungen" };
@@ -1048,6 +1090,8 @@ const artKlar = (e) => {
 };
 const zeitKlar = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" }); };
 const chunkNr = (e) => (e.ziel && Number.isInteger(e.ziel.chunk) ? e.ziel.chunk : null);
+/** Kapitel-Index zu einem Volltext-Eintrag (über den Dateinamen), -1 wenn unbekannt. */
+const kapitelNr = (e) => (daten && e.ebene === "volltext" && e.ziel && typeof e.ziel.datei === "string" ? daten.kapitel.findIndex((k) => k.datei === e.ziel.datei) : -1);
 
 function zeigeAenderungsliste() {
   const inhalt = $("aenderungsliste-inhalt");
@@ -1065,8 +1109,9 @@ function zeigeAenderungsliste() {
   for (const e of wirksam) {
     const li = el("li", "aenderung"); li.dataset.id = e.id; li.dataset.status = e.status;
     const text = el("div", "text");
-    const nr = chunkNr(e);
-    text.append(el("b", "", artKlar(e)), ` · ${nr === null ? "ohne Chunk" : "Chunk " + nr} · ${STATUS_KLAR[e.status] || e.status}${e.erstellt ? " · " + zeitKlar(e.erstellt) : ""}`);
+    const volltext = e.ebene === "volltext", kn = kapitelNr(e), nr = volltext ? (kn >= 0 ? kn : null) : chunkNr(e);
+    const ort = volltext ? (kn >= 0 ? `Kapitel ${daten.kapitel[kn].nr}` : "Kapitel unbekannt") : nr === null ? "ohne Chunk" : "Chunk " + nr;
+    text.append(el("b", "", artKlar(e)), ` · ${ort} · ${STATUS_KLAR[e.status] || e.status}${e.erstellt ? " · " + zeitKlar(e.erstellt) : ""}`);
     const detail = e.status === "konflikt" && e.grund ? e.grund
       : e.art === "uebersetzung-uebernehmen" ? "Die neue Übersetzung wird erst am PC unter Kontrolle angewendet."
       : (e.vorher && e.vorher.ausschnitt) || "";
@@ -1096,10 +1141,11 @@ async function nimmZurueck(id) {
   sendeJetzt();
 }
 function springeZuEintrag(id) {
-  const e = eintraege.find((x) => x.id === id), nr = e ? chunkNr(e) : null;
+  const e = eintraege.find((x) => x.id === id), volltext = !!e && e.ebene === "volltext", nr = e ? (volltext ? (kapitelNr(e) >= 0 ? kapitelNr(e) : null) : chunkNr(e)) : null;
   if (nr === null || !buch) return;
   $("aenderungsliste").close();
-  if (!istChunkModus()) { if ($("modus-chunks").disabled) return; $("modus-chunks").click(); }
+  if (volltext) { if (modus !== "text") { if ($("modus-text").disabled) return; $("modus-text").click(); } }
+  else if (!istChunkModus()) { if ($("modus-chunks").disabled) return; $("modus-chunks").click(); }
   rechtsSpringe(nr);
 }
 $("aenderungen-liste-knopf").addEventListener("click", () => { zeigeAenderungsliste(); $("aenderungsliste").showModal(); });
