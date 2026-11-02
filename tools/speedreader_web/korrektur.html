@@ -188,7 +188,8 @@
   .fn-marker, .fn-def { cursor: pointer; padding: 14px 3px; margin: 0 -3px; border-radius: 6px; text-decoration: underline dotted var(--akzent); text-underline-offset: 3px; }
   .fn-marker:hover, .fn-def:hover { background: var(--knopf-aktiv); }
   .fn-orphan { text-decoration-color: var(--warn); text-decoration-style: solid; font-weight: 700; }
-  #absatz-leiste #absatz-verweis[hidden] { display: none; }
+  #absatz-leiste button[hidden] { display: none; }
+  #absatz-leiste-text[data-art="fehler"] { color: var(--warn); font-weight: 700; white-space: normal; }
   #fussnote-zuordnen { width: min(720px, 98vw); max-height: 96dvh; margin: 8px auto auto; padding: 0; border: 1px solid var(--linie); border-radius: 16px;
                        background: var(--flaeche); color: var(--text); overflow: auto; }
   #fn-kopf { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--linie); }
@@ -306,6 +307,7 @@
         <span id="absatz-leiste-text"></span>
         <button id="absatz-bearbeiten" type="button">Bearbeiten</button>
         <button id="absatz-verweis" type="button" title="Fußnotenverweis an dieser Stelle setzen" hidden>Verweis setzen</button>
+        <button id="absatz-trennen" type="button" title="Den Absatz an dieser Stelle in zwei Absätze teilen">Absatz hier trennen</button>
         <button id="absatz-leiste-zu" type="button" aria-label="Leiste schließen">✕</button>
       </div>
     </div>
@@ -829,6 +831,7 @@ $("rechts-inhalt").addEventListener("click", (ev) => {
   absatzAuswahl = { ansicht: a, index: i, pos: off - a.spannen[i][0] };
   const roh = CA.absatzText(a, i).replace(/\s+/g, " ").trim();
   $("absatz-leiste-text").textContent = `Absatz ${i + 1}: ${roh.length > 40 ? roh.slice(0, 40) + "…" : roh}`;
+  delete $("absatz-leiste-text").dataset.art;
   const leiste = $("absatz-leiste"), koerper = $("rechts-koerper");
   $("absatz-verweis").hidden = !fnAnalyse(a).definitionen.length;
   leiste.hidden = false;
@@ -1053,6 +1056,38 @@ function oeffneFnSetzen() {
 }
 $("absatz-verweis").addEventListener("click", oeffneFnSetzen);
 
+/** Wörtlicher Kontext direkt vor dem Zeiger (für „Verweis setzen“ und „Absatz trennen“): bis zu 40 Zeichen, bei Mehrdeutigkeit länger,
+ *  mindestens 8. Ergebnis {nach} oder {fehler}. */
+function kontextVorZeiger(roh, pos) {
+  for (let n = Math.min(40, pos); n <= pos; n++) {
+    const s = roh.slice(pos - n, pos);
+    if (Array.from(s).length < 8) continue;
+    let treffer = 0;
+    for (let i = roh.indexOf(s); i >= 0; i = roh.indexOf(s, i + 1)) treffer++;
+    if (treffer === 1) return { nach: s };
+  }
+  return { fehler: pos < 8 ? "Vor dieser Stelle stehen weniger als mindestens 8 Zeichen: bitte weiter hinten im Absatz antippen." : "Die Stelle ist im Absatz nicht eindeutig: bitte an einer anderen Stelle antippen." };
+}
+
+/** Teilt den angetippten Absatz an der Stelle des Zeigers (Art "trennen" mit Kontext, nötig bei einzeiligen Absätzen). */
+async function trenneAbsatz() {
+  const a = aktuelleKapitelAnsicht(), sel = absatzAuswahl, text = $("absatz-leiste-text");
+  const fehler = (t) => { text.textContent = t; text.dataset.art = "fehler"; };
+  if (!a || !sel || sel.ansicht !== a || chunkBusy || !buch) { verbergeAbsatzLeiste(); return; }
+  const roh = CA.absatzText(a, sel.index), k = kontextVorZeiger(roh, sel.pos);
+  if (k.fehler) { fehler(k.fehler); return; }
+  const eintrag = R.neuerEintrag(buchSchluessel(buch), "volltext", { datei: a.chunk, anfang: R.ankerVon(roh), absatz_index: sel.index },
+    "trennen", { nach: k.nach }, roh, "", verbindung.geraet || "epistopheles");
+  const erg = R.wendeAn(a.text, eintrag);                                      // dieselbe Vorprobe wie später bei APIC
+  if (erg.status !== "angewendet") { fehler("Nicht möglich: " + erg.grund); return; }
+  const b = buch;
+  chunkBusy = true;
+  try { await neueAenderung(eintrag); verbergeAbsatzLeiste(); }
+  catch (e) { fehler("Änderung nicht gespeichert: " + (e.message || e)); }
+  finally { chunkBusy = false; if (buch === b) zeigeRechts(); }
+}
+$("absatz-trennen").addEventListener("click", trenneAbsatz);
+
 /** Nach der Wahl eines Gegenstücks: die möglichen Aktionen zeigen. */
 function waehleFnKandidat(n) {
   const fd = fnDialog;
@@ -1094,17 +1129,9 @@ $("fn-entfernen").addEventListener("click", () => {
 $("fn-setzen").addEventListener("click", () => {
   const fd = fnDialog; if (!fd || fd.art !== "setzen" || !fd.wahl) return;
   const roh = CA.absatzText(fd.ansicht, fd.item.absatz_index), pos = fd.item.pos;
-  // Kontext vor dem Zeiger: bis zu 40 Zeichen, bei Mehrdeutigkeit länger; mindestens 8, sonst gibt es keine verlässliche Stelle
-  let nach = null;
-  for (let n = Math.min(40, pos); n <= pos; n++) {
-    const s = roh.slice(pos - n, pos);
-    if (Array.from(s).length < 8) continue;
-    let treffer = 0;
-    for (let i = roh.indexOf(s); i >= 0; i = roh.indexOf(s, i + 1)) treffer++;
-    if (treffer === 1) { nach = s; break; }
-  }
-  if (nach === null) { meldeFn(pos < 8 ? "Vor dieser Stelle stehen weniger als mindestens 8 Zeichen: bitte weiter hinten im Absatz antippen." : "Die Stelle ist im Absatz nicht eindeutig: bitte an einer anderen Stelle antippen."); return; }
-  fnSpeichere(fnEintrag(fd.ansicht, fd.item.absatz_index, { aktion: "marker-setzen", id: fd.wahl.x.id, nach: nach }));
+  const k = kontextVorZeiger(roh, pos);
+  if (k.fehler) { meldeFn(k.fehler); return; }
+  fnSpeichere(fnEintrag(fd.ansicht, fd.item.absatz_index, { aktion: "marker-setzen", id: fd.wahl.x.id, nach: k.nach }));
 });
 
 $("rechts-inhalt").addEventListener("click", (ev) => {

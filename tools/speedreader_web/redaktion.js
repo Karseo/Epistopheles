@@ -225,6 +225,18 @@
     return text.includes("\r\n") ? "\r\n" : "\n";
   }
 
+  /** Position HINTER dem woertlichen Kontext `nach` im Absatz (marker-setzen, trennen): mindestens MIN_KONTEXT Zeichen,
+   * genau ein Treffer (ueberlappende zaehlen mit). Ergebnis {ende} oder {grund}. */
+  function stelle(absatz, nach) {
+    if (typeof nach !== "string" || zeichen(nach).length < MIN_KONTEXT) {
+      return { grund: "Kontext für die Einfügestelle fehlt oder ist kürzer als " + MIN_KONTEXT + " Zeichen" };
+    }
+    const treffer = [];
+    for (let i = absatz.indexOf(nach); i >= 0; i = absatz.indexOf(nach, i + 1)) treffer.push(i);
+    if (treffer.length !== 1) return { grund: treffer.length ? "Einfügestelle nicht eindeutig" : "Einfügestelle nicht gefunden" };
+    return { ende: treffer[0] + nach.length };
+  }
+
   function fussnote(text, absatz, a, b, ziel, parameter, zl, trenner) {
     const aktion = parameter.aktion;
     if (!FUSSNOTEN_AKTIONEN.includes(aktion)) return konflikt(text, "unbekannte Fussnoten-Aktion: " + aktion);
@@ -246,15 +258,11 @@
     }
 
     if (aktion === "marker-setzen") {
-      const kennung = parameter.id, nach = parameter.nach;
+      const kennung = parameter.id;
       if (!kennungOk(kennung)) return konflikt(text, "Kennung ungültig (leer, Leerraum oder eckige Klammer)");
-      if (typeof nach !== "string" || zeichen(nach).length < MIN_KONTEXT) {
-        return konflikt(text, "Kontext für die Einfügestelle fehlt oder ist kürzer als " + MIN_KONTEXT + " Zeichen");
-      }
-      const treffer = [];
-      for (let i = absatz.indexOf(nach); i >= 0; i = absatz.indexOf(nach, i + 1)) treffer.push(i);
-      if (treffer.length !== 1) return konflikt(text, treffer.length ? "Einfügestelle nicht eindeutig" : "Einfügestelle nicht gefunden");
-      const ende = treffer[0] + nach.length;
+      const st = stelle(absatz, parameter.nach);
+      if (st.ende === undefined) return konflikt(text, st.grund);
+      const ende = st.ende;
       return ok(text.slice(0, a) + absatz.slice(0, ende) + "[^" + kennung + "]" + absatz.slice(ende) + text.slice(b));
     }
 
@@ -323,6 +331,16 @@
       if (!istGanz(z) || !(0 <= z && z < zl.length - 1)) return konflikt(text, "keine Zeile zum Verbinden");
       const neu = zl.slice(0, z).concat([verbinde(zl[z], zl[z + 1])], zl.slice(z + 2));
       return ok(text.slice(0, a) + neu.join(trenner) + text.slice(b));
+    }
+
+    if (art === "trennen" && !hat(ziel, "zeile") && hat(parameter, "nach")) {
+      // Form mit Kontext: den Absatz hinter dem Kontexttext teilen (einzeilige Absaetze haben keine Zeile zum Trennen)
+      const st = stelle(absatz, parameter.nach);
+      if (st.ende === undefined) return konflikt(text, st.grund);
+      const vorn = rstrip(absatz.slice(0, st.ende)), hinten = lstrip(absatz.slice(st.ende));
+      if (!vorn || !hinten) return konflikt(text, "Trennen würde einen leeren Absatz ergeben");
+      const z = zeilenendeFuer(text, absatz);
+      return ok(text.slice(0, a) + vorn + z + z + hinten + text.slice(b));
     }
 
     if (art === "trennen") {

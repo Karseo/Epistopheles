@@ -508,3 +508,19 @@ def test_fussnote_kennungen_und_kontext_randfaelle_wie_python():
     for f, e in zip(faelle, erg):
         py = ops.wende_an(f["text"], f["eintrag"])
         assert (e["text"], e["status"]) == (py.text, py.status), f["eintrag"]["parameter"]
+
+
+def test_trennen_mit_kontext_randfaelle_wie_python():
+    faelle = []
+    for absatz, nach in [("Vorne 😀😀 hinten   und weiter", "Vorne 😀😀 hinten"),
+                         ("Vorne 😀😀 hinten\x1c\x1d und weiter", "Vorne 😀😀 hinten"),
+                         ("Satz eins.　　Satz zwei.", "Satz eins."),
+                         ("Satz eins.​Satz zwei.", "Satz eins."),         # Nullbreiten-Leerzeichen ist kein Leerraum
+                         ("Ä-Satz endet.  \tNächster Satz.", "Ä-Satz endet."),
+                         ("Nur ein Satz am Ende. ", "Nur ein Satz am Ende.")]:
+        text = f"Kopf\n\n{absatz}\n\nSchluss"
+        faelle.append({"text": text, "eintrag": _eintrag(text, 1, "trennen", {"nach": nach})})
+    erg = js("wendeAn", faelle=faelle)
+    for f, e in zip(faelle, erg):
+        py = ops.wende_an(f["text"], f["eintrag"])
+        assert (e["text"], e["status"]) == (py.text, py.status), f["eintrag"]["parameter"]

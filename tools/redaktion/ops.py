@@ -156,6 +156,17 @@ def _zaehle_ueberlappend(text: str, nadel: str) -> list[int]:
     return treffer
 
 
+def _stelle(absatz: str, nach: object) -> tuple[int | None, str]:
+    """Position HINTER dem woertlichen Kontext `nach` im Absatz (fuer `marker-setzen` und `trennen`):
+    mindestens MIN_KONTEXT Zeichen, genau ein Treffer (ueberlappende zaehlen mit). Sonst (None, Grund)."""
+    if not isinstance(nach, str) or len(nach) < MIN_KONTEXT:
+        return None, f"Kontext für die Einfügestelle fehlt oder ist kürzer als {MIN_KONTEXT} Zeichen"
+    treffer = _zaehle_ueberlappend(absatz, nach)
+    if len(treffer) != 1:
+        return None, "Einfügestelle nicht gefunden" if not treffer else "Einfügestelle nicht eindeutig"
+    return treffer[0] + len(nach), ""
+
+
 def _ganz(x: object) -> bool:
     return isinstance(x, int) and not isinstance(x, bool)
 
@@ -189,15 +200,12 @@ def _fussnote(text: str, absatz: str, a: int, b: int, ziel: dict, parameter: dic
         return Ergebnis(text[:a] + absatz[:m.start()] + ersatz + absatz[m.end():] + text[b:], STATUS_ANGEWENDET)
 
     if aktion == "marker-setzen":
-        kennung, nach = parameter.get("id"), parameter.get("nach")
+        kennung = parameter.get("id")
         if not _kennung_ok(kennung):
             return _konflikt(text, "Kennung ungültig (leer, Leerraum oder eckige Klammer)")
-        if not isinstance(nach, str) or len(nach) < MIN_KONTEXT:
-            return _konflikt(text, f"Kontext für die Einfügestelle fehlt oder ist kürzer als {MIN_KONTEXT} Zeichen")
-        treffer = _zaehle_ueberlappend(absatz, nach)
-        if len(treffer) != 1:
-            return _konflikt(text, "Einfügestelle nicht gefunden" if not treffer else "Einfügestelle nicht eindeutig")
-        ende = treffer[0] + len(nach)
+        ende, grund = _stelle(absatz, parameter.get("nach"))
+        if ende is None:
+            return _konflikt(text, grund)
         return Ergebnis(text[:a] + absatz[:ende] + f"[^{kennung}]" + absatz[ende:] + text[b:], STATUS_ANGEWENDET)
 
     # definition-umbenennen
@@ -289,6 +297,17 @@ def _wende_an(text: str, eintrag: dict) -> Ergebnis:
             return _konflikt(text, "keine Zeile zum Verbinden")
         neu = zeilen[:z] + [_verbinde(zeilen[z], zeilen[z + 1])] + zeilen[z + 2:]
         return Ergebnis(text[:a] + trenner.join(neu) + text[b:], STATUS_ANGEWENDET)
+
+    if art == "trennen" and "zeile" not in ziel and "nach" in parameter:
+        # Form mit Kontext: den Absatz hinter dem Kontexttext teilen (einzeilige Absaetze haben keine Zeile zum Trennen)
+        ende, grund = _stelle(absatz, parameter.get("nach"))
+        if ende is None:
+            return _konflikt(text, grund)
+        vorn, hinten = absatz[:ende].rstrip(), absatz[ende:].lstrip()
+        if not vorn or not hinten:
+            return _konflikt(text, "Trennen würde einen leeren Absatz ergeben")
+        z = _zeilenende_fuer(text, absatz)
+        return Ergebnis(text[:a] + vorn + z + z + hinten + text[b:], STATUS_ANGEWENDET)
 
     if art == "trennen":
         z = ziel.get("zeile")

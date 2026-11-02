@@ -2050,5 +2050,389 @@
   ],
   "erwartet_text": "Kopf\n\nNeu eins\nNeu zwei\n\nSchluss",
   "erwartet_status": "angewendet"
+ },
+ {
+  "name": "trennen_nach_kontext_einzeiliger_absatz",
+  "text": "Kopf\n\nErster Satz endet hier. Zweiter Satz beginnt dort und geht weiter.\n\nSchluss.",
+  "eintraege": [
+   {
+    "id": "t101aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Erster Satz endet hier. Zweiter Satz beg"
+    },
+    "art": "trennen",
+    "parameter": {
+     "nach": "Erster Satz endet hier."
+    },
+    "vorher": {
+     "hash": "8ef2f075717606f9",
+     "ausschnitt": "Erster Satz endet hier. Zweiter Satz beginnt dort und geht weiter."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nErster Satz endet hier.\n\nZweiter Satz beginnt dort und geht weiter.\n\nSchluss.",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "trennen_nach_kontext_mit_trailing_leerzeichen_im_kontext",
+  "text": "Kopf\n\nErster Satz endet hier. Zweiter Satz beginnt dort und geht weiter.\n\nSchluss.",
+  "eintraege": [
+   {
+    "id": "t102aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Erster Satz endet hier. Zweiter Satz beg"
+    },
+    "art": "trennen",
+    "parameter": {
+     "nach": "Satz endet hier. "
+    },
+    "vorher": {
+     "hash": "8ef2f075717606f9",
+     "ausschnitt": "Erster Satz endet hier. Zweiter Satz beginnt dort und geht weiter."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nErster Satz endet hier.\n\nZweiter Satz beginnt dort und geht weiter.\n\nSchluss.",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "trennen_nach_kontext_in_crlf_datei",
+  "text": "Kopf\r\n\r\nErster Satz endet hier. Zweiter Satz beginnt.\r\n\r\nSchluss.",
+  "eintraege": [
+   {
+    "id": "t103aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Erster Satz endet hier. Zweiter Satz beg"
+    },
+    "art": "trennen",
+    "parameter": {
+     "nach": "Satz endet hier."
+    },
+    "vorher": {
+     "hash": "514d3c0e7698b117",
+     "ausschnitt": "Erster Satz endet hier. Zweiter Satz beginnt."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\r\n\r\nErster Satz endet hier.\r\n\r\nZweiter Satz beginnt.\r\n\r\nSchluss.",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "trennen_kontext_zu_kurz",
+  "text": "Kopf\n\nErster Satz endet hier. Zweiter Satz beginnt dort und geht weiter.\n\nSchluss.",
+  "eintraege": [
+   {
+    "id": "t104aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Erster Satz endet hier. Zweiter Satz beg"
+    },
+    "art": "trennen",
+    "parameter": {
+     "nach": "hier."
+    },
+    "vorher": {
+     "hash": "8ef2f075717606f9",
+     "ausschnitt": "Erster Satz endet hier. Zweiter Satz beginnt dort und geht weiter."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nErster Satz endet hier. Zweiter Satz beginnt dort und geht weiter.\n\nSchluss.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "trennen_kontext_nicht_gefunden",
+  "text": "Kopf\n\nErster Satz endet hier. Zweiter Satz beginnt dort und geht weiter.\n\nSchluss.",
+  "eintraege": [
+   {
+    "id": "t105aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Erster Satz endet hier. Zweiter Satz beg"
+    },
+    "art": "trennen",
+    "parameter": {
+     "nach": "gibt es hier nicht"
+    },
+    "vorher": {
+     "hash": "8ef2f075717606f9",
+     "ausschnitt": "Erster Satz endet hier. Zweiter Satz beginnt dort und geht weiter."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nErster Satz endet hier. Zweiter Satz beginnt dort und geht weiter.\n\nSchluss.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "trennen_kontext_mehrdeutig",
+  "text": "Kopf\n\nJa ja ja ja ja ja. Ende.",
+  "eintraege": [
+   {
+    "id": "t106aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Ja ja ja ja ja ja. Ende."
+    },
+    "art": "trennen",
+    "parameter": {
+     "nach": "ja ja ja"
+    },
+    "vorher": {
+     "hash": "4269fc2969373d1b",
+     "ausschnitt": "Ja ja ja ja ja ja. Ende."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nJa ja ja ja ja ja. Ende.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "trennen_kontext_ist_kein_text",
+  "text": "Kopf\n\nErster Satz endet hier. Zweiter Satz beginnt dort und geht weiter.\n\nSchluss.",
+  "eintraege": [
+   {
+    "id": "t107aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Erster Satz endet hier. Zweiter Satz beg"
+    },
+    "art": "trennen",
+    "parameter": {
+     "nach": 5
+    },
+    "vorher": {
+     "hash": "8ef2f075717606f9",
+     "ausschnitt": "Erster Satz endet hier. Zweiter Satz beginnt dort und geht weiter."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nErster Satz endet hier. Zweiter Satz beginnt dort und geht weiter.\n\nSchluss.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "trennen_am_absatzende_ergibt_leeren_teil_und_ist_konflikt",
+  "text": "Kopf\n\nNur dieser Satz hier.\n\nSchluss.",
+  "eintraege": [
+   {
+    "id": "t108aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Nur dieser Satz hier."
+    },
+    "art": "trennen",
+    "parameter": {
+     "nach": "Nur dieser Satz hier."
+    },
+    "vorher": {
+     "hash": "6988b44b6e70a61a",
+     "ausschnitt": "Nur dieser Satz hier."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nNur dieser Satz hier.\n\nSchluss.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "trennen_ohne_zeile_und_ohne_kontext_ist_konflikt",
+  "text": "Kopf\n\nErster Satz endet hier. Zweiter Satz beginnt dort und geht weiter.\n\nSchluss.",
+  "eintraege": [
+   {
+    "id": "t109aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Erster Satz endet hier. Zweiter Satz beg"
+    },
+    "art": "trennen",
+    "parameter": {},
+    "vorher": {
+     "hash": "8ef2f075717606f9",
+     "ausschnitt": "Erster Satz endet hier. Zweiter Satz beginnt dort und geht weiter."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nErster Satz endet hier. Zweiter Satz beginnt dort und geht weiter.\n\nSchluss.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "trennen_nach_kontext_dann_ersetzen_am_zweiten_teil",
+  "text": "Kopf\n\nErster Satz endet hier. Zweiter Satz beginnt dort.\n\nSchluss.",
+  "eintraege": [
+   {
+    "id": "t110aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Erster Satz endet hier. Zweiter Satz beg"
+    },
+    "art": "trennen",
+    "parameter": {
+     "nach": "Erster Satz endet hier."
+    },
+    "vorher": {
+     "hash": "0f888c953446fa10",
+     "ausschnitt": "Erster Satz endet hier. Zweiter Satz beginnt dort."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   },
+   {
+    "id": "t111aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 2,
+     "anfang": "Zweiter Satz beginnt dort."
+    },
+    "art": "ersetzen",
+    "parameter": {
+     "nachher": "Zweiter Satz beginnt hier."
+    },
+    "vorher": {
+     "hash": "ac641825222ba4f3",
+     "ausschnitt": "Zweiter Satz beginnt dort."
+    },
+    "nachher": "Zweiter Satz beginnt hier.",
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nErster Satz endet hier.\n\nZweiter Satz beginnt hier.\n\nSchluss.",
+  "erwartet_status": "angewendet",
+  "erwartet_stati": [
+   "angewendet",
+   "angewendet"
+  ]
+ },
+ {
+  "name": "trennen_nach_kontext_in_mehrzeiligem_absatz",
+  "text": "Kopf\n\nErste Zeile hier.\nZweite Zeile dort. Dritter Satz in der Zeile.\n\nSchluss.",
+  "eintraege": [
+   {
+    "id": "t112aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Erste Zeile hier. Zweite Zeile dort. Dri"
+    },
+    "art": "trennen",
+    "parameter": {
+     "nach": "Zweite Zeile dort."
+    },
+    "vorher": {
+     "hash": "0897f607b01489ce",
+     "ausschnitt": "Erste Zeile hier.\nZweite Zeile dort. Dritter Satz in der Zeile."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nErste Zeile hier.\nZweite Zeile dort.\n\nDritter Satz in der Zeile.\n\nSchluss.",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "trennen_nach_kontext_mit_fussnotenmarker",
+  "text": "Kopf\n\nSatz mit Verweis[^1] und Fortsetzung hier.\n\n[^1]: Note.",
+  "eintraege": [
+   {
+    "id": "t113aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Satz mit Verweis[^1] und Fortsetzung hie"
+    },
+    "art": "trennen",
+    "parameter": {
+     "nach": "Satz mit Verweis[^1]"
+    },
+    "vorher": {
+     "hash": "85328c9852119591",
+     "ausschnitt": "Satz mit Verweis[^1] und Fortsetzung hier."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nSatz mit Verweis[^1]\n\nund Fortsetzung hier.\n\n[^1]: Note.",
+  "erwartet_status": "angewendet"
  }
 ]

@@ -491,3 +491,84 @@ def test_chunk_modus_behaelt_alle_werkzeuge(seite_umbruch):
     waehle(pg, "Representation", "judge")
     for was in ("kapitel", "verzeichnis", "glossar"):
         assert knopf(pg, was).is_visible(), was
+
+
+# --- P2 Task 12a: Absatz an einer Textstelle trennen --------------------------------------------------------
+
+EINZEILIG = ("# Kapitel\n\nErster Satz endet hier.[^1] Zweiter Satz beginnt dort und geht weiter.\n\n"
+             "Dritter Absatz bleibt.\n\n[^1]: Eine Note.")
+
+
+@pytest.fixture()
+def seite_einzeilig(browser, tmp_path):
+    a = Apic(baue(tmp_path, kapitel=EINZEILIG))
+    ctx, pg = neue_seite(browser, a.url)
+    zu_text(pg)
+    yield pg
+    ctx.close()
+    a.stop()
+    assert not pg.fehler, pg.fehler
+
+
+def test_trennen_an_der_textstelle_teilt_einen_einzeiligen_absatz(seite_einzeilig):
+    pg = seite_einzeilig
+    hinweise_vorher = pg.inner_text("#rechts-verdacht")
+    tippe(pg, " Zweiter Satz")                                                  # Zeiger direkt hinter dem Leerzeichen
+    assert pg.locator("#absatz-trennen").is_visible() and pg.locator("#absatz-trennen").bounding_box()["height"] >= 44
+    pg.locator("#absatz-trennen").click()
+    pg.wait_for_function("eintraege.length === 1")
+    (e,) = eintrag_liste(pg)
+    assert (e["ebene"], e["art"]) == ("volltext", "trennen") and e["ziel"]["datei"] == DATEI
+    assert "zeile" not in e["ziel"] and e["parameter"]["nach"].endswith("hier.[^1] ") and len(e["parameter"]["nach"]) >= 8
+    assert text_im_feld(pg) == EINZEILIG.replace("[^1] Zweiter", "[^1]\n\nZweiter")
+    assert pg.inner_text("#rechts-verdacht") == hinweise_vorher                  # Fußnotenbilanz unverändert
+    assert pg.locator("#absatz-leiste").is_hidden()
+    assert pg.evaluate("window.Redaktion.zaehler(eintraege).aenderungen") == 1
+
+
+def test_trennen_ruecknahme_stellt_den_absatz_wieder_her(seite_einzeilig):
+    pg = seite_einzeilig
+    tippe(pg, " Zweiter Satz")
+    pg.locator("#absatz-trennen").click()
+    pg.wait_for_function("eintraege.length === 1")
+    pg.evaluate("nimmZurueck(eintraege[0].id)")
+    pg.wait_for_function("!document.getElementById('rechts-inhalt').textContent.includes('[^1]\\n\\nZweiter')")
+    assert text_im_feld(pg) == EINZEILIG
+
+
+def test_trennen_zu_nah_am_absatzanfang_meldet_ehrlich(seite_einzeilig):
+    pg = seite_einzeilig
+    tippe(pg, "Erster Satz")                                                    # Zeiger nach dem 1. Zeichen
+    pg.locator("#absatz-trennen").click()
+    assert "mindestens 8" in pg.inner_text("#absatz-leiste")
+    assert pg.evaluate("eintraege.length") == 0 and text_im_feld(pg) == EINZEILIG
+
+
+def test_trennen_am_absatzende_ergibt_keinen_leeren_absatz(seite_einzeilig):
+    pg = seite_einzeilig
+    tippe(pg, "Dritter Absatz bleibt")                                          # Zeiger nach "D": zu wenig Kontext
+    pg.evaluate("""() => { const pre = document.getElementById('rechts-inhalt'), w = document.createTreeWalker(pre, NodeFilter.SHOW_TEXT);
+      let t; while ((t = w.nextNode())) { const i = t.data.indexOf('Dritter Absatz bleibt.'); if (i >= 0) {
+        const r = document.createRange(); r.setStart(t, i + 'Dritter Absatz bleibt.'.length); r.collapse(true);
+        const s = getSelection(); s.removeAllRanges(); s.addRange(r); pre.dispatchEvent(new MouseEvent('click', { bubbles: true })); return; } } }""")
+    pg.locator("#absatz-trennen").click()
+    assert "nicht möglich" in pg.inner_text("#absatz-leiste").lower()
+    assert pg.evaluate("eintraege.length") == 0
+
+
+def test_trennen_dann_zweiten_teil_bearbeiten_baut_aufeinander_auf(seite_einzeilig):
+    pg = seite_einzeilig
+    tippe(pg, " Zweiter Satz")
+    pg.locator("#absatz-trennen").click()
+    pg.wait_for_function("eintraege.length === 1")
+    bearbeite(pg, "Zweiter Satz beginnt", "Zweiter Satz beginnt hier und geht weiter.")
+    speichern(pg)
+    pg.wait_for_function("eintraege.length === 2")
+    erg = pg.evaluate("""() => { const l = window.Redaktion.spieleAb(daten.kapitel[0].text, eintraege);
+      return { stati: l.ergebnisse.map((e) => e.status), text: l.text }; }""")
+    assert erg["stati"] == ["angewendet", "angewendet"]
+    assert erg["text"] == EINZEILIG.replace("[^1] Zweiter Satz beginnt dort und", "[^1]\n\nZweiter Satz beginnt hier und")
+
+
+def test_trennen_knopf_nur_bei_bereiten_daten(seite_einzeilig):
+    assert seite_einzeilig.locator("#absatz-trennen").is_hidden()               # ohne angetippten Absatz keine Leiste
