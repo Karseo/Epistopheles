@@ -53,6 +53,15 @@ D:\Workspace\!Episto\
 Programme: `tools\redaktion_server.py` (Empfänger, von Hand starten), `tools\redaktion_anwenden.py`
 (Einarbeiten, Dry-Run als Standard); Bedienung und Exit-Codes: `tools\speedreader_web\README.md`, Abschnitt „Redaktion“.
 
+## Verbindungen (Querverbindungen in der App)
+
+| Was | Wo |
+|---|---|
+| Datei | `reader\export-epistopheles\verbindungen.json`, erzeugt von `tools\speedreader_web\export_verbindungen.py` nach `export_daten.py` (nicht in Git/Syncthing; Vektoren bleiben in Qdrant) |
+| Format | `{version: 1, erstellt (= daten.json), qdrant: {abgefragt, fehlend, mindestwert} oder null, werke: [{id, autor, titel}], kapitel: [{id "b001:3", werk, nr, titel}], themen: [{id "b001#slug", werk, name, kapitel: [nr]}], aehnlich: [{von, nach, wert, beleg ≤ 140 Zeichen}], querverweise: [{von, nach oder null, autor, titel, relation, notiz}]}` |
+| Ids | Werk `b001`, Kapitel `b001:3`, Thema `b001#slug` (gelten nur innerhalb eines Exports, wie `daten.json`); Werk außerhalb der Bibliothek `x:<Autor>\|<Titel>` (nur in der App, hohl) |
+| Quellen | Themen: `reader\<Autor>\<Werk>\notizen\straenge\*.md`; Querverweise: `querbezuege\querbezuege.json`; Ähnlichkeit: Qdrant `episto` (nur lesend, Zuordnung über Payload Autor/Buch/Kapitelnummer, Punkt-Ids werden nicht gespeichert) |
+
 ## Wo im Code die Namen stehen
 
 | Was | Wo |

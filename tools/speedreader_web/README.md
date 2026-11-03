@@ -68,7 +68,7 @@ ohne Passwort aus).
 
 ## Bedienung
 
-- **Umschalter** oben: Speed / KI-Text / Original; die Wahl wird gemerkt. Beim Wechsel
+- **Umschalter** oben: Speed / KI-Text / Original / Verbindungen; die Wahl wird gemerkt. Beim Wechsel
   Speed → KI-Text scrollt der Text zum Abschnitt des aktuellen Worts; KI-Text → Speed
   startet am obersten sichtbaren Abschnitt.
 - **KI-Text und Original:** normales Scrollen per Touch, Pfeiltasten, Leertaste, Bild ↑/↓.
@@ -82,8 +82,69 @@ ohne Passwort aus).
   jeder Ansicht). **◐** wechselt Darstellung automatisch / hell / dunkel.
 - Zuletzt gelesenes Kapitel, Ansicht, Tempo und Schriftgröße werden gemerkt (nur auf
   diesem Gerät).
-- Tasten (Bluetooth-Tastatur): `1` `2` `3` Ansicht, `n`/`p` nächstes/voriges Kapitel;
+- Tasten (Bluetooth-Tastatur): `1` `2` `3` `4` Ansicht, `n`/`p` nächstes/voriges Kapitel;
   in **Speed** zusätzlich Leertaste, ↑/↓ ±50, `+`/`−` ±5, ←/→ Satz, Bild ↑/↓ Abschnitt.
+
+## Verbindungen: ähnliche Stellen, Themen, Querverweise
+
+Vierte Ansicht (Taste `4`): das **Fokusnetz** um das offene Kapitel, nach dem Vorbild eines lokalen Obsidian-Graphen. Mitte = offenes
+Kapitel (Halo, Beschriftung darunter), **Ring 1** = bis zu 14 stärkste Nachbarn (beschriftet, Linie zur Mitte), **Ring 2** = bis zu 14
+weitere (klein, verblasst, ohne Linie). Die App spricht **nie** mit Qdrant; alles kommt aus der vorberechneten Datei `verbindungen.json`.
+
+**Knoten:** Kapitel (Kreis, Farbe je Werk), Thema (Raute, ein Strang eines Werks), Werk (Ring; Werke außerhalb der Bibliothek sind hohl
+und nicht öffenbar). **Kanten:** *ähnlich* (Qdrant, Kapitel zu Kapitel anderer Werke, Strichstärke nach Wert), *Thema*, *Querverweis*
+(gestrichelt, mit Relation), *Werk* (Kapitel gehört zu Werk). Die vier Filterknöpfe schalten die Kantenarten ein und aus.
+
+**Bedienung:** Tippen wählt einen Knoten; die Leiste unten zeigt Typ, Beleg (Ausschnitt des ähnlichen Chunks) und die Knöpfe
+**Zur Mitte** (nur das Netz bewegt sich, das offene Kapitel bleibt), **Öffnen** (springt ins Kapitel, Ansicht KI-Text) und **Schließen**.
+Ziehen verschiebt, Zwei-Finger-Zoom oder **+ / −** zoomt, **◎** setzt zurück. **Liste** zeigt dieselben Verbindungen gruppiert nach
+Kantenart (die verlässliche Bedienung auf kleinem Display und für Bildschirmleser). Das Netz folgt jedem Kapitelwechsel.
+
+**Daten erzeugen (am PC, nach `export_daten.py`):**
+
+```
+python speedreader_web/export_daten.py
+python speedreader_web/export_verbindungen.py --root <Wurzel> [--qdrant http://127.0.0.1:6333]
+```
+
+`export_verbindungen.py` liest Qdrant **nur lesend** (Whitelist: Scroll, Query/Recommend, Collection-Info; alles andere wird vor dem
+Senden abgelehnt) und schreibt `verbindungen.json` atomar neben `daten.json` (gleicher Stand `erstellt`, sonst lehnt die App sie ab).
+Exit **0** = vollständig (oder ausdrücklich `--ohne-qdrant`), **3** = Qdrant fehlt oder ist ausgefallen (Datei enthält dann Themen und
+Querverweise, die App zeigt „Ähnliche Stellen fehlen oder sind unvollständig“), **1** = Fehler (z. B. keine `daten.json`; die alte Datei
+bleibt unberührt). Qdrant ab 1.10 (Query-API mit Punkt-Id), sonst Rückfall auf `recommend`.
+
+**Laden in der App:** über http frisch vom Server, sonst die Kopie im Gerätespeicher (IndexedDB `verbindungen`); Import von Hand über
+**☰ Kapitel → Verbindungen importieren …** oder den Knopf im Hinweis. Die App prüft gegen `daten.json`: anderer Export, andere Version
+oder unbekannte Kapitel → Hinweis statt Netz (nie ein falsches Netz); nicht importiert wird, was die Prüfung nicht besteht.
+
+**Kalibrierung (nur auf APIC möglich, dort liegen die echten Vektoren):** Mindestwert (Start 0,55 Cosinus), Zielkapitel je Kapitel
+(8), Nachbarn je Chunk (10) und die Rangformel (Summe der drei besten Chunk-Paare) sind Startwerte ohne Bezug zu den echten Büchern.
+
+```
+python speedreader_web/verbindungen_stichprobe.py --anzahl 20 --mindestwerte 0.5,0.55,0.6,0.65,0.7
+```
+
+zeigt Perzentile, die Zahl übrig bleibender Zielkapitel je Mindestwert (Ziel: typisch 4 bis 8) und die besten Belege zum Gegenlesen;
+danach `--mindestwert` / `--je-kapitel` beim Export setzen oder die Konstanten in `export_verbindungen.py` ändern.
+
+**Grenzen:** keine freie semantische Suche und kein Gesamtgraph (nur das Netz um ein Kapitel), Genauigkeit nur auf Kapitelebene (der
+Beleg ist eine Vorschau, kein Absatzsprung), keine Bearbeitung von Strängen oder Querverweisen in der App (bleiben Dateien), Ähnlichkeit
+nur zwischen verschiedenen Werken. Entwicklung vorerst nur für ChromeOS (Termux-TUI und Syncthing bewusst außen vor). Rund 960 Kapitel
+ergeben unter 2 MB JSON; Laden und Zeichnen bleiben dabei unter 2 s (Test mit synthetischen Daten).
+
+### Handprüfung auf Epistopheles (Verbindungen, Touch)
+
+Mehrfinger-Gesten und echtes Antippen sind in Playwright nur eingeschränkt prüfbar; von Hand prüfen:
+
+- [ ] Netz auf 10,1″ lesbar (Beschriftungen, Verblassen, Linienstärke; Vergleich mit dem Referenzbild).
+- [ ] Tippen trifft den gewünschten Knoten auch an dichten Stellen; Tippen am unteren Rand wählt aus und die Leiste hebt die Wahl nicht wieder auf.
+- [ ] Zwei-Finger-Zoom und Ziehen ohne ungewolltes Scrollen oder Zoomen der Seite; Zoom um die Fingermitte.
+- [ ] **Zur Mitte**, **Öffnen**, **Schließen**; hohles Werk: kein Öffnen, kein Zur Mitte.
+- [ ] Filterknöpfe; Listenansicht und Rückkehr zum Netz (Größe stimmt wieder).
+- [ ] Kapitelwechsel mit ⏴ ⏵: das Netz folgt.
+- [ ] Zwischenspeicher im Flugmodus (Netz nach Neuladen noch da); Ladezeit nach dem Start.
+- [ ] Hinweise bei fehlender Datei, anderem Export und fehlendem Qdrant.
+- [ ] Hell und Dunkel (◐): Netz wird neu gefärbt.
 
 ## Korrekturlesen: geteilte Ansicht (`korrektur.html`)
 
@@ -371,8 +432,10 @@ Zusätzlich im Ordner `tools`: `python -m pytest test_lektor_zu_episto_schutz.py
 Redaktion: `redaktion\` (Operationen und Vektoren, Fußnotenanalyse, Protokoll, Schutz, Aufträge, Testwurzel),
 `test_redaktion_js.py`, `test_fussnoten_js.py`, `test_ursache.py`, `test_verdacht.py`, `test_chunkansicht.py` (Node) sowie die
 Browsertests `test_werkzeugleiste.py`, `test_aenderungsliste.py`, `test_neu_uebersetzen.py`, `test_lektor_schluessel.py`,
-`test_volltext.py`, `test_fussnoten_ui.py`, `test_ursache_ui.py` und der **Gesamtlauf** `test_gesamtlauf_p2.py` (Urtext →
+`test_volltext.py`, `test_fussnoten_ui.py`, `test_ursache_ui.py`, `test_graphansicht_ui.py`, `test_verbindungen_ui.py` und der **Gesamtlauf** `test_gesamtlauf_p2.py` (Urtext →
 Export → App → Empfänger → Einarbeiten → neuer Export → Neuaufbau mit Nachspiel; ohne Playwright übersprungen).
+Verbindungen: `test_export_verbindungen.py`, `test_qdrant_nachbarn.py` (Qdrant-Attrappe), `test_verbindungen_js.py`, `test_graphlayout.py`,
+`test_graphansicht.py` (Node) und der **Gesamtlauf** `test_gesamtlauf_verbindungen.py` (Export → App → Öffnen, Qdrant-Ausfall, 950 Kapitel).
 Browsertests brauchen Playwright mit passendem Chromium (die pip-Version muss zur installierten Browserversion passen,
 sonst werden sie übersprungen). `python -m redaktion.testwurzel <Ordner>` (im Ordner `tools`) baut eine kleine Test-Bibliothek samt Paket.
 

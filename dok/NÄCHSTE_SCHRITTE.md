@@ -46,6 +46,18 @@ Diese Datei dient als Einstieg nach einer Pause.
 - Falls Qdrant nach Neustart weg ist: Dienst starten, dann `ingest.ps1 -Reset` (Vektoren sind aus `quelle\` regenerierbar).
 - Bei neuem Buch: `ingest.ps1 -Buch <pfad>` verwenden (statt `-Reset`), um Duplikate zu vermeiden.
 
+## Querverbindungen auf Epistopheles (Stand: Code fertig, Echtbetrieb offen)
+
+- Ansicht „Verbindungen“ (Fokusnetz: Qdrant-Ähnlichkeit, Themen, Querverweise) ist gebaut und getestet (Attrappe, synthetische Daten).
+  Doku, Handprüfliste und Grenzen: `tools\speedreader_web\README.md`, Abschnitt „Verbindungen“.
+- **Von dir auf APIC, in dieser Reihenfolge:**
+  1. `python tools\speedreader_web\export_daten.py` (aktueller Stand von `daten.json`).
+  2. `python tools\speedreader_web\verbindungen_stichprobe.py --anzahl 20` und Mindestwert / Zielkapitel je Kapitel an echten Büchern festlegen
+     (Startwerte 0,55 / 8 sind nicht kalibriert; Qdrant 1.18.2 ist laut Plan vorgesehen).
+  3. `python tools\speedreader_web\export_verbindungen.py --root <Wurzel>`: Laufzeit, Ausgabe und Exit-Code prüfen (0 = vollständig, 3 = Qdrant-Problem).
+  4. Paket aufs Gerät, Handprüfliste durchgehen.
+- Offen: Qualität der Ähnlichkeiten (Rangformel), Lesbarkeit bei dichten echten Kapiteln, Mehrfinger-Gesten auf dem Gerät.
+
 ## Redaktion auf Epistopheles (Stand: P0 bis P2 umgesetzt)
 
 - Bedienung, Einarbeiten, Grenzen und die **Handprüfliste für Touch**: `tools\speedreader_web\README.md`, Abschnitt „Redaktion“.

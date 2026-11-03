@@ -22,6 +22,7 @@ Aufbau der Wurzel (Details: `dok\DATENSTRUKTUR.md`):
   `ingest.*`, `taggen.ps1` …; `tools\pipeline\` = Übersetzungs-Pipeline (`ebook-translate.py` usw.), leitet
   `BASE` aus dem Ablageort ab (`<Wurzel>\rohdaten`, `EBOOK_BASE` übersteuert)
 - Redaktion (Korrekturen vom Epistopheles): `tools\redaktion_server.py` (Empfänger, von Hand starten, Token in `hilfsdaten\redaktion\token.txt`), `tools\redaktion_anwenden.py` (Dry-Run, `--ausfuehren`; Exit 0/1/2/3), Doku `tools\speedreader_web\README.md`. Volltext-Korrekturen (Ebene `volltext`, `reader\<Buch>\notizen\redaktion.json`) werden von `lektor-zu-episto.py --ueberschreiben` nach dem Neuaufbau wieder eingespielt (Backup `notizen\_backup\quelle-<Zeit>`, Bericht `redaktion-nachspiel.json`)
+- Querverbindungen (Ansicht „Verbindungen“ in der Chromebook-App): `tools\speedreader_web\export_verbindungen.py` (nach `export_daten.py`, liest Qdrant nur lesend, schreibt `verbindungen.json` ins Paket; Exit 0/3/1), Kalibrierung `verbindungen_stichprobe.py`, Doku `tools\speedreader_web\README.md`
 - `hilfsdaten\` — `themen.json`, `notizen\` (Buch-Queue), `konzepte\`, `archiv\` (Altbestand, z. B. `Autor.mov`)
 - `dok\` — `README.md` (vollständige Werkliste), `NÄCHSTE_SCHRITTE.md` (Resume-Hilfe), `DATENSTRUKTUR.md`
 
