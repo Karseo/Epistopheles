@@ -67,11 +67,11 @@
     const ix = indexVon(quellen);
     let c = ix.chunks[i];
     if (!c) {
-      const tok = tokenisiere(typeof quellen[i] === "string" ? quellen[i] : "");
-      const pos = new Array(tok.length);                 // Zeichenposition des Worts im verbundenen Text
-      let p = 1;
-      tok.forEach((t, k) => { pos[k] = p; p += t.w.length + 1; });
-      c = { text: " " + tok.map((t) => t.w).join(" ") + " ", pos: pos, tok: tok };
+      const tok = tokenisiere(typeof quellen[i] === "string" ? quellen[i] : "");    // die Token-Objekte sind nur kurz da (Speicher auf kleinen Geräten)
+      const pos = new Int32Array(tok.length), von = new Int32Array(tok.length), bis = new Int32Array(tok.length);
+      let p = 1;                                         // pos: Zeichenposition des Worts im verbundenen Text
+      tok.forEach((t, k) => { pos[k] = p; von[k] = t.von; bis[k] = t.bis; p += t.w.length + 1; });
+      c = { text: " " + tok.map((t) => t.w).join(" ") + " ", pos: pos, von: von, bis: bis };
       ix.chunks[i] = c;
     }
     return c;
@@ -101,8 +101,8 @@
       }
       if (!anzahl) continue;
       const w0 = wortBei(c.pos, erster.p + 1), n = erster.f.trim().split(" ").length;
-      const a = c.tok[w0], z = c.tok[Math.min(c.tok.length - 1, w0 + n - 1)];
-      treffer.push({ chunk: i, versatz: a.von, laenge: z.bis - a.von, anzahl: anzahl, fenster: erster.f.trim() });
+      const wz = Math.min(c.pos.length - 1, w0 + n - 1);
+      treffer.push({ chunk: i, versatz: c.von[w0], laenge: c.bis[wz] - c.von[w0], anzahl: anzahl, fenster: erster.f.trim() });
     }
     if (!treffer.length) return { art: "keine", grund: "", treffer: [] };
     treffer.sort((x, y) => (y.anzahl - x.anzahl) || (x.chunk - y.chunk));

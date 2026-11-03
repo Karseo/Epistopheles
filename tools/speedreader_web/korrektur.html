@@ -936,7 +936,7 @@ $("absatz-speichern").addEventListener("click", speichereAbsatz);
 
 // ---- Fußnote zuordnen (Volltext) ------------------------------------------------------------------------------------------
 /** Fußnotenanalyse des abgespielten Kapitels (einmal je Ansicht). */
-const fnAnalyse = (a) => a._fn || (a._fn = window.Fussnoten.analysiere(a.text));
+const fnAnalyse = (a) => a.fn || (a.fn = window.Fussnoten.analysiere(a.text));            // `bereite` legt sie schon an (a.fn)
 const FN_TREFFER = /\[\^([^\]\[ \t\r\n\f\v\u00a0]+)\](:?)/g;
 
 /** Macht [^id] im Fließtext und die Köpfe „[^id]:“ der Fußnotentexte antippbar (Spans mit unverändertem Text).
@@ -1019,12 +1019,13 @@ async function fnSpeichere(eintrag) {
 /** Kandidaten der Auswahlliste: Waisen zuerst. */
 function fnKandidaten(a, art) {
   const ana = fnAnalyse(a);
-  if (art === "def") return [...ana.marker.map((x, i) => ({ x, i })).filter((e) => !e.x.in_definition)]
-    .sort((p, q) => Number(!ana.definitionen.every((dd) => dd.id !== p.x.id)) - Number(!ana.definitionen.every((dd) => dd.id !== q.x.id)))
-    .map((e) => ({ art: "marker", x: e.x, waise: ana.definitionen.every((dd) => dd.id !== e.x.id), text: fnMarkerText(a, e.x) + (ana.definitionen.every((dd) => dd.id !== e.x.id) ? " · ohne Text" : "") }));
-  return ana.definitionen.map((dd) => ({ art: "def", x: dd, waise: ana.marker.every((mm) => mm.id !== dd.id) }))
-    .sort((p, q) => Number(!p.waise) - Number(!q.waise))
-    .map((e) => ({ ...e, text: fnDefText(a, e.x) + (e.waise ? " · ohne Verweis" : "") }));
+  const definiert = new Set(ana.definitionen.map((d) => d.id)), verwiesen = new Set(ana.marker.map((m) => m.id));
+  // art "def": Verweise im Fließtext zur Wahl (Waise = ohne Text); sonst: Fußnotentexte (Waise = ohne Verweis). Waisen zuerst.
+  const liste = art === "def"
+    ? ana.marker.filter((m) => !m.in_definition).map((m) => ({ art: "marker", x: m, waise: !definiert.has(m.id), text: fnMarkerText(a, m) }))
+    : ana.definitionen.map((d) => ({ art: "def", x: d, waise: !verwiesen.has(d.id), text: fnDefText(a, d) }));
+  const hinweis = art === "def" ? " · ohne Text" : " · ohne Verweis";
+  return liste.map((k) => (k.waise ? { ...k, text: k.text + hinweis } : k)).sort((p, q) => Number(!p.waise) - Number(!q.waise));      // stabil
 }
 
 function zeigeFnListe(titel, kandidaten) {

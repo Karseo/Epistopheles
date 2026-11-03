@@ -202,40 +202,45 @@ def _schreibe_text(pfad: Path, text: str) -> None:
         raise
 
 
-def lade_lektor_redaktion(lektor: Path) -> dict:
-    """`redaktion.json` des Buchs. Fehlt sie, leere Struktur; existiert sie, aber ist sie nicht
-    lesbar oder falsch aufgebaut, ValueError (sie wird dann nie überschrieben)."""
-    pfad = lektor / "redaktion.json"
+def _lade_protokoll(pfad: Path, feld: str, name: str) -> dict:
+    """Protokolldatei `redaktion.json` mit `eintraege` und einem Objektfeld (`chunks` bzw. `dateien`). Fehlt sie, leere
+    Struktur; existiert sie, aber ist sie nicht lesbar oder falsch aufgebaut, ValueError (sie wird dann nie überschrieben)."""
     if not pfad.exists():
-        return {"eintraege": [], "chunks": {}}
+        return {"eintraege": [], feld: {}}
     try:
         daten = json.loads(pfad.read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        raise ValueError("redaktion.json unlesbar") from None
-    if (not isinstance(daten, dict) or not isinstance(daten.get("chunks", {}), dict)
+        raise ValueError(f"{name} unlesbar") from None
+    if (not isinstance(daten, dict) or not isinstance(daten.get(feld, {}), dict)
             or not isinstance(daten.get("eintraege", []), list)):
-        raise ValueError("redaktion.json unlesbar (falscher Aufbau)")
-    daten.setdefault("chunks", {})
+        raise ValueError(f"{name} unlesbar (falscher Aufbau)")
+    daten.setdefault(feld, {})
     daten.setdefault("eintraege", [])
     return daten
+
+
+def lade_lektor_redaktion(lektor: Path) -> dict:
+    """`redaktion.json` im Lektor-Buchordner (Korrekturen an Rohchunks); Fehler wie `_lade_protokoll`."""
+    return _lade_protokoll(lektor / "redaktion.json", "chunks", "redaktion.json")
 
 
 def lade_reader_redaktion(reader: Path) -> dict:
-    """`reader/<Buch>/notizen/redaktion.json` (Protokoll des Volltexts). Fehlt sie, leere Struktur;
-    ist sie unlesbar oder falsch aufgebaut, ValueError (sie wird dann nie überschrieben)."""
-    pfad = reader / "notizen" / "redaktion.json"
-    if not pfad.exists():
-        return {"eintraege": [], "dateien": {}}
-    try:
-        daten = json.loads(pfad.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        raise ValueError("redaktion.json des Readers unlesbar") from None
-    if (not isinstance(daten, dict) or not isinstance(daten.get("dateien", {}), dict)
-            or not isinstance(daten.get("eintraege", []), list)):
-        raise ValueError("redaktion.json des Readers unlesbar (falscher Aufbau)")
-    daten.setdefault("dateien", {})
-    daten.setdefault("eintraege", [])
-    return daten
+    """`reader/<Buch>/notizen/redaktion.json` (Protokoll des Volltexts); Fehler wie `_lade_protokoll`."""
+    return _lade_protokoll(reader / "notizen" / "redaktion.json", "dateien", "redaktion.json des Readers")
+
+
+def _vermerke_eintraege(red: dict, ergebnisse: list) -> None:
+    """Hängt die angewendeten Einträge (noch nicht vermerkte, in Anwendungsreihenfolge) an `red["eintraege"]` an."""
+    ids = {x.get("id") for x in red["eintraege"] if isinstance(x, dict)}
+    for r in ergebnisse:
+        if r.eintrag["id"] not in ids:
+            red["eintraege"].append({**r.eintrag, "status": ops.STATUS_ANGEWENDET})
+
+
+def _hash_original(vorhanden: object, alt: str) -> str:
+    """`hash_original` eines Protokollvermerks: der schon festgehaltene Wert, sonst die Prüfsumme des Texts vor der ersten Änderung."""
+    h = vorhanden.get("hash_original") if isinstance(vorhanden, dict) else None
+    return h or ops.pruefsumme(alt)
 
 
 def _jetzt() -> str:
@@ -467,8 +472,9 @@ def _plane_buch(root: Path, buch: str) -> BuchPlan:
             plan.konflikte.append(EintragErgebnis(e, ops.STATUS_KONFLIKT, str(exc)))
         else:
             brauchbar.append(e)
-    offen = [e for e in offen if e in brauchbar]
-    uebernahmen = [e for e in uebernahmen if e in brauchbar]
+    brauchbar_ids = {e["id"] for e in brauchbar}
+    offen = [e for e in offen if e["id"] in brauchbar_ids]
+    uebernahmen = [e for e in uebernahmen if e["id"] in brauchbar_ids]
     if not offen and not uebernahmen:
         return plan
     erster = ziele[(offen + uebernahmen)[0]["id"]][0]
@@ -605,9 +611,8 @@ def _fuehre_datei_aus(root: Path, plan: BuchPlan, dp: DateiPlan, zaehler: dict, 
             try:
                 red = lade_reader_redaktion(reader)
                 vorhanden = red["dateien"].get(dp.datei)
-                hash_alt = vorhanden.get("hash_original") if isinstance(vorhanden, dict) else None
                 red["dateien"][dp.datei] = {
-                    "hash_original": hash_alt or ops.pruefsumme(dp.alt),
+                    "hash_original": _hash_original(vorhanden, dp.alt),
                     "hash_aktuell": (vorhanden.get("hash_aktuell") if isinstance(vorhanden, dict) else None)
                     or ops.pruefsumme(dp.alt),
                     "zuletzt": _jetzt()}
@@ -625,10 +630,7 @@ def _fuehre_datei_aus(root: Path, plan: BuchPlan, dp: DateiPlan, zaehler: dict, 
     if geschrieben:
         try:
             red = lade_reader_redaktion(reader)
-            ids = {x.get("id") for x in red["eintraege"] if isinstance(x, dict)}
-            for r in angewendet:
-                if r.eintrag["id"] not in ids:
-                    red["eintraege"].append({**r.eintrag, "status": ops.STATUS_ANGEWENDET})
+            _vermerke_eintraege(red, angewendet)
             red["dateien"].setdefault(dp.datei, {})["hash_aktuell"] = ops.pruefsumme(dp.neu)
             protokoll.speichere_redaktion(reader / "notizen" / "redaktion.json", red)
         except Exception as exc:  # noqa: BLE001
@@ -663,9 +665,7 @@ def _fuehre_chunk_aus(root: Path, plan: BuchPlan, cp: ChunkPlan, zaehler: dict,
             try:
                 red = lade_lektor_redaktion(lektor)
                 vorhanden = red["chunks"].get(str(cp.chunk))
-                hash_alt = vorhanden.get("hash_original") if isinstance(vorhanden, dict) else None
-                red["chunks"][str(cp.chunk)] = {
-                    "hash_original": hash_alt or ops.pruefsumme(cp.alt), "zuletzt": _jetzt()}
+                red["chunks"][str(cp.chunk)] = {"hash_original": _hash_original(vorhanden, cp.alt), "zuletzt": _jetzt()}
                 protokoll.speichere_redaktion(pfad, red)
                 backup_before_write(lektor, cp.datei)
                 _schreibe_text(cp.datei, cp.neu)
@@ -689,10 +689,7 @@ def _fuehre_chunk_aus(root: Path, plan: BuchPlan, cp: ChunkPlan, zaehler: dict,
                                  f"in en-chunks konnte nicht geschrieben werden: {type(exc).__name__}: {exc}")
         try:
             red = lade_lektor_redaktion(lektor)
-            ids = {x.get("id") for x in red["eintraege"] if isinstance(x, dict)}
-            for r in angewendet:
-                if r.eintrag["id"] not in ids:
-                    red["eintraege"].append({**r.eintrag, "status": ops.STATUS_ANGEWENDET})
+            _vermerke_eintraege(red, angewendet)
             protokoll.speichere_redaktion(lektor / "redaktion.json", red)
         except Exception as exc:  # noqa: BLE001
             warnungen.append(f"WARNUNG: Chunk {cp.chunk:03d} von {buch} ist geändert, aber die Einträge "

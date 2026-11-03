@@ -95,6 +95,7 @@
       if (!zeilenCache.has(ai)) { const [a, b] = aus.spannen[ai]; zeilenCache.set(ai, aus.text.slice(a, b).split(/\r?\n/)); }
       return zeilenSchluessel(zeilenCache.get(ai)[zi] || "");
     };
+    if (!o.verdacht) aus.fn = F.analysiere(aus.text);                  // einmal je Ansicht; die Oberfläche nutzt sie für Antippen und Zuordnen mit
     for (const h of o.verdacht ? V.pruefe(aus.text) : fussnotenHinweise(aus)) {
       const liste = abg.get(h.anfang + "\u0001" + h.art);
       if (liste && liste.some((z) => z === undefined || z === zeileVon(h.absatz_index, h.zeile))) continue;
@@ -119,7 +120,7 @@
 
   /** Fussnotenhinweise des abgespielten Volltexts im Format der Verdachtshinweise; der Vorschlag ist nur das Merken. */
   function fussnotenHinweise(aus) {
-    return F.analysiere(aus.text).hinweise.map((h) => {
+    return aus.fn.hinweise.map((h) => {
       const sp = aus.spannen[h.absatz_index];
       return { art: h.art, absatz_index: h.absatz_index, zeile: h.zeile, zeile_bis: h.zeile, anfang: R.ankerVon(aus.text.slice(sp[0], sp[1])),
                begruendung: h.begruendung, vorschlag: { art: "marke", parameter: { kategorie: KATEGORIE[h.art] } } };
