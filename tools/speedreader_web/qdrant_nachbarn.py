@@ -108,9 +108,10 @@ def _treffer(punkte: list[dict]) -> list[dict]:
 
 
 def frage_nachbarn(qdrant: str, collection: str, punkte: dict[int, dict], punkt_ids: list[int], je: int = 10, fetch=None,
-                   batch: int = 50, pause: float = 1.0, versuche: int = 3) -> Nachbarn:
+                   batch: int = 50, pause: float = 1.0, versuche: int = 3, fortschritt=None) -> Nachbarn:
     """Zu jedem Punkt in `punkt_ids` die `je` aehnlichsten Punkte anderer Werke. Batches; scheitert ein Batch, werden seine
-    Punkte einzeln abgefragt, nur dort endgueltig Gescheitertes zaehlt als `fehlend`. 404 der Query-API: ab dann `recommend`."""
+    Punkte einzeln abgefragt, nur dort endgueltig Gescheitertes zaehlt als `fehlend`. 404 der Query-API: ab dann `recommend`.
+    `fortschritt(fertig, gesamt)` wird nach jedem Batch gerufen."""
     fetch = fetch or abruf
     basis = f"{qdrant.rstrip('/')}/collections/{collection}/points"
     inc = {"include": list(FELDER) + ["text"]}
@@ -152,6 +153,8 @@ def frage_nachbarn(qdrant: str, collection: str, punkte: dict[int, dict], punkt_
                     erg.treffer[pid] = _treffer(einzel_abfrage(pid))
                 except QdrantFehler:
                     erg.fehlend += 1
+        if fortschritt:
+            fortschritt(start + len(ids), len(bekannt))
     return erg
 
 

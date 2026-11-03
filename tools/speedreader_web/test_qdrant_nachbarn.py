@@ -305,3 +305,10 @@ def test_stichprobenwerkzeug_ohne_qdrant_meldet_und_endet_mit_1(capsys):
     import verbindungen_stichprobe as vs
     assert vs.main(["--qdrant", "http://127.0.0.1:9"]) == 1
     assert "Qdrant nicht lesbar" in capsys.readouterr().err
+
+
+def test_fortschrittsmeldung_je_batch(fake):
+    punkte = qn.lese_punkte(fake.url, "episto", pause=0)
+    gemeldet = []
+    qn.frage_nachbarn(fake.url, "episto", punkte, [1, 2, 3, 10, 11], je=3, batch=2, pause=0, fortschritt=lambda fertig, gesamt: gemeldet.append((fertig, gesamt)))
+    assert gemeldet == [(2, 5), (4, 5), (5, 5)]
