@@ -37,6 +37,11 @@ _SPEC.loader.exec_module(lze)
 BUCH = f"{AUTOR}/{TITEL}"
 
 
+def ruhig(pg):
+    """Wartet, bis die Ansicht nach einer Aenderung fertig neu gezeichnet ist (sonst verwirft das Neuzeichnen eine gerade gesetzte Auswahl)."""
+    pg.wait_for_function("!chunkBusy && gezeigteSig !== null && gezeigteSig === sigAktuell()")
+
+
 def lauf_lze(root: Path, **kw):
     lze.verarbeite(BUCH, root / "rohdaten" / "Lektor", root / "reader", "de", "en", False, **kw)
 
@@ -77,9 +82,11 @@ def test_gesamtlauf_p2(browser, tmp_path, capsys):
         bearbeite(pg, "Ein zweiter Absatz", "Ein zweiter Absatz folgt dort.")
         speichern(pg)
         pg.wait_for_function("eintraege.length === 1")
+        ruhig(pg)
         tippe(pg, " dass die Abgeordneten")                        # Zeiger hinter dem Leerzeichen: Absatz 1 teilen
         pg.locator("#absatz-trennen").click()
         pg.wait_for_function("eintraege.length === 2")
+        ruhig(pg)
         waehle(pg, "Ein zweiter", "Absatz")
         pg.fill("#werkzeug-notiz", "Gesamtlauf")
         knopf(pg, "markieren").click()
