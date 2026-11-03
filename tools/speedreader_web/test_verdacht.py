@@ -165,3 +165,27 @@ def test_leistung_ein_langer_absatz_mit_vielen_hinweisen():
     r = lauf(text, messen=True)
     assert r["n"] >= 20_000
     assert r["ms"] < 2000, r["ms"]
+
+
+def umbrueche(text):
+    return [x for x in arten(text) if x[0] == "zeile-bricht-ab"]
+
+
+def test_lange_zeile_ohne_satzende_vor_grossem_anfang_ist_umbruch_deutsche_substantive():
+    text = "Der amerikanische Film ist das größte unterschwellige\nPropagandamedium unserer Zeit."
+    assert arten(text) == [("zeile-bricht-ab", 0, 0)]
+    assert "beginnt groß" in hinweise(text)[0]["begruendung"]
+
+
+def test_grossanfang_ohne_umbruch_bei_kurzer_zeile_ueberschrift_tabelle_liste():
+    assert umbrueche("Kurze Zeile ohne Ende\nNeuer Anfang gross.") == []
+    assert umbrueche("Eine lange Zeile ohne Satzzeichen am Ende hier\n# Neue Ueberschrift") == []
+    assert umbrueche("Eine lange Zeile ohne Satzzeichen am Ende hier\n| Tabelle | Zelle |") == []
+    assert umbrueche("Eine lange Zeile ohne Satzzeichen am Ende hier\n- Listenpunkt") == []
+    assert umbrueche("EINE LANGE UEBERSCHRIFT OHNE PUNKT AM ENDE HIER\nNeuer Anfang gross.") == []
+
+
+def test_schwaches_satzende_vor_kleinem_anfang_ist_umbruch():
+    for ende in ("der auf der Hut war;", "als Papst Gregor XV.", "im Sinne der Sache (siehe oben)", "sagte er in »Der Feind«"):
+        assert arten(f"Er schrieb damals {ende}\nimmer weiter.") == [("zeile-bricht-ab", 0, 0)], ende
+    assert arten("Das ist ein ganzer Satz.\nund hier klein weiter.") == []

@@ -654,7 +654,7 @@ function zeigeUebersetzung(ix, text) {
 function zeigeRechts() {
   if (window.CSS && CSS.highlights) CSS.highlights.delete("ursache");
   if (werkzeugLeiste) werkzeugLeiste.verberge();
-  if (modus !== "text") verbergeAbsatzLeiste();        // Verschieben-Modus und Auswahl überleben keinen Wechsel
+  if (modus === "uebersetzung") verbergeAbsatzLeiste();        // Verschieben-Modus und Auswahl überleben keinen Wechsel
   document.querySelectorAll("[data-modus]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.modus === modus)));
   $("modus-chunks").disabled = !buch || buch.chunks === 0;
   $("modus-text").disabled = !buch || buch.kapitel.length === 0;
@@ -745,6 +745,7 @@ function zeigeChunkText(pre, ix, roh) {
   werkzeuge();
   pre.dataset.fuer = kennung; pre.scrollTop = oben;
   gezeigteSig = sig; gezeigterChunk = ix;
+  if (absatzAuswahl && absatzAuswahl.ansicht !== c.ansicht) verbergeAbsatzLeiste();
   const n = c.ansicht.hinweise.length, k = c.ansicht.konflikte.length;
   info.textContent = bereit ? [`Verdacht: ${n} offen`, k ? `${k} ${k === 1 ? "Konflikt" : "Konflikte"}` : ""].filter(Boolean).join(" · ") : "Änderungen werden geladen …";
   info.dataset.konflikt = k ? "ja" : "nein";
@@ -840,10 +841,17 @@ function aktuelleKapitelAnsicht() {
   const c = kapitelCache.get(gezeigterChunk);
   return c && c.sig === gezeigteSig && c.sig === kapitelSig(gezeigterChunk) ? c.ansicht : null;
 }
+/** Die gezeigte Ansicht, an der ein Absatz frei bearbeitet werden kann: Kapitel (Bereinigt) oder Roh-Chunk. */
+function aktuelleAbsatzAnsicht() {
+  if (modus === "text") return aktuelleKapitelAnsicht();
+  if (!buch || !CA || modus !== "chunks" || gezeigteSig === null) return null;
+  const c = ansichtCache.get(gezeigterChunk);
+  return c && c.sig === gezeigteSig && c.sig === ansichtSig(gezeigterChunk) ? c.ansicht : null;
+}
 function verbergeAbsatzLeiste() { absatzAuswahl = null; $("absatz-leiste").hidden = true; }
 
 $("rechts-inhalt").addEventListener("click", (ev) => {
-  const a = aktuelleKapitelAnsicht();
+  const a = aktuelleAbsatzAnsicht();
   if (!a) { verbergeAbsatzLeiste(); return; }
   if (werkzeugLeiste && werkzeugLeiste.zustand().modus === "verschieben") return;            // Zielabsatz antippen, nicht bearbeiten
   if (ev.target.closest && ev.target.closest("button, .verdacht-leiste, .konflikt, .fn-marker, .fn-def")) return;
@@ -856,8 +864,10 @@ $("rechts-inhalt").addEventListener("click", (ev) => {
   $("absatz-leiste-text").textContent = `Absatz ${i + 1}: ${roh.length > 40 ? roh.slice(0, 40) + "…" : roh}`;
   delete $("absatz-leiste-text").dataset.art;
   const leiste = $("absatz-leiste"), koerper = $("rechts-koerper");
-  $("absatz-verweis").hidden = !fnAnalyse(a).definitionen.length;
-  $("absatz-ursache").hidden = !ursacheQuellen();
+  const volltext = a.ebene === "volltext";                       // Fußnoten, Ursache und Trennen gibt es nur im Volltext
+  $("absatz-verweis").hidden = !volltext || !fnAnalyse(a).definitionen.length;
+  $("absatz-ursache").hidden = !volltext || !ursacheQuellen();
+  $("absatz-trennen").hidden = !volltext;
   leiste.hidden = false;
   // Neben die Tippstelle setzen (darunter, sonst darüber), damit sie den Absatz nicht verdeckt; ohne Lage unten rechts
   const rs = sel.getRangeAt(0).getClientRects(), r = rs.length ? rs[rs.length - 1] : null;
@@ -879,12 +889,12 @@ function zuruecksetzenAbsatzBestaetigung() {
 function schliesseAbsatzEditor() { absatzEditor = null; if ($("absatz-dialog").open) $("absatz-dialog").close(); }
 
 $("absatz-bearbeiten").addEventListener("click", () => {
-  const a = aktuelleKapitelAnsicht();
+  const a = aktuelleAbsatzAnsicht();
   if (!a || !absatzAuswahl || absatzAuswahl.ansicht !== a) { verbergeAbsatzLeiste(); return; }
   const roh = CA.absatzText(a, absatzAuswahl.index);
   if (roh === null) { verbergeAbsatzLeiste(); return; }
   absatzEditor = { ansicht: a, index: absatzAuswahl.index, roh: roh, bestaetigt: false };
-  $("absatz-titel").textContent = `Absatz ${absatzAuswahl.index + 1} · ${daten.kapitel[a.nr].titel}`;
+  $("absatz-titel").textContent = `Absatz ${absatzAuswahl.index + 1} · ` + (a.ebene === "volltext" ? daten.kapitel[a.nr].titel : `Chunk ${a.nr}`);
   $("absatz-editor").value = roh;
   zuruecksetzenAbsatzBestaetigung();
   $("absatz-dialog").showModal();
@@ -910,14 +920,14 @@ async function speichereAbsatz() {
   if (neu === ed.roh.replace(/\r\n/g, "\n")) { meldeAbsatz("Keine Änderung: es wird nichts gespeichert."); return; }
   if (!neu.trim()) { meldeAbsatz("Der Absatz wäre leer. Zum Entfernen später das Werkzeug „Löschen“ benutzen."); return; }
   if (/\n\s*\n/.test(neu.trim())) { meldeAbsatz("Ein Absatz darf keine Leerzeile enthalten. Zum Teilen „Absatz hier trennen“ benutzen."); return; }
-  const a = ed.ansicht, c = kapitelCache.get(a.nr);
-  if (!c || c.ansicht !== a || c.sig !== kapitelSig(a.nr)) { meldeAbsatz("Der Text hat sich inzwischen geändert. Bitte den Absatz noch einmal öffnen."); return; }
+  const a = ed.ansicht, c = cacheVon(a).get(a.nr);
+  if (!c || c.ansicht !== a || c.sig !== sigVon(a)) { meldeAbsatz("Der Text hat sich inzwischen geändert. Bitte den Absatz noch einmal öffnen."); return; }
   const b = buch, geraet = verbindung.geraet || "epistopheles";
-  const eintrag = R.neuerEintrag(buchSchluessel(b), "volltext", { datei: a.chunk, anfang: R.ankerVon(ed.roh), absatz_index: ed.index },
+  const eintrag = R.neuerEintrag(buchSchluessel(b), a.ebene, { [a.zielfeld]: a.chunk, anfang: R.ankerVon(ed.roh), absatz_index: ed.index },
     "ersetzen", { nachher: neu }, ed.roh, "", geraet);
   const erg = R.wendeAn(a.text, eintrag);                            // genau das, was APIC später tut: Vorprüfung
   if (erg.status !== "angewendet") { meldeAbsatz("Nicht möglich: " + erg.grund); return; }
-  const warnung = fussnotenWarnung(a.text, erg.text);
+  const warnung = a.ebene === "volltext" ? fussnotenWarnung(a.text, erg.text) : [];
   if (warnung.length && !ed.bestaetigt) {
     ed.bestaetigt = true;
     meldeAbsatz("Fußnoten ändern sich:\n" + warnung.join("\n"));

@@ -22,6 +22,8 @@
     verzeichnisMinZeilen: 4,       // aufeinanderfolgende Zeilen mit Punktlinien/Seitenzahl
     glossarMinZeilen: 4,           // aufeinanderfolgende Zeilen "Begriff: Erklaerung"
     glossarBegriffMax: 40,         // laengster Begriff vor dem Doppelpunkt
+    umbruchLangeZeile: 40,         // Zeile ohne Satzende vor GROSSEM Anfang: erst ab dieser Laenge Umbruch (deutsche Substantive)
+    umbruchSchwachMin: 25,         // Zeile mit Satzende (; ) Anfuehrungszeichen, Abkuerzungspunkt) vor kleinem Anfang: ab dieser Laenge
     ankerLaenge: 40,
   };
 
@@ -33,6 +35,8 @@
 
   const SATZENDE = /[.!?:;…"”“»«)'’]$/u;
   const KLEIN_ANFANG = /^\p{Ll}/u;
+  const SCHWACHES_ENDE = /(?:[;)"”“»«'’]|\b(?:\p{Lu}{1,5}|\d+|Nr|Abb|Tab|Bd|vgl|ca|bzw|usw|Hrsg|Dr|Prof|St|Jr|vs|etc|[Zz]|[Bb]|[Dd]|h)\.)$/u;
+  const KEIN_UMBRUCH_ANFANG = /^(?:#|:::|\||[•*+>\-–—]\s|\d+[.)]\s|\[\^|\[Q\b)/u;   // Struktur: Ueberschrift, Tabelle, Liste, Fussnotentext
   const FUSSNOTENZAHL_ANFANG = /^\d{1,3}\s/;
   const SEITENZAHL_ZEILE = /^[—–\-\s]*\d{1,4}[—–\-\s]*$/;
   const PUNKTLINIE = /\.{3,}/;
@@ -157,10 +161,16 @@
         }
         if (zi + 1 < zl.length) {
           const nz = zl[zi + 1];
+          let grund = "";
           if (nz && !SATZENDE.test(z) && (KLEIN_ANFANG.test(nz) || FUSSNOTENZAHL_ANFANG.test(nz))) {
-            neu("zeile-bricht-ab", ai, zi, zi, "Zeile endet ohne Satzzeichen, die nächste beginnt klein oder mit Fußnotenzahl",
-                { art: "verbinden", parameter: {} });
+            grund = "Zeile endet ohne Satzzeichen, die nächste beginnt klein oder mit Fußnotenzahl";
+          } else if (nz && !SATZENDE.test(z) && /^\p{Lu}/u.test(nz) && z.length >= S.umbruchLangeZeile
+                     && !KEIN_UMBRUCH_ANFANG.test(z) && !KEIN_UMBRUCH_ANFANG.test(nz) && !nurGrossbuchstaben(z) && !nurGrossbuchstaben(nz)) {
+            grund = "lange Zeile ohne Satzzeichen am Ende, die nächste beginnt groß (Substantiv?): Umbruch mitten im Satz";
+          } else if (nz && KLEIN_ANFANG.test(nz) && SCHWACHES_ENDE.test(z) && z.length >= S.umbruchSchwachMin && !KEIN_UMBRUCH_ANFANG.test(z)) {
+            grund = "Zeile endet mit Semikolon, Klammer, Anführungszeichen oder Abkürzung, die nächste beginnt klein";
           }
+          if (grund) neu("zeile-bricht-ab", ai, zi, zi, grund, { art: "verbinden", parameter: {} });
         }
       });
     });
