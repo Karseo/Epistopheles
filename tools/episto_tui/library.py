@@ -588,6 +588,28 @@ def read_straenge_uebersicht(buch: Buch, kapitel_nr: int) -> list[dict]:
     return ergebnis
 
 
+def list_straenge(buch: Buch) -> list[dict]:
+    """Die Themen (Straenge) eines Werks: [{"name", "slug", "kapitel": [nr, ...]}, ...] in Dateireihenfolge.
+    `slug` ist der Dateiname ohne Endung, `kapitel` die Nummern aller Fundstellen (aufsteigend, ohne Doppelte).
+    Straenge ohne Fundstelle, Syncthing-Konfliktdateien und nicht lesbare Dateien entfallen; fehlt der Ordner,
+    ist die Liste leer. Nur lesend (Grundlage der Verbindungsansicht, Spec 2026-11-03)."""
+    ordner = buch.pfad / "notizen" / "straenge"
+    ergebnis: list[dict] = []
+    if not ordner.is_dir():
+        return ergebnis
+    for pfad in sorted(ordner.glob("*.md")):
+        if ".sync-conflict-" in pfad.name:
+            continue
+        try:
+            name, treffer = _parse_strang_datei(pfad)
+        except (OSError, UnicodeDecodeError):
+            continue
+        nummern = sorted({t["nr"] for t in treffer})
+        if nummern:
+            ergebnis.append({"name": name, "slug": pfad.stem, "kapitel": nummern})
+    return ergebnis
+
+
 # --- Notizenliste ------------------------------------------------------------
 
 def read_alle_kommentare(buch: Buch) -> list[Kommentar]:
