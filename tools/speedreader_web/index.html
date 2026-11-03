@@ -117,6 +117,16 @@
   .kap[aria-current="true"] { border-color: var(--akzent); border-width: 2px; }
   #wahl-fuss { padding: 10px 12px; border-top: 1px solid var(--linie); display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; color: var(--gedaempft); font-size: .8em; }
 
+  /* Verbindungen */
+  #netz { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+  #netz-info { color: var(--gedaempft); font-size: .85em; }
+  #netz-info:empty { display: none; }
+  #netz-info p { margin: 0 0 6px; }
+  #netz-info .warn { color: var(--orp); }
+  #netz-graph { flex: 1 1 auto; min-height: 0; }
+  #netz-hinweis { display: grid; place-items: center; text-align: center; flex: 1; padding: 24px; color: var(--gedaempft); }
+  #netz-hinweis > div { max-width: 34em; }
+
   #start { grid-row: 3 / 6; display: grid; place-items: center; text-align: center; padding: 24px; }
   #start > div { max-width: 34em; }
   #start button { margin-top: 12px; }
@@ -143,6 +153,7 @@
     <button data-ansicht="speed" title="Speedreader: KI-Felder Wort für Wort (1)">⚡ Speed</button>
     <button data-ansicht="ki" title="KI-Felder als Text (2)">KI-Text</button>
     <button data-ansicht="original" title="Originaltext des Kapitels (3)">Original</button>
+    <button data-ansicht="verbindungen" title="Verbindungen zu anderen Kapiteln, Themen und Werken (4)">Verbindungen</button>
   </div>
   <div id="schrift-gruppe" hidden>
     <button id="schrift-klein" aria-label="Schrift kleiner" title="Schrift kleiner (−)">A−</button>
@@ -151,6 +162,12 @@
 </nav>
 
 <article id="lesen" tabindex="0" hidden aria-label="Lesetext" lang="de"><div id="lesen-inhalt"></div></article>
+
+<section id="netz" aria-label="Verbindungen" hidden>
+  <div id="netz-info" role="status"></div>
+  <div id="netz-hinweis" hidden><div><p id="netz-hinweis-text"></p><button id="netz-import">verbindungen.json auswählen</button></div></div>
+  <div id="netz-graph"></div>
+</section>
 
 <main id="buehne" aria-live="off">
   <div class="strich" id="strich-o"></div>
@@ -206,14 +223,19 @@
   <div id="wahl-fuss">
     <span id="stand"></span>
     <span><button id="daten-neu">Daten aktualisieren …</button> <button id="volltext-neu">Volltext importieren …</button>
+      <button id="verb-neu">Verbindungen importieren …</button>
       <a href="korrektur.html" style="color:var(--akzent)">Korrekturlesen ↗</a></span>
     <span id="import-status" role="status"></span>
   </div>
   <input id="ordner" type="file" webkitdirectory multiple hidden>
+  <input id="verb-datei" type="file" accept=".json,application/json" hidden>
 </dialog>
 
 <script src="speedreader.js"></script>
 <script src="lesetext.js"></script>
+<script src="verbindungen.js"></script>
+<script src="graphlayout.js"></script>
+<script src="graphansicht.js"></script>
 <script>
 "use strict";
 const SR = Speedreader;
@@ -229,7 +251,7 @@ let woerter = [], namen = [];
 let i = 0, laeuft = false, timer = null;
 let wpm = SR.begrenzeTempo(lsGet("wpm", SR.STANDARD_WPM));
 let wakeLock = null;
-const ANSICHTEN = ["speed", "ki", "original"];
+const ANSICHTEN = ["speed", "ki", "original", "verbindungen"];
 let ansicht = ANSICHTEN.includes(lsGet("ansicht", "speed")) ? lsGet("ansicht", "speed") : "speed";
 let schrift = Math.min(2, Math.max(0.8, Number(lsGet("schrift", 1)) || 1));   // Faktor für die Lesetexte
 let ladeNr = 0;                   // verwirft Ergebnisse veralteter Ladevorgänge (Kapitel inzwischen gewechselt)
@@ -268,6 +290,7 @@ async function dateiEinlesen(datei) {
 function setzeDaten(d, ziel) {
   daten = d;
   buchText = { id: null, erstellt: null, kapitel: null };      // neuer Datenstand: Volltext neu laden
+  ladeVerbindungenNeu();
   $("start").hidden = true;
   $("modus").hidden = false;
   wendeAnsichtAn();
@@ -297,7 +320,8 @@ function oeffneKapitel(b, k, anteil = null) {
   $("kap-vor").disabled = !kapitelNachbar(1);
   $("balken").max = Math.max(0, woerter.length - 1);
   zeige();
-  if (ansicht !== "speed") zeigeLesetext(anteil);
+  if (ansicht === "ki" || ansicht === "original") zeigeLesetext(anteil);
+  else if (ansicht === "verbindungen") folgeFokus();
 }
 
 function kapitelNachbar(richtung) {
@@ -399,14 +423,15 @@ $("balken").addEventListener("input", (e) => springe(Number(e.target.value)));
 document.addEventListener("keydown", (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey || !daten || $("wahl").open) return;
   const gemeinsam = { "1": () => setzeAnsicht("speed"), "2": () => setzeAnsicht("ki"), "3": () => setzeAnsicht("original"),
-                      n: AKTIONEN.kap_vor, p: AKTIONEN.kap_zurueck };
+                      "4": () => setzeAnsicht("verbindungen"), n: AKTIONEN.kap_vor, p: AKTIONEN.kap_zurueck };
   let tat = gemeinsam[e.key];
   if (!tat && ansicht === "speed") {
     const karte = { " ": "pause", ArrowUp: "schneller", ArrowDown: "langsamer", "+": "fein_schneller", "=": "fein_schneller",
                     "-": "fein_langsamer", ArrowLeft: "satz_zurueck", ArrowRight: "satz_vor",
                     PageUp: "abschnitt_zurueck", PageDown: "abschnitt_vor" };
     if (karte[e.key]) tat = AKTIONEN[karte[e.key]];
-  } else if (!tat && (e.key === "+" || e.key === "=")) tat = () => setzeSchrift(schrift + 0.1);
+  } else if (!tat && ansicht === "verbindungen") { /* eigene Bedienung im Netz */ }
+  else if (!tat && (e.key === "+" || e.key === "=")) tat = () => setzeSchrift(schrift + 0.1);
   else if (!tat && e.key === "-") tat = () => setzeSchrift(schrift - 0.1);
   if (tat) { e.preventDefault(); tat(); }      // Pfeile, Leertaste, Bild ↑/↓ scrollen in den Textansichten wie gewohnt
 });
@@ -415,8 +440,10 @@ document.addEventListener("keydown", (e) => {
 function wendeAnsichtAn() {
   const speed = ansicht === "speed";
   for (const id of ["buehne", "fortschritt", "bedienung"]) $(id).hidden = !speed;
-  $("lesen").hidden = speed;
-  $("schrift-gruppe").hidden = speed;
+  const text = ansicht === "ki" || ansicht === "original";
+  $("lesen").hidden = !text;
+  $("netz").hidden = ansicht !== "verbindungen";
+  $("schrift-gruppe").hidden = !text;
   document.querySelectorAll("[data-ansicht]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.ansicht === ansicht)));
 }
 
@@ -438,6 +465,8 @@ function setzeAnsicht(neu) {
   if (neu === "speed") {
     if (startWort !== null && woerter.length) { const w = woerter.findIndex((x) => x.abschnitt === startWort); if (w >= 0) i = w; }
     zeige();
+  } else if (neu === "verbindungen") {
+    zeigeNetz();
   } else {
     zeigeLesetext(null, abschnittZiel);
   }
@@ -566,6 +595,91 @@ async function zeigeLesetext(anteil = null, abschnittZiel = null) {
   lesen.scrollTop = anteil && max > 0 ? anteil * max : 0;
 }
 
+// ---- Verbindungen ---------------------------------------------------------------------------------
+const verb = { graph: null, ans: null, status: "laedt", grund: "", hinweise: [], nr: 0 };
+
+async function ladeVerbindungenNeu() {
+  const nr = ++verb.nr;
+  Object.assign(verb, { graph: null, status: "laedt", grund: "", hinweise: [] });
+  let d = null;
+  if (location.protocol.startsWith("http")) {
+    try { const r = await fetch("verbindungen.json", { cache: "no-cache" }); if (r.ok) { d = await r.json(); } } catch { /* offline */ }
+  }
+  let aus = d ? "server" : null;
+  if (!d) { try { d = await dbLies("verbindungen"); aus = "speicher"; } catch { /* keine Kopie */ } }
+  if (nr !== verb.nr) return;
+  if (!d) verb.status = "fehlt";
+  else {
+    const p = Verbindungen.pruefe(d, daten);
+    if (!p.ok) { verb.status = "ungueltig"; verb.grund = p.grund; }
+    else {
+      verb.status = "ok"; verb.hinweise = p.hinweise;
+      try { verb.graph = Verbindungen.baue(d); } catch (e) { verb.status = "ungueltig"; verb.grund = "Die Verbindungsdaten sind fehlerhaft: " + (e.message || e); }
+      if (verb.status === "ok" && aus === "server") dbSchreib("verbindungen", d).catch(() => {});
+    }
+  }
+  if (verb.ans) verb.ans.setzeDaten(verb.graph);
+  if (ansicht === "verbindungen") zeigeNetz();
+}
+
+function aktuelleKnotenId() {
+  const buch = daten.buecher[buchIx], kap = buch.kapitel[kapIx];
+  return buch.id ? `${buch.id}:${kap.nr}` : null;
+}
+
+function oeffneAusNetz(id) {
+  const m = /^(b\d+):(\d+)$/.exec(id);
+  if (!m) return;
+  const b = daten.buecher.findIndex((x) => x.id === m[1]);
+  if (b < 0) return;
+  const k = daten.buecher[b].kapitel.findIndex((x) => String(x.nr) === m[2]);
+  if (k < 0) return;
+  oeffneKapitel(b, k);
+  setzeAnsicht("ki");
+}
+
+function folgeFokus() {
+  if (!verb.ans || verb.status !== "ok") return;
+  const id = aktuelleKnotenId();
+  if (!id) return;
+  if (!verb.ans.setzeFokus(id, { ohneAnimation: true })) $("netz-info").prepend(Object.assign(el("p", "warn", "Zu diesem Kapitel gibt es keine Verbindungsdaten.")));
+}
+
+function zeigeNetz() {
+  if (!daten) return;
+  const info = $("netz-info"), hint = $("netz-hinweis");
+  info.textContent = "";
+  const text = verb.status === "laedt" ? "Verbindungsdaten werden geladen …"
+    : verb.status === "fehlt" ? "Noch keine Verbindungsdaten: am PC export_verbindungen.py ausführen und die Datei verbindungen.json hier importieren."
+    : verb.status === "ungueltig" ? verb.grund : "";
+  hint.hidden = !text; $("netz-graph").hidden = !!text;
+  $("netz-import").hidden = verb.status === "laedt";
+  $("netz-hinweis-text").textContent = text;
+  if (text) return;
+  if (!verb.ans) verb.ans = Graphansicht.installiere($("netz-graph"), { oeffnen: oeffneAusNetz });
+  for (const h of verb.hinweise) info.append(el("p", "warn", h));
+  verb.ans.setzeDaten(verb.graph);
+  if (!aktuelleKnotenId()) info.append(el("p", "warn", "Dieses Buch hat in daten.json keine Kennung (älterer Export)."));
+  folgeFokus();
+}
+
+async function verbindungenEinlesen(datei) {
+  const fehler = (t) => { $("import-status").textContent = t; $("start-info").textContent = t; };
+  let d;
+  try { d = JSON.parse(await datei.text()); } catch { return fehler("Keine gültige JSON-Datei."); }
+  const p = Verbindungen.pruefe(d, daten);
+  if (!p.ok) return fehler(p.grund);
+  try { await dbSchreib("verbindungen", d); } catch { /* läuft nur bis zum Neuladen */ }
+  verb.nr++;
+  Object.assign(verb, { graph: Verbindungen.baue(d), status: "ok", grund: "", hinweise: p.hinweise });
+  fehler("Verbindungen importiert.");
+  if (verb.ans) verb.ans.setzeDaten(verb.graph);
+  if (ansicht === "verbindungen") zeigeNetz();
+}
+$("verb-neu").addEventListener("click", () => $("verb-datei").click());
+$("netz-import").addEventListener("click", () => $("verb-datei").click());
+$("verb-datei").addEventListener("change", async (e) => { const f = e.target.files[0]; e.target.value = ""; if (!f) return; await verbindungenEinlesen(f); $("wahl").close(); });
+
 // Leseposition im Original merken (Anteil der Scrollhöhe), damit man nach dem Neuladen weiterlesen kann
 let scrollTimer = null;
 $("lesen").addEventListener("scroll", () => {
@@ -592,6 +706,7 @@ const THEMEN = ["auto", "hell", "dunkel"];
 function setzeThema(t) {
   if (t === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.dataset.theme = t;
   $("knopf-thema").title = `Darstellung: ${t}`; lsSet("thema", t);
+  if (verb.ans && ansicht === "verbindungen") requestAnimationFrame(() => verb.ans.setzeArten({}));
 }
 $("knopf-thema").addEventListener("click", () => setzeThema(THEMEN[(THEMEN.indexOf(lsGet("thema", "auto")) + 1) % THEMEN.length]));
 setzeThema(lsGet("thema", "auto"));

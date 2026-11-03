@@ -196,3 +196,12 @@ def test_bundle_enthaelt_redaktion_js(tmp_path):
     kopiert = bundle.kopiere_app(tmp_path / "paket")
     assert "redaktion.js" in kopiert and (tmp_path / "paket" / "redaktion.js").is_file()
     assert '<script src="redaktion.js">' in (tmp_path / "paket" / "korrektur.html").read_text(encoding="utf-8")
+
+
+def test_bundle_enthaelt_die_dateien_der_verbindungsansicht(tmp_path):
+    import bundle
+    kopiert = bundle.kopiere_app(tmp_path / "paket")
+    for name in ("verbindungen.js", "graphlayout.js", "graphansicht.js"):
+        assert name in kopiert and (tmp_path / "paket" / name).is_file()
+    html = (tmp_path / "paket" / "index.html").read_text(encoding="utf-8")
+    assert all(f'src="{n}"' in html for n in ("verbindungen.js", "graphlayout.js", "graphansicht.js"))

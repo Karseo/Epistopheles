@@ -204,7 +204,7 @@
   // ---- Oberflaeche ---------------------------------------------------------------------------------------------------
 
   const CSS = `
-.graph { display: flex; flex-direction: column; min-height: 0; height: 100%; gap: 6px; }
+.graph { position: relative; display: flex; flex-direction: column; min-height: 0; height: 100%; gap: 6px; }
 .graph button { font: inherit; color: var(--text, #ece8de); background: var(--knopf, #2a2720); border: 1px solid var(--linie, #38352d); border-radius: 12px;
   min-height: 44px; min-width: 44px; padding: 0 12px; }
 .graph button[aria-pressed="true"] { background: var(--akzent, #4fc3d9); color: var(--bg, #14130f); font-weight: 700; border-color: var(--akzent, #4fc3d9); }
@@ -214,7 +214,8 @@
 .graph-flaeche { position: relative; flex: 1 1 auto; min-height: 220px; border-radius: 14px; overflow: hidden; background: var(--bg, #14130f); border: 1px solid var(--linie, #38352d); }
 .graph-flaeche canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; }
 .graph-hinweis { color: var(--gedaempft, #9a9486); font-size: .85em; min-height: 1.2em; }
-.graph-detail { display: grid; gap: 4px; padding: 8px 10px; border: 1px solid var(--linie, #38352d); border-radius: 12px; background: var(--flaeche, #1d1b16); }
+/* Ueberlagert den unteren Rand: die Flaeche darf sich beim Antippen nicht verschieben (sonst trifft der nachgereichte Klick die Leiste) */
+.graph-detail { position: absolute; left: 6px; right: 6px; bottom: 6px; z-index: 2; display: grid; gap: 4px; padding: 8px 10px; border: 1px solid var(--linie, #38352d); border-radius: 12px; background: var(--flaeche, #1d1b16); box-shadow: 0 2px 10px rgba(0,0,0,.35); }
 .graph-detail[hidden], .graph-liste[hidden], .graph-flaeche[hidden] { display: none; }
 .graph-detail b { overflow-wrap: anywhere; } .graph-detail small { color: var(--gedaempft, #9a9486); overflow-wrap: anywhere; }
 .graph-detail .zeile { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -338,9 +339,9 @@
     }
     function zeigeDetail() {
       detail.textContent = "";
-      const k = zustand.ausgewaehlt && knotenDaten(zustand.ausgewaehlt);
+      const k = !zustand.liste && zustand.ausgewaehlt && knotenDaten(zustand.ausgewaehlt);
       if (!k) { detail.hidden = true; return; }
-      detail.hidden = false;
+      detail.hidden = false; zustand.detailZeit = win.performance.now();
       detail.append(el(doc, "b", "", k.label), el(doc, "small", "", k.offen ? TYP_NAME[k.typ] || k.typ : "Werk außerhalb der Bibliothek (nicht öffnbar)"));
       const e = kanteZu(k.id);
       if (e && k.id !== zustand.fokusId) {
@@ -422,13 +423,14 @@
       else if (b.dataset.aktion === "liste") {
         zustand.liste = !zustand.liste;
         listeKnopf.setAttribute("aria-pressed", String(zustand.liste)); listeKnopf.textContent = zustand.liste ? "Netz" : "Liste";
-        flaeche.hidden = zustand.liste; listenFeld.hidden = !zustand.liste;
+        flaeche.hidden = zustand.liste; listenFeld.hidden = !zustand.liste; zeigeDetail();
         if (!zustand.liste) { win.requestAnimationFrame(() => { if (groesseAnpassen()) neuAufbauen(false); plane(); }); }
       }
     }, sig);
     const aktionen = (ev) => {
       const b = ev.target.closest("button[data-aktion]");
       if (!b) return;
+      if (b.closest(".graph-detail") && win.performance.now() - (zustand.detailZeit || 0) < 400) return;      // nachgereichter Klick des Antippens
       if (b.dataset.aktion === "zurmitte" && zustand.ausgewaehlt) setzeFokus(zustand.ausgewaehlt);
       else if (b.dataset.aktion === "abwaehlen") waehle(null);
       else if (b.dataset.aktion === "oeffnen") { const id = b.dataset.id || zustand.ausgewaehlt; if (id && o.oeffnen) o.oeffnen(id); }

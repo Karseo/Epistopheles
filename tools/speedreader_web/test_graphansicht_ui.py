@@ -46,6 +46,7 @@ def test_netz_hat_ringe_und_tippen_waehlt_mit_detailleiste(pg):
     r = pg.locator("canvas").bounding_box()
     x, y = z["positionen"][ziel]["x"], z["positionen"][ziel]["y"]
     pg.touchscreen.tap(r["x"] + x, r["y"] + y)
+    pg.wait_for_timeout(450)
     assert zs(pg)["ausgewaehlt"] == ziel and pg.locator(".graph-detail").is_visible()
     pg.click(".graph-detail button[data-aktion=oeffnen]")
     assert pg.evaluate("opened") == [ziel]
