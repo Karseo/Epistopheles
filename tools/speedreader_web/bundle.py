@@ -7,7 +7,8 @@ import shutil
 from pathlib import Path
 
 APP_DATEIEN = ("index.html", "korrektur.html", "speedreader.js", "lesetext.js", "epub.js", "redaktion.js",
-               "verdacht.js", "fussnoten.js", "ursache.js", "chunkansicht.js")
+               "verdacht.js", "fussnoten.js", "ursache.js", "chunkansicht.js",
+               "sw.js", "manifest.webmanifest", "icon-192.png", "icon-512.png")
 PAKET_ORDNER = ("reader", "export-epistopheles")          # relativ zur Bibliothekswurzel
 
 
