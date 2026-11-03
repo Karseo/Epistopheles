@@ -1120,5 +1120,1319 @@
    "konflikt",
    "angewendet"
   ]
+ },
+ {
+  "name": "fussnote_marker_umbenennen",
+  "text": "# Kapitel\n\nDer Satz hat eine Note[^1] und noch eine Note[^2] hier.\n\nZweiter Absatz mit Verweis[^2] und Text.\n\n[^1]: Erste Note.\n[^2]: Zweite Note.",
+  "eintraege": [
+   {
+    "id": "p201aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Der Satz hat eine Note[^1] und noch eine"
+    },
+    "art": "fussnote",
+    "parameter": {
+     "aktion": "marker-umbenennen",
+     "alt": "2",
+     "neu": "3",
+     "vorkommen": 0
+    },
+    "vorher": {
+     "hash": "26f9329127a62af7",
+     "ausschnitt": "Der Satz hat eine Note[^1] und noch eine Note[^2] hier."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "# Kapitel\n\nDer Satz hat eine Note[^1] und noch eine Note[^3] hier.\n\nZweiter Absatz mit Verweis[^2] und Text.\n\n[^1]: Erste Note.\n[^2]: Zweite Note.",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "fussnote_marker_umbenennen_zweites_vorkommen",
+  "text": "Kopf\n\nZweiter Absatz mit Verweis[^2] und noch einmal[^2] hier.",
+  "eintraege": [
+   {
+    "id": "p202aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Zweiter Absatz mit Verweis[^2] und noch "
+    },
+    "art": "fussnote",
+    "parameter": {
+     "aktion": "marker-umbenennen",
+     "alt": "2",
+     "neu": "5",
+     "vorkommen": 1
+    },
+    "vorher": {
+     "hash": "ebd7ccb240d649e6",
+     "ausschnitt": "Zweiter Absatz mit Verweis[^2] und noch einmal[^2] hier."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nZweiter Absatz mit Verweis[^2] und noch einmal[^5] hier.",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "fussnote_marker_im_definitionstext_zaehlt_definitionszeile_nicht",
+  "text": "Kopf\n\n[^1]: Erste, siehe [^2].\n[^2]: Zweite Note.",
+  "eintraege": [
+   {
+    "id": "p203aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "[^1]: Erste, siehe [^2]. [^2]: Zweite No"
+    },
+    "art": "fussnote",
+    "parameter": {
+     "aktion": "marker-umbenennen",
+     "alt": "2",
+     "neu": "9",
+     "vorkommen": 0
+    },
+    "vorher": {
+     "hash": "b53ac4d74214fbf1",
+     "ausschnitt": "[^1]: Erste, siehe [^2].\n[^2]: Zweite Note."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\n[^1]: Erste, siehe [^9].\n[^2]: Zweite Note.",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "fussnote_definitionszeilenanfang_ist_kein_marker",
+  "text": "Kopf\n\n[^1]: Erste, siehe [^2].\n[^2]: Zweite Note.",
+  "eintraege": [
+   {
+    "id": "p204aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "[^1]: Erste, siehe [^2]. [^2]: Zweite No"
+    },
+    "art": "fussnote",
+    "parameter": {
+     "aktion": "marker-umbenennen",
+     "alt": "1",
+     "neu": "9",
+     "vorkommen": 0
+    },
+    "vorher": {
+     "hash": "b53ac4d74214fbf1",
+     "ausschnitt": "[^1]: Erste, siehe [^2].\n[^2]: Zweite Note."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\n[^1]: Erste, siehe [^2].\n[^2]: Zweite Note.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "fussnote_marker_vorkommen_fehlt",
+  "text": "Kopf\n\nNur ein Verweis[^1] hier.",
+  "eintraege": [
+   {
+    "id": "p205aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Nur ein Verweis[^1] hier."
+    },
+    "art": "fussnote",
+    "parameter": {
+     "aktion": "marker-umbenennen",
+     "alt": "1",
+     "neu": "2",
+     "vorkommen": 1
+    },
+    "vorher": {
+     "hash": "7fdf35c5d21c2016",
+     "ausschnitt": "Nur ein Verweis[^1] hier."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nNur ein Verweis[^1] hier.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "fussnote_marker_kennung_fehlt",
+  "text": "Kopf\n\nNur ein Verweis[^1] hier.",
+  "eintraege": [
+   {
+    "id": "p206aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Nur ein Verweis[^1] hier."
+    },
+    "art": "fussnote",
+    "parameter": {
+     "aktion": "marker-umbenennen",
+     "alt": "7",
+     "neu": "2",
+     "vorkommen": 0
+    },
+    "vorher": {
+     "hash": "7fdf35c5d21c2016",
+     "ausschnitt": "Nur ein Verweis[^1] hier."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nNur ein Verweis[^1] hier.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "fussnote_marker_setzen",
+  "text": "Kopf\n\nDer Satz hat eine Note und mehr.",
+  "eintraege": [
+   {
+    "id": "p207aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Der Satz hat eine Note und mehr."
+    },
+    "art": "fussnote",
+    "parameter": {
+     "aktion": "marker-setzen",
+     "id": "4",
+     "nach": "hat eine Note"
+    },
+    "vorher": {
+     "hash": "37192472fb1b2241",
+     "ausschnitt": "Der Satz hat eine Note und mehr."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nDer Satz hat eine Note[^4] und mehr.",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "fussnote_marker_setzen_zu_kurzer_kontext",
+  "text": "Kopf\n\nDer Satz hat eine Note und mehr.",
+  "eintraege": [
+   {
+    "id": "p208aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Der Satz hat eine Note und mehr."
+    },
+    "art": "fussnote",
+    "parameter": {
+     "aktion": "marker-setzen",
+     "id": "4",
+     "nach": "eine"
+    },
+    "vorher": {
+     "hash": "37192472fb1b2241",
+     "ausschnitt": "Der Satz hat eine Note und mehr."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nDer Satz hat eine Note und mehr.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "fussnote_marker_setzen_kontext_fehlt",
+  "text": "Kopf\n\nDer Satz hat eine Note und mehr.",
+  "eintraege": [
+   {
+    "id": "p209aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Der Satz hat eine Note und mehr."
+    },
+    "art": "fussnote",
+    "parameter": {
+     "aktion": "marker-setzen",
+     "id": "4",
+     "nach": "gibt es nicht im Absatz"
+    },
+    "vorher": {
+     "hash": "37192472fb1b2241",
+     "ausschnitt": "Der Satz hat eine Note und mehr."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nDer Satz hat eine Note und mehr.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "fussnote_marker_setzen_mehrdeutiger_kontext",
+  "text": "Kopf\n\nJa ja ja ja ja ja.",
+  "eintraege": [
+   {
+    "id": "p210aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Ja ja ja ja ja ja."
+    },
+    "art": "fussnote",
+    "parameter": {
+     "aktion": "marker-setzen",
+     "id": "4",
+     "nach": "ja ja ja"
+    },
+    "vorher": {
+     "hash": "d03f8f7858b5ca39",
+     "ausschnitt": "Ja ja ja ja ja ja."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nJa ja ja ja ja ja.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "fussnote_marker_setzen_ungueltige_kennung",
+  "text": "Kopf\n\nDer Satz hat eine Note und mehr.",
+  "eintraege": [
+   {
+    "id": "p211aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Der Satz hat eine Note und mehr."
+    },
+    "art": "fussnote",
+    "parameter": {
+     "aktion": "marker-setzen",
+     "id": "a b",
+     "nach": "hat eine Note"
+    },
+    "vorher": {
+     "hash": "37192472fb1b2241",
+     "ausschnitt": "Der Satz hat eine Note und mehr."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nDer Satz hat eine Note und mehr.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "fussnote_marker_entfernen",
+  "text": "# Kapitel\n\nDer Satz hat eine Note[^1] und noch eine Note[^2] hier.\n\nZweiter Absatz mit Verweis[^2] und Text.\n\n[^1]: Erste Note.\n[^2]: Zweite Note.",
+  "eintraege": [
+   {
+    "id": "p212aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Der Satz hat eine Note[^1] und noch eine"
+    },
+    "art": "fussnote",
+    "parameter": {
+     "aktion": "marker-entfernen",
+     "id": "1",
+     "vorkommen": 0
+    },
+    "vorher": {
+     "hash": "26f9329127a62af7",
+     "ausschnitt": "Der Satz hat eine Note[^1] und noch eine Note[^2] hier."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "# Kapitel\n\nDer Satz hat eine Note und noch eine Note[^2] hier.\n\nZweiter Absatz mit Verweis[^2] und Text.\n\n[^1]: Erste Note.\n[^2]: Zweite Note.",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "fussnote_definition_umbenennen",
+  "text": "# Kapitel\n\nDer Satz hat eine Note[^1] und noch eine Note[^2] hier.\n\nZweiter Absatz mit Verweis[^2] und Text.\n\n[^1]: Erste Note.\n[^2]: Zweite Note.",
+  "eintraege": [
+   {
+    "id": "p213aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 3,
+     "anfang": "[^1]: Erste Note. [^2]: Zweite Note.",
+     "zeile": 1
+    },
+    "art": "fussnote",
+    "parameter": {
+     "aktion": "definition-umbenennen",
+     "alt": "2",
+     "neu": "3"
+    },
+    "vorher": {
+     "hash": "e465b9ac8710751b",
+     "ausschnitt": "[^1]: Erste Note.\n[^2]: Zweite Note."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "# Kapitel\n\nDer Satz hat eine Note[^1] und noch eine Note[^2] hier.\n\nZweiter Absatz mit Verweis[^2] und Text.\n\n[^1]: Erste Note.\n[^3]: Zweite Note.",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "fussnote_definition_kennung_im_selben_block_vergeben",
+  "text": "# Kapitel\n\nDer Satz hat eine Note[^1] und noch eine Note[^2] hier.\n\nZweiter Absatz mit Verweis[^2] und Text.\n\n[^1]: Erste Note.\n[^2]: Zweite Note.",
+  "eintraege": [
+   {
+    "id": "p214aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 3,
+     "anfang": "[^1]: Erste Note. [^2]: Zweite Note.",
+     "zeile": 1
+    },
+    "art": "fussnote",
+    "parameter": {
+     "aktion": "definition-umbenennen",
+     "alt": "2",
+     "neu": "1"
+    },
+    "vorher": {
+     "hash": "e465b9ac8710751b",
+     "ausschnitt": "[^1]: Erste Note.\n[^2]: Zweite Note."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "# Kapitel\n\nDer Satz hat eine Note[^1] und noch eine Note[^2] hier.\n\nZweiter Absatz mit Verweis[^2] und Text.\n\n[^1]: Erste Note.\n[^2]: Zweite Note.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "fussnote_definition_kennung_in_anderem_absatz_vergeben",
+  "text": "Kopf\n\n[^1]: Eins.\n\n[^5]: Fuenf.",
+  "eintraege": [
+   {
+    "id": "p215aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "[^1]: Eins.",
+     "zeile": 0
+    },
+    "art": "fussnote",
+    "parameter": {
+     "aktion": "definition-umbenennen",
+     "alt": "1",
+     "neu": "5"
+    },
+    "vorher": {
+     "hash": "65299780df8f4015",
+     "ausschnitt": "[^1]: Eins."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\n[^1]: Eins.\n\n[^5]: Fuenf.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "fussnote_definition_zeile_ist_keine_definition",
+  "text": "# Kapitel\n\nDer Satz hat eine Note[^1] und noch eine Note[^2] hier.\n\nZweiter Absatz mit Verweis[^2] und Text.\n\n[^1]: Erste Note.\n[^2]: Zweite Note.",
+  "eintraege": [
+   {
+    "id": "p216aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Der Satz hat eine Note[^1] und noch eine",
+     "zeile": 0
+    },
+    "art": "fussnote",
+    "parameter": {
+     "aktion": "definition-umbenennen",
+     "alt": "1",
+     "neu": "8"
+    },
+    "vorher": {
+     "hash": "26f9329127a62af7",
+     "ausschnitt": "Der Satz hat eine Note[^1] und noch eine Note[^2] hier."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "# Kapitel\n\nDer Satz hat eine Note[^1] und noch eine Note[^2] hier.\n\nZweiter Absatz mit Verweis[^2] und Text.\n\n[^1]: Erste Note.\n[^2]: Zweite Note.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "fussnote_definition_falsche_alte_kennung",
+  "text": "# Kapitel\n\nDer Satz hat eine Note[^1] und noch eine Note[^2] hier.\n\nZweiter Absatz mit Verweis[^2] und Text.\n\n[^1]: Erste Note.\n[^2]: Zweite Note.",
+  "eintraege": [
+   {
+    "id": "p217aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 3,
+     "anfang": "[^1]: Erste Note. [^2]: Zweite Note.",
+     "zeile": 1
+    },
+    "art": "fussnote",
+    "parameter": {
+     "aktion": "definition-umbenennen",
+     "alt": "1",
+     "neu": "8"
+    },
+    "vorher": {
+     "hash": "e465b9ac8710751b",
+     "ausschnitt": "[^1]: Erste Note.\n[^2]: Zweite Note."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "# Kapitel\n\nDer Satz hat eine Note[^1] und noch eine Note[^2] hier.\n\nZweiter Absatz mit Verweis[^2] und Text.\n\n[^1]: Erste Note.\n[^2]: Zweite Note.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "fussnote_ungueltige_kennung_mit_leerzeichen",
+  "text": "# Kapitel\n\nDer Satz hat eine Note[^1] und noch eine Note[^2] hier.\n\nZweiter Absatz mit Verweis[^2] und Text.\n\n[^1]: Erste Note.\n[^2]: Zweite Note.",
+  "eintraege": [
+   {
+    "id": "p218aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Der Satz hat eine Note[^1] und noch eine"
+    },
+    "art": "fussnote",
+    "parameter": {
+     "aktion": "marker-umbenennen",
+     "alt": "2",
+     "neu": "a b",
+     "vorkommen": 0
+    },
+    "vorher": {
+     "hash": "26f9329127a62af7",
+     "ausschnitt": "Der Satz hat eine Note[^1] und noch eine Note[^2] hier."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "# Kapitel\n\nDer Satz hat eine Note[^1] und noch eine Note[^2] hier.\n\nZweiter Absatz mit Verweis[^2] und Text.\n\n[^1]: Erste Note.\n[^2]: Zweite Note.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "fussnote_ungueltige_kennung_mit_zirkumflex",
+  "text": "# Kapitel\n\nDer Satz hat eine Note[^1] und noch eine Note[^2] hier.\n\nZweiter Absatz mit Verweis[^2] und Text.\n\n[^1]: Erste Note.\n[^2]: Zweite Note.",
+  "eintraege": [
+   {
+    "id": "p219aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Der Satz hat eine Note[^1] und noch eine"
+    },
+    "art": "fussnote",
+    "parameter": {
+     "aktion": "marker-umbenennen",
+     "alt": "2",
+     "neu": "^x",
+     "vorkommen": 0
+    },
+    "vorher": {
+     "hash": "26f9329127a62af7",
+     "ausschnitt": "Der Satz hat eine Note[^1] und noch eine Note[^2] hier."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "# Kapitel\n\nDer Satz hat eine Note[^1] und noch eine Note[^2] hier.\n\nZweiter Absatz mit Verweis[^2] und Text.\n\n[^1]: Erste Note.\n[^2]: Zweite Note.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "fussnote_unbekannte_aktion",
+  "text": "# Kapitel\n\nDer Satz hat eine Note[^1] und noch eine Note[^2] hier.\n\nZweiter Absatz mit Verweis[^2] und Text.\n\n[^1]: Erste Note.\n[^2]: Zweite Note.",
+  "eintraege": [
+   {
+    "id": "p220aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Der Satz hat eine Note[^1] und noch eine"
+    },
+    "art": "fussnote",
+    "parameter": {
+     "aktion": "marker-verschieben",
+     "alt": "2",
+     "neu": "3",
+     "vorkommen": 0
+    },
+    "vorher": {
+     "hash": "26f9329127a62af7",
+     "ausschnitt": "Der Satz hat eine Note[^1] und noch eine Note[^2] hier."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "# Kapitel\n\nDer Satz hat eine Note[^1] und noch eine Note[^2] hier.\n\nZweiter Absatz mit Verweis[^2] und Text.\n\n[^1]: Erste Note.\n[^2]: Zweite Note.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "fussnote_kette_zwei_umbenennungen_in_einer_runde",
+  "text": "Kopf\n\n[^1]: Eins.\n[^2]: Zwei.",
+  "eintraege": [
+   {
+    "id": "p221aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "[^1]: Eins. [^2]: Zwei.",
+     "zeile": 1
+    },
+    "art": "fussnote",
+    "parameter": {
+     "aktion": "definition-umbenennen",
+     "alt": "2",
+     "neu": "3"
+    },
+    "vorher": {
+     "hash": "734c5a1f4963c54c",
+     "ausschnitt": "[^1]: Eins.\n[^2]: Zwei."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   },
+   {
+    "id": "p222aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "[^1]: Eins. [^3]: Zwei.",
+     "zeile": 0
+    },
+    "art": "fussnote",
+    "parameter": {
+     "aktion": "definition-umbenennen",
+     "alt": "1",
+     "neu": "2"
+    },
+    "vorher": {
+     "hash": "a321254a4f3c9d37",
+     "ausschnitt": "[^1]: Eins.\n[^3]: Zwei."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\n[^2]: Eins.\n[^3]: Zwei.",
+  "erwartet_status": "angewendet",
+  "erwartet_stati": [
+   "angewendet",
+   "angewendet"
+  ]
+ },
+ {
+  "name": "fussnote_kette_abhaengig_wird_konflikt",
+  "text": "Kopf\n\n[^1]: Eins.\n[^2]: Zwei.",
+  "eintraege": [
+   {
+    "id": "p223aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "[^1]: Eins. [^2]: Zwei.",
+     "zeile": 1
+    },
+    "art": "fussnote",
+    "parameter": {
+     "aktion": "definition-umbenennen",
+     "alt": "2",
+     "neu": "3"
+    },
+    "vorher": {
+     "hash": "0000000000000000",
+     "ausschnitt": "[^1]: Eins.\n[^2]: Zwei."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   },
+   {
+    "id": "p224aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "[^1]: Eins. [^2]: Zwei.",
+     "zeile": 0
+    },
+    "art": "fussnote",
+    "parameter": {
+     "aktion": "definition-umbenennen",
+     "alt": "1",
+     "neu": "2"
+    },
+    "vorher": {
+     "hash": "a321254a4f3c9d37",
+     "ausschnitt": "[^1]: Eins.\n[^3]: Zwei."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\n[^1]: Eins.\n[^2]: Zwei.",
+  "erwartet_status": "konflikt",
+  "erwartet_stati": [
+   "konflikt",
+   "konflikt"
+  ]
+ },
+ {
+  "name": "fussnote_byteexakt_tabs_crlf_seitenmarker_html_ohne_schlussnewline",
+  "text": "Kopf\tmit Tab\r\n\r\nWort[^1]\tund\tTab[^2]\r\nzweite Zeile\r\n\r\n## Seite 12\r\n\r\n<span class=\"x\">Roh</span>\r\n\r\n[^1]: Eins.\r\n[^2]: Zwei.",
+  "eintraege": [
+   {
+    "id": "p225aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Wort[^1] und Tab[^2] zweite Zeile"
+    },
+    "art": "fussnote",
+    "parameter": {
+     "aktion": "marker-umbenennen",
+     "alt": "2",
+     "neu": "7",
+     "vorkommen": 0
+    },
+    "vorher": {
+     "hash": "0be31ab80c519577",
+     "ausschnitt": "Wort[^1]\tund\tTab[^2]\r\nzweite Zeile"
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   },
+   {
+    "id": "p226aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 4,
+     "anfang": "[^1]: Eins. [^2]: Zwei.",
+     "zeile": 1
+    },
+    "art": "fussnote",
+    "parameter": {
+     "aktion": "definition-umbenennen",
+     "alt": "2",
+     "neu": "7"
+    },
+    "vorher": {
+     "hash": "734c5a1f4963c54c",
+     "ausschnitt": "[^1]: Eins.\r\n[^2]: Zwei."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\tmit Tab\r\n\r\nWort[^1]\tund\tTab[^7]\r\nzweite Zeile\r\n\r\n## Seite 12\r\n\r\n<span class=\"x\">Roh</span>\r\n\r\n[^1]: Eins.\r\n[^7]: Zwei.",
+  "erwartet_status": "angewendet",
+  "erwartet_stati": [
+   "angewendet",
+   "angewendet"
+  ]
+ },
+ {
+  "name": "ersetzen_mehrzeilig_in_crlf_absatz_bleibt_crlf",
+  "text": "Kopf\r\n\r\nZeile eins\r\nZeile zwei\r\n\r\nSchluss",
+  "eintraege": [
+   {
+    "id": "p227aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Zeile eins Zeile zwei"
+    },
+    "art": "ersetzen",
+    "parameter": {
+     "nachher": "Neu eins\nNeu zwei"
+    },
+    "vorher": {
+     "hash": "6b572d9146170b21",
+     "ausschnitt": "Zeile eins\r\nZeile zwei"
+    },
+    "nachher": "Neu eins\nNeu zwei",
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\r\n\r\nNeu eins\r\nNeu zwei\r\n\r\nSchluss",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "ersetzen_einzeiliger_absatz_in_crlf_datei_nimmt_crlf",
+  "text": "Kopf\r\n\r\nEine Zeile\r\n\r\nSchluss",
+  "eintraege": [
+   {
+    "id": "p228aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Eine Zeile"
+    },
+    "art": "ersetzen",
+    "parameter": {
+     "nachher": "Neu eins\nNeu zwei"
+    },
+    "vorher": {
+     "hash": "2bc2daf7b52b0c4d",
+     "ausschnitt": "Eine Zeile"
+    },
+    "nachher": "Neu eins\nNeu zwei",
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\r\n\r\nNeu eins\r\nNeu zwei\r\n\r\nSchluss",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "ersetzen_mehrzeilig_in_lf_datei_bleibt_lf",
+  "text": "Kopf\n\nZeile eins\nZeile zwei\n\nSchluss",
+  "eintraege": [
+   {
+    "id": "p229aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Zeile eins Zeile zwei"
+    },
+    "art": "ersetzen",
+    "parameter": {
+     "nachher": "Neu eins\r\nNeu zwei"
+    },
+    "vorher": {
+     "hash": "6b572d9146170b21",
+     "ausschnitt": "Zeile eins\nZeile zwei"
+    },
+    "nachher": "Neu eins\r\nNeu zwei",
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nNeu eins\nNeu zwei\n\nSchluss",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "trennen_nach_kontext_einzeiliger_absatz",
+  "text": "Kopf\n\nErster Satz endet hier. Zweiter Satz beginnt dort und geht weiter.\n\nSchluss.",
+  "eintraege": [
+   {
+    "id": "t101aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Erster Satz endet hier. Zweiter Satz beg"
+    },
+    "art": "trennen",
+    "parameter": {
+     "nach": "Erster Satz endet hier."
+    },
+    "vorher": {
+     "hash": "8ef2f075717606f9",
+     "ausschnitt": "Erster Satz endet hier. Zweiter Satz beginnt dort und geht weiter."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nErster Satz endet hier.\n\nZweiter Satz beginnt dort und geht weiter.\n\nSchluss.",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "trennen_nach_kontext_mit_trailing_leerzeichen_im_kontext",
+  "text": "Kopf\n\nErster Satz endet hier. Zweiter Satz beginnt dort und geht weiter.\n\nSchluss.",
+  "eintraege": [
+   {
+    "id": "t102aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Erster Satz endet hier. Zweiter Satz beg"
+    },
+    "art": "trennen",
+    "parameter": {
+     "nach": "Satz endet hier. "
+    },
+    "vorher": {
+     "hash": "8ef2f075717606f9",
+     "ausschnitt": "Erster Satz endet hier. Zweiter Satz beginnt dort und geht weiter."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nErster Satz endet hier.\n\nZweiter Satz beginnt dort und geht weiter.\n\nSchluss.",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "trennen_nach_kontext_in_crlf_datei",
+  "text": "Kopf\r\n\r\nErster Satz endet hier. Zweiter Satz beginnt.\r\n\r\nSchluss.",
+  "eintraege": [
+   {
+    "id": "t103aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Erster Satz endet hier. Zweiter Satz beg"
+    },
+    "art": "trennen",
+    "parameter": {
+     "nach": "Satz endet hier."
+    },
+    "vorher": {
+     "hash": "514d3c0e7698b117",
+     "ausschnitt": "Erster Satz endet hier. Zweiter Satz beginnt."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\r\n\r\nErster Satz endet hier.\r\n\r\nZweiter Satz beginnt.\r\n\r\nSchluss.",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "trennen_kontext_zu_kurz",
+  "text": "Kopf\n\nErster Satz endet hier. Zweiter Satz beginnt dort und geht weiter.\n\nSchluss.",
+  "eintraege": [
+   {
+    "id": "t104aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Erster Satz endet hier. Zweiter Satz beg"
+    },
+    "art": "trennen",
+    "parameter": {
+     "nach": "hier."
+    },
+    "vorher": {
+     "hash": "8ef2f075717606f9",
+     "ausschnitt": "Erster Satz endet hier. Zweiter Satz beginnt dort und geht weiter."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nErster Satz endet hier. Zweiter Satz beginnt dort und geht weiter.\n\nSchluss.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "trennen_kontext_nicht_gefunden",
+  "text": "Kopf\n\nErster Satz endet hier. Zweiter Satz beginnt dort und geht weiter.\n\nSchluss.",
+  "eintraege": [
+   {
+    "id": "t105aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Erster Satz endet hier. Zweiter Satz beg"
+    },
+    "art": "trennen",
+    "parameter": {
+     "nach": "gibt es hier nicht"
+    },
+    "vorher": {
+     "hash": "8ef2f075717606f9",
+     "ausschnitt": "Erster Satz endet hier. Zweiter Satz beginnt dort und geht weiter."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nErster Satz endet hier. Zweiter Satz beginnt dort und geht weiter.\n\nSchluss.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "trennen_kontext_mehrdeutig",
+  "text": "Kopf\n\nJa ja ja ja ja ja. Ende.",
+  "eintraege": [
+   {
+    "id": "t106aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Ja ja ja ja ja ja. Ende."
+    },
+    "art": "trennen",
+    "parameter": {
+     "nach": "ja ja ja"
+    },
+    "vorher": {
+     "hash": "4269fc2969373d1b",
+     "ausschnitt": "Ja ja ja ja ja ja. Ende."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nJa ja ja ja ja ja. Ende.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "trennen_kontext_ist_kein_text",
+  "text": "Kopf\n\nErster Satz endet hier. Zweiter Satz beginnt dort und geht weiter.\n\nSchluss.",
+  "eintraege": [
+   {
+    "id": "t107aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Erster Satz endet hier. Zweiter Satz beg"
+    },
+    "art": "trennen",
+    "parameter": {
+     "nach": 5
+    },
+    "vorher": {
+     "hash": "8ef2f075717606f9",
+     "ausschnitt": "Erster Satz endet hier. Zweiter Satz beginnt dort und geht weiter."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nErster Satz endet hier. Zweiter Satz beginnt dort und geht weiter.\n\nSchluss.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "trennen_am_absatzende_ergibt_leeren_teil_und_ist_konflikt",
+  "text": "Kopf\n\nNur dieser Satz hier.\n\nSchluss.",
+  "eintraege": [
+   {
+    "id": "t108aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Nur dieser Satz hier."
+    },
+    "art": "trennen",
+    "parameter": {
+     "nach": "Nur dieser Satz hier."
+    },
+    "vorher": {
+     "hash": "6988b44b6e70a61a",
+     "ausschnitt": "Nur dieser Satz hier."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nNur dieser Satz hier.\n\nSchluss.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "trennen_ohne_zeile_und_ohne_kontext_ist_konflikt",
+  "text": "Kopf\n\nErster Satz endet hier. Zweiter Satz beginnt dort und geht weiter.\n\nSchluss.",
+  "eintraege": [
+   {
+    "id": "t109aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Erster Satz endet hier. Zweiter Satz beg"
+    },
+    "art": "trennen",
+    "parameter": {},
+    "vorher": {
+     "hash": "8ef2f075717606f9",
+     "ausschnitt": "Erster Satz endet hier. Zweiter Satz beginnt dort und geht weiter."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nErster Satz endet hier. Zweiter Satz beginnt dort und geht weiter.\n\nSchluss.",
+  "erwartet_status": "konflikt"
+ },
+ {
+  "name": "trennen_nach_kontext_dann_ersetzen_am_zweiten_teil",
+  "text": "Kopf\n\nErster Satz endet hier. Zweiter Satz beginnt dort.\n\nSchluss.",
+  "eintraege": [
+   {
+    "id": "t110aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Erster Satz endet hier. Zweiter Satz beg"
+    },
+    "art": "trennen",
+    "parameter": {
+     "nach": "Erster Satz endet hier."
+    },
+    "vorher": {
+     "hash": "0f888c953446fa10",
+     "ausschnitt": "Erster Satz endet hier. Zweiter Satz beginnt dort."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   },
+   {
+    "id": "t111aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 2,
+     "anfang": "Zweiter Satz beginnt dort."
+    },
+    "art": "ersetzen",
+    "parameter": {
+     "nachher": "Zweiter Satz beginnt hier."
+    },
+    "vorher": {
+     "hash": "ac641825222ba4f3",
+     "ausschnitt": "Zweiter Satz beginnt dort."
+    },
+    "nachher": "Zweiter Satz beginnt hier.",
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nErster Satz endet hier.\n\nZweiter Satz beginnt hier.\n\nSchluss.",
+  "erwartet_status": "angewendet",
+  "erwartet_stati": [
+   "angewendet",
+   "angewendet"
+  ]
+ },
+ {
+  "name": "trennen_nach_kontext_in_mehrzeiligem_absatz",
+  "text": "Kopf\n\nErste Zeile hier.\nZweite Zeile dort. Dritter Satz in der Zeile.\n\nSchluss.",
+  "eintraege": [
+   {
+    "id": "t112aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Erste Zeile hier. Zweite Zeile dort. Dri"
+    },
+    "art": "trennen",
+    "parameter": {
+     "nach": "Zweite Zeile dort."
+    },
+    "vorher": {
+     "hash": "0897f607b01489ce",
+     "ausschnitt": "Erste Zeile hier.\nZweite Zeile dort. Dritter Satz in der Zeile."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nErste Zeile hier.\nZweite Zeile dort.\n\nDritter Satz in der Zeile.\n\nSchluss.",
+  "erwartet_status": "angewendet"
+ },
+ {
+  "name": "trennen_nach_kontext_mit_fussnotenmarker",
+  "text": "Kopf\n\nSatz mit Verweis[^1] und Fortsetzung hier.\n\n[^1]: Note.",
+  "eintraege": [
+   {
+    "id": "t113aaaaaaaaa",
+    "buch": "Autor/Titel",
+    "ebene": "volltext",
+    "ziel": {
+     "absatz_index": 1,
+     "anfang": "Satz mit Verweis[^1] und Fortsetzung hie"
+    },
+    "art": "trennen",
+    "parameter": {
+     "nach": "Satz mit Verweis[^1]"
+    },
+    "vorher": {
+     "hash": "85328c9852119591",
+     "ausschnitt": "Satz mit Verweis[^1] und Fortsetzung hier."
+    },
+    "nachher": null,
+    "hinweis": "",
+    "erstellt": "2026-11-02T00:00:00Z",
+    "geraet": "",
+    "status": "offen"
+   }
+  ],
+  "erwartet_text": "Kopf\n\nSatz mit Verweis[^1]\n\nund Fortsetzung hier.\n\n[^1]: Note.",
+  "erwartet_status": "angewendet"
  }
 ]

@@ -171,9 +171,10 @@ Chunk/Kapitel, Seite bzw. Abschnitt und die Lage des Teilers.
 
 ## Redaktion: Korrekturen sammeln, senden, am PC einarbeiten
 
-Stand 2026-11-02 (P0/P1; Spec `dok/2026-11-02-redaktion-epistopheles-design.md`). In der
+Stand 2026-11-02 (P0 bis P2; Spec `dok/2026-11-02-redaktion-epistopheles-design.md`, Pläne
+`dok/2026-11-02-redaktion-p0-p1-implementation-plan.md` und `…-p2-implementation-plan.md`). In der
 Ansicht **Rohchunks** von `korrektur.html` lassen sich Fehler im Original-Chunk markieren und
-korrigieren. **Die App ändert nie Quelldaten.** Jede Änderung ist ein Eintrag im Protokoll des Geräts;
+korrigieren, in der Ansicht **Bereinigt** der fertige Volltext (Absätze, Fußnoten). **Die App ändert nie Quelldaten.** Jede Änderung ist ein Eintrag im Protokoll des Geräts;
 erst am PC werden Einträge mit `redaktion_anwenden.py --ausfuehren` in den Chunk geschrieben.
 
 ### Bedienung am Gerät
@@ -191,6 +192,36 @@ erst am PC werden Einträge mit `redaktion_anwenden.py --ausfuehren` in den Chun
 - **Neu übersetzen** (Ansicht *Übersetzung*): schickt einen einzelnen Chunk als Auftrag an APIC; das Ergebnis
   erscheint als Vorschlag im **Vergleich** (alt/neu). **Übernehmen** erzeugt nur den Eintrag
   `uebersetzung-uebernehmen`; geschrieben wird er am PC. **Ein Vorschlag wird nie automatisch übernommen.**
+
+### Fertiger Volltext korrigieren (Modus „Bereinigt“, P2)
+
+Gilt für `reader\<Autor>\<Werk>\quelle\*.md`. Auch hier ändert die App nie Dateien: jede Änderung ist ein Eintrag der
+Ebene `volltext` mit `ziel.datei`. **Voraussetzung:** ein Datenpaket mit Dateinamen je Kapitel und `enthalten`
+(`export_korrektur.py` neu laufen lassen); bei einem alten Paket zeigt die App den Text unverändert und meldet
+„Bearbeiten gesperrt: Daten neu exportieren“.
+
+- **Anzeige:** das Kapitel mit den noch offenen Einträgen abgespielt, Fußnotenhinweise als Chips (Verweis ohne Text,
+  Text ohne Verweis, doppelter Text, andere Nummerierung), Konflikte am Absatz, `●` im Kapitelwähler bei Kapiteln mit
+  Hinweisen. Kopfzeile: „Fußnoten: n Hinweise · k Konflikte“.
+- **Absatz bearbeiten:** Absatz antippen → Leiste → **Bearbeiten** → Textfeld → **Speichern** (Eintrag `ersetzen`).
+  Unverändert, leer oder mit Leerzeile wird abgewiesen. Ändert sich die Menge der Fußnotenverweise oder -texte, zeigt
+  der Dialog die Differenz („Verweis [^2]: 1 → 0“) und verlangt **Trotzdem speichern**. Jeder Eintrag läuft vor dem
+  Speichern durch dieselbe Anwendung wie später am PC (Vorprobe).
+- **Absatz hier trennen** (Leiste): teilt den angetippten Absatz an dieser Stelle (Art `trennen` mit Kontexttext, nötig
+  bei einzeiligen Absätzen). Zu wenig oder mehrdeutiger Kontext wird gemeldet, es entsteht dann kein Eintrag.
+- **Werkzeugleiste** bei Textauswahl: *Zeilen verbinden*, *Ausschneiden / verschieben*, *Löschen*, *Absatz hier trennen*
+  (Zeilenform), *Nur markieren*. *Kapitel beginnt hier*, *Inhaltsverzeichnis*, *Glossar* gibt es im Volltext nicht (P3).
+- **Fußnoten zuordnen:** Verweise `[^id]` und die Köpfe der Fußnotentexte `[^id]:` sind antippbar (Waisen fett, rot
+  unterstrichen). Im Dialog das Gegenstück wählen, dann **Fußnotentext umbenennen** oder **Verweis umbenennen**;
+  gesperrt, wenn die Zielkennung schon einen Text hat. Dazu **Verweis entfernen** und **Verweis setzen** (Leiste,
+  an der angetippten Stelle). Unterstützt ist nur die Schreibweise `[^id]`.
+- **Ursache suchen** (Leiste): sucht den Absatz in den übersetzten Chunks (bei deutscher Quelle in den Rohchunks),
+  wechselt bei eindeutigem Treffer dorthin und hebt die Stelle hervor. Bei mehreren Treffern oder Teilübereinstimmung
+  (Absatz über eine Chunkgrenze) wählt die Person; es wird nie geraten. Die Suche ändert keine Daten. Bei abweichender
+  Chunkzahl setzt sie die Verschiebung der Zuordnung (↺ stellt zurück).
+- **Stand angewendeter Änderungen:** Der Export nennt je Buch `enthalten` (Ids angewendeter Volltext-Einträge, die im
+  Text schon stecken). Einträge, die am PC angewendet, aber noch nicht im Export sind, spielt die App weiter ab, damit
+  neue Korrekturen den passenden Vorzustand haben; ein Eintrag aus `enthalten` wird nie erneut abgespielt.
 
 ### Verbindung zu APIC (Empfänger)
 
@@ -241,6 +272,13 @@ python tools\redaktion_anwenden.py [--root R] [--buch "Autor/Titel"] [--eingang 
 Immer zuerst den Dry-Run lesen. Mit `--ausfuehren` wird je Chunk zuerst ein Backup angelegt, dann atomar
 geschrieben, der Stand im Eingang gesetzt und `redaktion.json` im Lektor-Buchordner fortgeschrieben.
 
+**Ebene `volltext`:** Einträge ändern `reader\<Buch>\quelle\<datei>` (nur reine Dateinamen `*.md`, nie `_*`, nie
+Pfade). Backup nach `reader\<Buch>\notizen\_backup`, Protokoll in `reader\<Buch>\notizen\redaktion.json`
+(`eintraege`; `dateien` mit `hash_original` vor der ersten Änderung und `hash_aktuell`; Grundlage für „KI-Inhalt
+veraltet“ in P4). Der Bericht nennt je Datei die Fußnotenbilanz vorher/nachher („Marker 2→1, Definitionen 2→2“) und
+neu entstandene Fußnotenhinweise; sie ändern den Exit-Code nicht. Eine Korrektur wird nicht zurückgenommen, sondern
+durch einen neuen Eintrag korrigiert.
+
 **Exit-Codes:**
 
 | Code | Bedeutung |
@@ -253,12 +291,23 @@ geschrieben, der Stand im Eingang gesetzt und `redaktion.json` im Lektor-Buchord
 Konflikt (2) hat Vorrang vor Warnungen (3). **Rücknahmen**, die nicht mehr möglich sind (Ziel schon angewendet),
 erscheinen als „N Rücknahmen nicht möglich“ in der Summenzeile und zählen nicht als Konflikt (Exit 0).
 
-**Backups** liegen unter `<lektor>\notizen\_backup` (im Lektor-Buchordner). **Vor `lektor-zu-episto.py
---ueberschreiben` gibt es kein Backup** (bewusst, Nicht-Ziel der Spec): `--ueberschreiben` ersetzt vorhandene
-`quelle\*.md` ohne Sicherung. Es spielt danach nur `reader\<Buch>\notizen\redaktion.json` mit Einträgen der Ebene
-`volltext` erneut ein; in P0/P1 schreibt nichts diese Ebene. Die `redaktion.json` im **Lektor**-Buchordner (Korrekturen
-an Rohchunks) wird dabei **nicht** verwendet. Handänderungen in `quelle\*.md` vorher selbst sichern; `--dry-run` zeigt,
-was geschehen würde.
+**Backups** liegen für Chunks unter `<lektor>\notizen\_backup` (im Lektor-Buchordner), für den Volltext unter
+`reader\<Buch>\notizen\_backup`.
+
+**`lektor-zu-episto.py --ueberschreiben` und Volltext-Korrekturen:** Ohne `--ueberschreiben` bricht das Skript ab, sobald
+`quelle\*.md` existiert. Mit `--ueberschreiben` wird **zuerst gesichert, wenn `reader\<Buch>\notizen\redaktion.json`
+Volltext-Einträge enthält** (Kopie der Kapitel nach `notizen\_backup\quelle-<Zeit>\`; ohne solche Einträge gibt es,
+wie bisher, kein Backup), dann neu aufgebaut und das Protokoll **wieder eingespielt**. Jeder Eintrag, der danach nicht
+mehr greift (anderer Dateiname, geänderter Ausgangstext), steht einzeln mit Datei, Id und Grund in der Ausgabe und in
+`reader\<Buch>\notizen\redaktion-nachspiel.json` (zusätzlich `basis_geaendert`: Dateien, deren Ausgangstext nicht mehr
+der ist, auf dem die Korrektur entstand); `redaktion_anwenden.py` nennt den offenen Bericht im Dry-Run. Das Protokoll
+bleibt vollständig. **Solche Einträge sind in der App sichtbar:** der Export nimmt sie aus `enthalten` und nennt sie unter
+`nachspiel` (Id → Grund); die App spielt sie nie ab (App und PC sehen denselben Text), sondern zeigt sie am Absatz als
+Konflikt mit **Neu anwenden** (neuer Eintrag auf dem aktuellen Text) oder **Verwerfen**. Beides sendet eine Rücknahme; sie
+setzt den Eintrag im Protokoll auf `zurueckgenommen` (das Nachspiel ignoriert ihn danach) und entfernt ihn aus dem Bericht.
+Die `redaktion.json` im **Lektor**-Buchordner (Korrekturen an Rohchunks) wird dabei **nicht**
+verwendet. Handänderungen in `quelle\*.md`, die nicht über das Protokoll liefen, gehen beim Neuaufbau verloren (nur das
+Backup bleibt): vorher selbst sichern; `--dry-run` zeigt, was geschehen würde.
 
 **Schutz der Übersetzung:** `tools\pipeline\ebook-translate.py` bricht ohne `--resume` ab, wenn im
 Lektor-Buchordner eine `redaktion.json` existiert (eine Neuübersetzung würde alle Korrekturen überschreiben);
@@ -266,14 +315,27 @@ Lektor-Buchordner eine `redaktion.json` existiert (eine Neuübersetzung würde a
 `--resume`**; für einen Probelauf `--dry-run --resume` verwenden.
 
 **Nach dem Einarbeiten am PC den Export wiederholen** (`export_korrektur.py`, `export_daten.py`): bis dahin erscheinen
-angewendete Korrekturen nicht in der Ansicht, und Verdachtshinweise tauchen wieder auf.
+angewendete Chunk-Korrekturen nicht in der Ansicht, und Verdachtshinweise tauchen wieder auf. Für den Volltext gleicht
+die App das über `enthalten` aus (siehe oben).
 
-### Bekannte Grenzen (für P2 vorgemerkt)
+**Reihenfolge der Einträge:** `erstellt` hat Millisekunden und steigt je Gerät streng; der Eingang sortiert danach
+(ältere Einträge ohne Millisekunden zählen als `.000`). Einträge am selben Absatz werden in dieser Reihenfolge
+angewendet, das `vorher` des nächsten ist das `nachher` des vorigen.
 
-- **Drei Bücher mit abweichendem Schlüssel:** Bei O'Neil und Piano weicht der Lektor-Ordnername vom `reader`-Namen ab;
-  bei Popper „Logik der Forschung“ sind die Rohchunks englisch, die Quelle deutsch. Korrekturen enden dort als Konflikt
-  „Lektor-Ordner fehlt“ beziehungsweise „Quelle ist deutsch“, **Neu übersetzen** liefert 404. Es geht nichts verloren.
-  Behebung (Lektor-Schlüssel und Chunk-Sprache in `index.json`) ist für P2 vorgemerkt.
+### Bekannte Grenzen
+
+- **Abweichender Lektor-Schlüssel (O'Neil, Piano) und englische Rohchunks bei deutscher Quelle (Popper):** behoben mit P2.
+  Der Export nennt je Buch `reader`, `lektor` und `chunkSprache`; die App schreibt `ziel.lektor` und `ziel.sprache` in
+  Chunk-Einträge, `redaktion_anwenden.py` und **Neu übersetzen** folgen dem (Schlüssel wie ein Buchschlüssel geprüft,
+  Sprache nur `en`/`de`; ein Lauf bearbeitet je Buch genau einen Lektor-Ordner, abweichende Einträge bleiben als
+  „uneinheitliches Ziel“ liegen). Bei Popper bleibt **Neu übersetzen** gesperrt (Quelle deutsch). Einträge aus der Zeit
+  vor P2 tragen die Felder nicht und enden bei diesen drei Büchern weiter als Konflikt; neu korrigieren.
+- **Volltext:** nur die Fußnotenschreibweise `[^id]` (andere Konventionen werden gemeldet, nicht bearbeitet); kein
+  Renummerieren ganzer Fußnotenfolgen; Absätze lassen sich nicht zwischen Kapiteln verschieben, Kapitel nicht teilen oder
+  zusammenführen (P3). Handarbeit in `quelle\*.md` außerhalb des Protokolls wird beim Neuaufbau nicht wieder eingespielt.
+- **„Ursache suchen“** ist ein textuelles Verfahren (Wortfenster). Stark umgeschriebene Absätze, sehr kurze Absätze
+  (unter 4 Wörtern) und Absätze über Chunkgrenzen liefern „mehrdeutig“ oder „keine“.
+- **Verschiebe-Leiste:** liegt unten im Textfenster und kann bei kurzen Kapiteln das Ziel verdecken; scrollen hilft.
 - **Kersey und Parvini** haben zusätzlich `de\chunk_NNN.tagged.md`: die de-Liste ist doppelt, **Neu übersetzen** ist gesperrt.
 - **Standard-Wurzel:** `redaktion_server.py` nimmt `EPISTO_ROOT` oder `D:\Workspace\!Episto`, `redaktion_anwenden.py`
   den Elternordner von `tools`. In einem Worktree können beide auseinanderlaufen: `--root` immer ausdrücklich angeben.
@@ -291,6 +353,11 @@ Gerät von Hand prüfen:
 - [ ] Änderungen anzeigen, Rücknahme, Änderungen als Datei sichern.
 - [ ] Flugmodus: Korrigieren funktioniert; nach Rückkehr des Netzes kommen die Einträge bei APIC an.
 - [ ] Neu übersetzen, Vergleich, Übernehmen / Verwerfen im WLAN.
+- [ ] Volltext: Absatz antippen (Fingerkuppe trifft den gewünschten Absatz, Leiste verdeckt ihn nicht), Bearbeiten mit der Bildschirmtastatur (Speichern/Abbrechen bleiben oben sichtbar, Tabs und Umlaute stimmen).
+- [ ] Volltext: **Absatz hier trennen** und **Verweis setzen** an einer per Finger angetippten Stelle: die Stelle ist die gemeinte (Zeiger steht hinter dem getippten Zeichen).
+- [ ] Fußnoten: Verweise und Fußnotentexte lassen sich einzeln antippen (auch dicht beieinander, Trefferfläche ≥ 44 px), Zuordnen / Umbenennen / Entfernen, Rücknahme über „Änderungen anzeigen“.
+- [ ] Ursache suchen: Sprung in die Übersetzung, Hervorhebung sichtbar, Auswahl bei mehreren Treffern; ↺ stellt die Zuordnung zurück.
+- [ ] Auswahl im Volltext (Long-Press, Griffe): Werkzeugleiste ohne Kapitel/Verzeichnis/Glossar, Verbinden/Löschen/Verschieben/Markieren.
 
 ## Tests
 
@@ -299,9 +366,15 @@ python -m pytest speedreader_web redaktion
 python -m pytest test_redaktion_anwenden.py test_redaktion_server.py pipeline
 ```
 
-Redaktion: `redaktion\` (Operationen, Protokoll, Schutz, Aufträge, Testwurzel), `test_redaktion_js.py`, `test_verdacht.py`,
-`test_chunkansicht.py`, `test_werkzeugleiste.py`, `test_aenderungsliste.py`, `test_neu_uebersetzen.py` (Browsertests, ohne
-Playwright übersprungen). `python -m redaktion.testwurzel <Ordner>` (im Ordner `tools`) baut eine kleine Test-Bibliothek samt Paket.
+Zusätzlich im Ordner `tools`: `python -m pytest test_lektor_zu_episto_schutz.py` (Schutz und Nachspiel in der Pipeline).
+
+Redaktion: `redaktion\` (Operationen und Vektoren, Fußnotenanalyse, Protokoll, Schutz, Aufträge, Testwurzel),
+`test_redaktion_js.py`, `test_fussnoten_js.py`, `test_ursache.py`, `test_verdacht.py`, `test_chunkansicht.py` (Node) sowie die
+Browsertests `test_werkzeugleiste.py`, `test_aenderungsliste.py`, `test_neu_uebersetzen.py`, `test_lektor_schluessel.py`,
+`test_volltext.py`, `test_fussnoten_ui.py`, `test_ursache_ui.py` und der **Gesamtlauf** `test_gesamtlauf_p2.py` (Urtext →
+Export → App → Empfänger → Einarbeiten → neuer Export → Neuaufbau mit Nachspiel; ohne Playwright übersprungen).
+Browsertests brauchen Playwright mit passendem Chromium (die pip-Version muss zur installierten Browserversion passen,
+sonst werden sie übersprungen). `python -m redaktion.testwurzel <Ordner>` (im Ordner `tools`) baut eine kleine Test-Bibliothek samt Paket.
 
 - `test_speedreader_web.py`: Paritätstest — `speedreader.js` (Node) und `speedreader.py`
   rechnen dieselben Fälle (Wörter, Flags, Faktoren, Erkennungspunkt, Sprungziele,

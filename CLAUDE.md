@@ -21,7 +21,7 @@ Aufbau der Wurzel (Details: `dok\DATENSTRUKTUR.md`):
 - `tools\` — alle Skripte (generisch, unabhängig vom APIC-Setup): `episto_tui\`, `speedreader_web\`,
   `ingest.*`, `taggen.ps1` …; `tools\pipeline\` = Übersetzungs-Pipeline (`ebook-translate.py` usw.), leitet
   `BASE` aus dem Ablageort ab (`<Wurzel>\rohdaten`, `EBOOK_BASE` übersteuert)
-- Redaktion (Korrekturen vom Epistopheles): `tools\redaktion_server.py` (Empfänger, von Hand starten, Token in `hilfsdaten\redaktion\token.txt`), `tools\redaktion_anwenden.py` (Dry-Run, `--ausfuehren`; Exit 0/1/2/3), Doku `tools\speedreader_web\README.md`
+- Redaktion (Korrekturen vom Epistopheles): `tools\redaktion_server.py` (Empfänger, von Hand starten, Token in `hilfsdaten\redaktion\token.txt`), `tools\redaktion_anwenden.py` (Dry-Run, `--ausfuehren`; Exit 0/1/2/3), Doku `tools\speedreader_web\README.md`. Volltext-Korrekturen (Ebene `volltext`, `reader\<Buch>\notizen\redaktion.json`) werden von `lektor-zu-episto.py --ueberschreiben` nach dem Neuaufbau wieder eingespielt (Backup `notizen\_backup\quelle-<Zeit>`, Bericht `redaktion-nachspiel.json`)
 - `hilfsdaten\` — `themen.json`, `notizen\` (Buch-Queue), `konzepte\`, `archiv\` (Altbestand, z. B. `Autor.mov`)
 - `dok\` — `README.md` (vollständige Werkliste), `NÄCHSTE_SCHRITTE.md` (Resume-Hilfe), `DATENSTRUKTUR.md`
 

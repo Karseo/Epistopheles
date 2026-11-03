@@ -190,7 +190,7 @@ def test_neuer_eintrag_form():
     assert e["nachher"] == "Beta!" and e["hinweis"] == "Hinweis" and e["geraet"] == "geraet-1"
     assert e["status"] == "offen" and len(e["id"]) == 12
     assert e["parameter"] == {"nachher": "Beta!"} and e["ziel"]["anfang"] == "Beta"
-    assert len(e["erstellt"]) == 20 and e["erstellt"].endswith("Z")
+    assert len(e["erstellt"]) == 24 and e["erstellt"].endswith("Z")      # mit Millisekunden
 
 
 # ---- Speicher, Senden, Stand, Zaehler (Task 7) ---------------------------------------------------------
@@ -475,3 +475,63 @@ def test_uebernehme_stand_ruecknahme_uebersprungen_ist_erledigt():
     assert erg["braucht"] is True
     assert erg["danach"] is True            # a (bestaetigt) und m (gesendet) warten weiter
     assert erg["nurRuecknahme"] is False    # eine uebersprungene Ruecknahme wird nicht mehr abgefragt
+
+
+def test_auftrag_und_vorschlag_tragen_den_lektor_schluessel_wenn_gesetzt():
+    erg = js_async("""
+      const aufrufe = [];
+      const f = async (url, opt) => { aufrufe.push({ url, body: opt.body }); return { ok: true, status: 200,
+        json: async () => ({ id: "ab", alt: "a", neu: "n" }) }; };
+      const o = { adresse: "http://apic:8080", token: "T", lektor: "Cathy O'Neil/Weapons of Math Destruction" };
+      await R.auftrag("O'Neil, Cathy/Weapons", 3, o, f);
+      await R.vorschlag("O'Neil, Cathy/Weapons", 3, o, f);
+      await R.auftrag("A/T", 1, { adresse: "http://apic:8080", token: "T" }, f);
+      await R.vorschlag("A/T", 1, { adresse: "http://apic:8080", token: "T" }, f);
+      return aufrufe;
+    """)
+    assert json.loads(erg[0]["body"])["lektor"] == "Cathy O'Neil/Weapons of Math Destruction"
+    assert "&lektor=Cathy%20O'Neil%2FWeapons%20of%20Math%20Destruction" in erg[1]["url"]
+    assert "lektor" not in json.loads(erg[2]["body"])
+    assert "lektor" not in erg[3]["url"]
+
+
+def test_fussnote_kennungen_und_kontext_randfaelle_wie_python():
+    text = "Kopf\n\nDer Satz 😀😀 hat eine Note[^1] und mehr."
+    faelle = []
+    for neu in ["a", "1.2", "x y", "x\ty", "", " ", "a[b", "a]b", "^x", "a^", "Ä", "\U0001F600", "a:b"]:
+        faelle.append({"text": text, "eintrag": _eintrag(text, 1, "fussnote",
+                       {"aktion": "marker-umbenennen", "alt": "1", "neu": neu, "vorkommen": 0})})
+    for nach in ["Satz 😀😀 hat", "😀😀 hat e", "hat eine Note", "hat eine", "ine Note[^1] u"]:
+        faelle.append({"text": text, "eintrag": _eintrag(text, 1, "fussnote",
+                       {"aktion": "marker-setzen", "id": "k", "nach": nach})})
+    erg = js("wendeAn", faelle=faelle)
+    for f, e in zip(faelle, erg):
+        py = ops.wende_an(f["text"], f["eintrag"])
+        assert (e["text"], e["status"]) == (py.text, py.status), f["eintrag"]["parameter"]
+
+
+def test_trennen_mit_kontext_randfaelle_wie_python():
+    faelle = []
+    for absatz, nach in [("Vorne 😀😀 hinten   und weiter", "Vorne 😀😀 hinten"),
+                         ("Vorne 😀😀 hinten\x1c\x1d und weiter", "Vorne 😀😀 hinten"),
+                         ("Satz eins.　　Satz zwei.", "Satz eins."),
+                         ("Satz eins.​Satz zwei.", "Satz eins."),         # Nullbreiten-Leerzeichen ist kein Leerraum
+                         ("Ä-Satz endet.  \tNächster Satz.", "Ä-Satz endet."),
+                         ("Nur ein Satz am Ende. ", "Nur ein Satz am Ende.")]:
+        text = f"Kopf\n\n{absatz}\n\nSchluss"
+        faelle.append({"text": text, "eintrag": _eintrag(text, 1, "trennen", {"nach": nach})})
+    erg = js("wendeAn", faelle=faelle)
+    for f, e in zip(faelle, erg):
+        py = ops.wende_an(f["text"], f["eintrag"])
+        assert (e["text"], e["status"]) == (py.text, py.status), f["eintrag"]["parameter"]
+
+
+def test_neuer_eintrag_zeit_hat_millisekunden_und_steigt_streng():
+    erg = js_async("""
+      const z = [];
+      for (let i = 0; i < 200; i++) z.push(R.neuerEintrag("A/T", "volltext", { anfang: "x" }, "marke", {}, "x", "", "g").erstellt);
+      return z;
+    """)
+    import re
+    assert all(re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z", z) for z in erg)
+    assert erg == sorted(set(erg))

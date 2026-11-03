@@ -45,3 +45,13 @@ Diese Datei dient als Einstieg nach einer Pause.
 - Zustand liegt komplett auf Disk, nicht im Chat; jedes Werk hat `.progress.json`.
 - Falls Qdrant nach Neustart weg ist: Dienst starten, dann `ingest.ps1 -Reset` (Vektoren sind aus `quelle\` regenerierbar).
 - Bei neuem Buch: `ingest.ps1 -Buch <pfad>` verwenden (statt `-Reset`), um Duplikate zu vermeiden.
+
+## Redaktion auf Epistopheles (Stand: P0 bis P2 umgesetzt)
+
+- Bedienung, Einarbeiten, Grenzen und die **Handprüfliste für Touch**: `tools\speedreader_web\README.md`, Abschnitt „Redaktion“.
+  Die Handprüfung auf dem Gerät steht für P1 und P2 noch aus.
+- **Nach dem Einarbeiten am PC** den Export wiederholen (`export_korrektur.py`, `export_daten.py`).
+- **Nächste Phase P3 (Struktur):** Gerüst (Vorspann, Kapitel, Anhang, Inhaltsverzeichnis, Glossar), Kapitelgrenzen verschieben,
+  Kapitel teilen / zusammenführen (Nummerierung `NNNN_*.md`, Kopplung an `tags.json`), Typen kennzeichnen; die in P1/P2 gesetzten
+  Marken „Kapitel beginnt hier“ / „Inhaltsverzeichnis“ / „Glossar“ werden dort bestätigt oder verworfen. Danach P4 (KI-Inhalte,
+  „veraltet“ über `dateien[…].hash_aktuell`) und P5 (Buch-Übersicht). Plan für P3 vor dem Bauen schreiben und freigeben lassen.

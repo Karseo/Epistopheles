@@ -141,14 +141,23 @@ def _chunk_zahl(wert: object) -> int:
     return wert
 
 
-def _chunk_pfade(h: "_Handler", buch: object, chunk: int) -> Path:
-    """Pfad des Original-Chunks (prueft den Buchschluessel); 400 bei unsicherem Namen."""
+def _lektor_ziel(lektor: object) -> dict | None:
+    """`{"lektor": …}` fuer den Lektor-Schluessel eines Auftrags (None = Buchschluessel gilt)."""
+    if lektor is None:
+        return None
+    if not isinstance(lektor, str):
+        raise _HttpFehler(400, "lektor muss ein Text sein")
+    return {"lektor": lektor}
+
+
+def _chunk_pfade(h: "_Handler", buch: object, chunk: int, lektor: object = None) -> Path:
+    """Pfad des Original-Chunks (prueft Buch- und Lektor-Schluessel); 400 bei unsicherem Namen."""
     if not isinstance(buch, str):
         raise _HttpFehler(400, "buch muss ein Text sein")
     try:
-        return redaktion_anwenden.chunk_datei(h.server.root, buch, chunk)
+        return redaktion_anwenden.chunk_datei(h.server.root, buch, chunk, _lektor_ziel(lektor))
     except ValueError:
-        raise _HttpFehler(400, "Ungültiger Buchname") from None
+        raise _HttpFehler(400, "Ungültiger Buch- oder Lektorname") from None
 
 
 def _api_auftrag_neu(h: "_Handler", query: dict) -> object:
@@ -158,11 +167,12 @@ def _api_auftrag_neu(h: "_Handler", query: dict) -> object:
     if daten.get("art") != ART_NEU_UEBERSETZEN:
         raise _HttpFehler(400, "Unbekannte Art des Auftrags")
     chunk = _chunk_zahl(daten.get("chunk"))
-    datei = _chunk_pfade(h, daten.get("buch"), chunk)
+    lektor = daten.get("lektor")
+    datei = _chunk_pfade(h, daten.get("buch"), chunk, lektor)
     if not datei.is_file():
         raise _HttpFehler(404, "Chunk nicht gefunden")
     try:
-        return {"id": h.server.auftraege.reiche_ein(daten["art"], daten["buch"], chunk)}
+        return {"id": h.server.auftraege.reiche_ein(daten["art"], daten["buch"], chunk, lektor)}
     except ValueError as e:
         raise _HttpFehler(400, str(e)) from None
 
@@ -186,8 +196,9 @@ def _api_vorschlag(h: "_Handler", query: dict) -> object:
     if not roh.isascii() or not roh.isdigit():
         raise _HttpFehler(400, "chunk muss eine Zahl ab 0 sein")
     chunk = _chunk_zahl(int(roh))
-    _chunk_pfade(h, buch, chunk)               # prueft Buchschluessel und Chunk-Nummer
-    lektor = redaktion_anwenden.lektor_ordner(h.server.root, buch)
+    lektor_roh = (query.get("lektor") or [None])[0]
+    _chunk_pfade(h, buch, chunk, lektor_roh)   # prueft Buch-/Lektorschluessel und Chunk-Nummer
+    lektor = redaktion_anwenden.lektor_ordner(h.server.root, buch, _lektor_ziel(lektor_roh))
     alt = lektor / "de" / f"chunk_{chunk:03d}.md"
     neu = alt.with_name(alt.name + ".neu")
     try:
@@ -436,6 +447,8 @@ def starte_unterprozess(job: dict, root: Path) -> None:
     skript = Path(__file__).resolve().parent / "pipeline" / "chunk-neu-uebersetzen.py"
     cmd = [sys.executable, str(skript), "--root", str(root), f"--buch={job['buch']}",
            "--chunk", str(job["chunk"])]
+    if job.get("lektor"):
+        cmd.append(f"--lektor={job['lektor']}")
     lauf = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
                           errors="replace", timeout=AUFTRAG_TIMEOUT)
     if lauf.returncode != 0:

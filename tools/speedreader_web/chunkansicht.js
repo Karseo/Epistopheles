@@ -8,29 +8,42 @@
  * Eingabe von bereite: roh = Text des Chunks (unveraendert), eintraege = alle Eintraege des Buchs,
  * chunk = Chunk-Nummer, abgelehnt = [{anfang, art, zeile}] (auf diesem Geraet abgelehnte Hinweise). */
 (function (root, fabrik) {
-  if (typeof module === "object" && module.exports) module.exports = fabrik(require("./redaktion.js"), require("./verdacht.js"));
-  else root.Chunkansicht = fabrik(root.Redaktion, root.Verdacht);
-})(typeof self !== "undefined" ? self : this, function (R, V) {
+  if (typeof module === "object" && module.exports) module.exports = fabrik(require("./redaktion.js"), require("./verdacht.js"), require("./fussnoten.js"));
+  else root.Chunkansicht = fabrik(root.Redaktion, root.Verdacht, root.Fussnoten);
+})(typeof self !== "undefined" ? self : this, function (R, V, F) {
   "use strict";
 
   const istObjekt = (x) => x !== null && typeof x === "object" && !Array.isArray(x);
   const KATEGORIE = { "zeile-bricht-ab": "umbruch", fragment: "rest", fussnote: "fussnote",
-                      "ueberschrift-im-text": "ueberschrift", verzeichnis: "verzeichnis", glossar: "glossar" };
+                      "ueberschrift-im-text": "ueberschrift", verzeichnis: "verzeichnis", glossar: "glossar",
+                  "marker-ohne-definition": "fussnote", "definition-ohne-marker": "fussnote",
+                  "doppelte-definition": "fussnote", "andere-konvention": "fussnote-konvention" };
   const FARBE = { "zeile-bricht-ab": "gelb", fragment: "gelb", fussnote: "rot",
-                  "ueberschrift-im-text": "blau", verzeichnis: "blau", glossar: "blau" };
+                  "ueberschrift-im-text": "blau", verzeichnis: "blau", glossar: "blau",
+                  "marker-ohne-definition": "rot", "definition-ohne-marker": "gelb",
+                  "doppelte-definition": "rot", "andere-konvention": "blau" };
   const CHIP = { "zeile-bricht-ab": "Umbruch?", fragment: "Rest?", fussnote: "Fußnote?",
-                 "ueberschrift-im-text": "Überschrift?", verzeichnis: "Verzeichnis?", glossar: "Glossar?" };
+                 "ueberschrift-im-text": "Überschrift?", verzeichnis: "Verzeichnis?", glossar: "Glossar?",
+                 "marker-ohne-definition": "Fußnote ohne Text?", "definition-ohne-marker": "Text ohne Verweis?",
+                 "doppelte-definition": "Doppelt?", "andere-konvention": "Andere Nummerierung?" };
   const WAS = { verbinden: "Zeile mit der nächsten verbinden", loeschen: "Zeile löschen" };
 
-  const eigener = (e, chunk) => istObjekt(e) && e.ebene === "chunk-orig" && istObjekt(e.ziel) && e.ziel.chunk === chunk;
+  /** Ebene der Ansicht: Roh-Chunk (Ziel `chunk`, Standard) oder fertiger Volltext (Ziel `datei`, ohne Verdachtsregeln der Chunks,
+   *  dafuer Fussnotenhinweise). `enthalten` = Ids angewendeter Eintraege, die der exportierte Text schon enthaelt;
+   *  `nr` = Position der Ansicht in der Liste (Chunk- bzw. Kapitelnummer), fuer die Zwischenspeicher der Oberflaeche. */
+  const STANDARD = { ebene: "chunk-orig", zielfeld: "chunk", verdacht: true, enthalten: null, nachspiel: null };
+  const optionenVon = (optionen) => Object.assign({}, STANDARD, optionen || {});
+
+  const eigener = (e, chunk, o) => { o = o || STANDARD; return istObjekt(e) && e.ebene === o.ebene && istObjekt(e.ziel) && e.ziel[o.zielfeld] === chunk; };
 
   /** Kurzform aller fuer den Chunk relevanten Zustaende; aendert sie sich, muss neu berechnet werden. */
-  function signatur(eintraege, chunk, anzahlAbgelehnt, bereit) {
+  function signatur(eintraege, chunk, anzahlAbgelehnt, bereit, optionen) {
+    const o = optionenVon(optionen);
     const teile = [bereit ? "b" : "u", String(anzahlAbgelehnt | 0)];
     for (const e of eintraege || []) {
       if (!istObjekt(e)) continue;
       if (e.art === "ruecknahme") teile.push("r" + (istObjekt(e.parameter) ? e.parameter.id : ""));
-      else if (eigener(e, chunk)) teile.push(e.id + ":" + e.status + ":" + (e.grund || ""));
+      else if (eigener(e, chunk, o)) teile.push(e.id + ":" + e.status + ":" + (e.grund || ""));
     }
     return teile.join("|");
   }
@@ -40,19 +53,33 @@
   /** Ergebnis: {chunk, roh, text, spannen, hinweise, erledigt, konflikte}.
    *  hinweise = offene Hinweise des abgespielten Texts (Verdacht.pruefe), ohne abgelehnte und ohne
    *  bereits markierte; konflikte = [{eintrag, grund, absatz_index|null, quelle}]. */
-  function bereite(roh, eintraege, chunk, abgelehnt, bereit) {
-    const aus = { chunk: chunk, roh: roh, text: roh, spannen: R.absatzSpannen(roh), hinweise: [], erledigt: [], konflikte: [], markierungen: [], bereit: !!bereit };
+  function bereite(roh, eintraege, chunk, abgelehnt, bereit, optionen) {
+    const o = optionenVon(optionen);
+    const aus = { chunk: chunk, nr: o.nr === undefined ? chunk : o.nr, ebene: o.ebene, zielfeld: o.zielfeld, luecke: [], roh: roh, text: roh, spannen: R.absatzSpannen(roh), hinweise: [], erledigt: [], konflikte: [], markierungen: [], bereit: !!bereit };
     if (!bereit) return aus;
-    const mein = R.ohneZurueckgenommene(eintraege || []).filter((e) => eigener(e, chunk));
+    const mein = R.ohneZurueckgenommene(eintraege || []).filter((e) => eigener(e, chunk, o));
     const abspiel = [], marken = new Set();
     for (const e of mein) {
       if (e.art === "marke") { if (typeof e.ziel.zeile === "number") marken.add(e.ziel.anfang + "\u0001" + e.ziel.zeile); continue; }
-      if (e.status === "angewendet" || e.status === "abgelehnt" || e.status === "uebersprungen") continue;
+      if (o.enthalten && o.enthalten.has(e.id)) continue;            // steckt schon im exportierten Text, egal welchen Status die App gerade kennt
+      if (o.nachspiel && e.status === "angewendet" && Object.prototype.hasOwnProperty.call(o.nachspiel, e.id)) {
+        // Am PC angewendet, beim Neuaufbau (lektor-zu-episto) aber nicht wieder eingespielt: der Text hat die Korrektur NICHT.
+        // Nicht abspielen (App und PC sollen denselben Text sehen), sondern als Konflikt der Person zeigen.
+        aus.konflikte.push({ eintrag: e, grund: (o.nachspiel[e.id] || "ohne Angabe") + " (beim Neuaufbau nicht wieder eingespielt)", quelle: "nachspiel" });
+        continue;
+      }
+      // Am PC angewendet, aber noch nicht im exportierten Text (veralteter Export): trotzdem abspielen (Volltext)
+      const imExport = e.status === "angewendet" && o.enthalten && !o.enthalten.has(e.id);
+      if (!imExport && (e.status === "angewendet" || e.status === "abgelehnt" || e.status === "uebersprungen")) continue;
       if (e.status === "konflikt") { aus.konflikte.push({ eintrag: e, grund: e.grund || "", quelle: "apic" }); continue; }
       abspiel.push(e);
     }
     const lauf = R.spieleAb(roh, abspiel);
-    lauf.ergebnisse.forEach((r, i) => { if (r.status === "konflikt") aus.konflikte.push({ eintrag: abspiel[i], grund: r.grund, quelle: "lokal" }); });
+    lauf.ergebnisse.forEach((r, i) => {
+      if (r.status !== "konflikt") return;
+      if (abspiel[i].status === "angewendet") aus.luecke.push({ eintrag: abspiel[i], grund: r.grund });     // kein Konflikt der Person, sondern Export veraltet
+      else aus.konflikte.push({ eintrag: abspiel[i], grund: r.grund, quelle: "lokal" });
+    });
     aus.text = lauf.text;
     aus.spannen = R.absatzSpannen(aus.text);
 
@@ -68,7 +95,8 @@
       if (!zeilenCache.has(ai)) { const [a, b] = aus.spannen[ai]; zeilenCache.set(ai, aus.text.slice(a, b).split(/\r?\n/)); }
       return zeilenSchluessel(zeilenCache.get(ai)[zi] || "");
     };
-    for (const h of V.pruefe(aus.text)) {
+    if (!o.verdacht) aus.fn = F.analysiere(aus.text);                  // einmal je Ansicht; die Oberfläche nutzt sie für Antippen und Zuordnen mit
+    for (const h of o.verdacht ? V.pruefe(aus.text) : fussnotenHinweise(aus)) {
       const liste = abg.get(h.anfang + "\u0001" + h.art);
       if (liste && liste.some((z) => z === undefined || z === zeileVon(h.absatz_index, h.zeile))) continue;
       if (marken.has(h.anfang + "\u0001" + h.zeile)) { aus.erledigt.push(h); continue; }
@@ -90,7 +118,18 @@
     return aus;
   }
 
+  /** Fussnotenhinweise des abgespielten Volltexts im Format der Verdachtshinweise; der Vorschlag ist nur das Merken. */
+  function fussnotenHinweise(aus) {
+    return aus.fn.hinweise.map((h) => {
+      const sp = aus.spannen[h.absatz_index];
+      return { art: h.art, absatz_index: h.absatz_index, zeile: h.zeile, zeile_bis: h.zeile, anfang: R.ankerVon(aus.text.slice(sp[0], sp[1])),
+               begruendung: h.begruendung, vorschlag: { art: "marke", parameter: { kategorie: KATEGORIE[h.art] } } };
+    });
+  }
+
   const absatzText = (ansicht, i) => { const s = ansicht.spannen[i]; return s ? ansicht.text.slice(s[0], s[1]) : null; };
+
+  const zielBasis = (ansicht) => ({ [ansicht.zielfeld || "chunk"]: ansicht.chunk });
 
   /** Daten fuer Redaktion.neuerEintrag: {ziel, art, parameter, vorherText, hinweis}.
    *  was: "annehmen" | "markieren" (Hinweis h) oder "neu" (Konflikt k). null, wenn der Absatz fehlt. */
@@ -99,12 +138,12 @@
       const e = objekt.eintrag, i = objekt.absatz_index;
       const vorherText = i === null || i === undefined ? null : absatzText(ansicht, i);
       if (vorherText === null) return null;
-      return { ziel: Object.assign({}, e.ziel, { chunk: ansicht.chunk, absatz_index: i }), art: e.art,
+      return { ziel: Object.assign({}, e.ziel, zielBasis(ansicht), { absatz_index: i }), art: e.art,
                parameter: Object.assign({}, e.parameter), vorherText: vorherText, hinweis: e.hinweis || "" };
     }
     const h = objekt, vorherText = absatzText(ansicht, h.absatz_index);
     if (vorherText === null) return null;
-    const ziel = { chunk: ansicht.chunk, anfang: h.anfang, absatz_index: h.absatz_index, zeile: h.zeile };
+    const ziel = Object.assign(zielBasis(ansicht), { anfang: h.anfang, absatz_index: h.absatz_index, zeile: h.zeile });
     if (was === "markieren" || h.vorschlag.art === "marke") {
       ziel.zeile_bis = h.zeile_bis;
       const kat = h.vorschlag.art === "marke" ? h.vorschlag.parameter.kategorie : KATEGORIE[h.art];
@@ -177,7 +216,7 @@
     if (!a || !werkzeuge(a)[was]) return { fehler: "Dieses Werkzeug passt nicht zur Auswahl" };
     const absatz = absatzText(ansicht, a.absatz_index);
     if (absatz === null) return { fehler: "Absatz nicht gefunden" };
-    const ziel = { chunk: ansicht.chunk, anfang: a.anfang, absatz_index: a.absatz_index };
+    const ziel = Object.assign(zielBasis(ansicht), { anfang: a.anfang, absatz_index: a.absatz_index });
     const einer = (art, z, parameter) => ({ liste: [{ ziel: z, art: art, parameter: parameter, vorherText: absatz, hinweis: "" }] });
     if (MARKEN[was]) {
       const p = { kategorie: MARKEN[was] }, notiz = String(extra.text || "").trim();
@@ -205,7 +244,7 @@
       if (!sp) return { fehler: "Absatz nicht gefunden" };
       const jetzt = text.slice(sp[0], sp[1]);
       const z = Object.assign({}, ziel, { anfang: R.ankerVon(jetzt), zeile: a.zeile });
-      const e = R.neuerEintrag("", "chunk-orig", z, "verbinden", {}, jetzt, "", "");
+      const e = R.neuerEintrag("", ansicht.ebene || "chunk-orig", z, "verbinden", {}, jetzt, "", "");
       const erg = R.wendeAn(text, e);
       if (erg.status !== "angewendet") return { fehler: "Zeilen lassen sich nicht verbinden: " + erg.grund };
       liste.push({ ziel: z, art: "verbinden", parameter: {}, vorherText: jetzt, hinweis: "" });
@@ -366,6 +405,7 @@
     return summe;
   }
 
+  const NUR_CHUNK = ["kapitel", "verzeichnis", "glossar"];
   const WERKZEUGE = [["verbinden", "Zeilen verbinden"], ["verschieben", "Ausschneiden / verschieben"], ["loeschen", "Löschen"],
                      ["trennen", "Absatz hier trennen"], ["kapitel", "Kapitel beginnt hier"], ["verzeichnis", "Inhaltsverzeichnis"],
                      ["glossar", "Glossar"], ["markieren", "Nur markieren"]];
@@ -404,7 +444,11 @@
     const setzeStatus = (t) => { status.textContent = t; };
     const aktualisiere = () => {
       const w = werkzeuge(st.auswahl), verschiebt = st.modus === "verschieben";
-      for (const [was] of WERKZEUGE) knoepfe[was].disabled = !w[was] || verschiebt || st.laeuft;
+      const volltext = !!st.ansicht && st.ansicht.ebene === "volltext";           // Kapitel, Verzeichnis, Glossar: Sache der Struktur (P3)
+      for (const [was] of WERKZEUGE) {
+        knoepfe[was].disabled = !w[was] || verschiebt || st.laeuft;
+        knoepfe[was].hidden = volltext && NUR_CHUNK.includes(was);
+      }
       notiz.disabled = verschiebt; abbruch.hidden = !verschiebt; leiste.classList.toggle("verschiebt", verschiebt);
       if (verschiebt) setzeStatus("Zielabsatz antippen, hinter den die Zeilen kommen");
       else if (st.auswahl && st.auswahl.mehrere) setzeStatus("Auswahl über mehrere Absätze: nur Markierungen");

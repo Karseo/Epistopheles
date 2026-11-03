@@ -34,22 +34,24 @@ class Warteschlange:
         self._reihe: deque[str] = deque()
         self._thread: threading.Thread | None = None
 
-    def reiche_ein(self, art: str, buch: str, chunk: int) -> str:
+    def reiche_ein(self, art: str, buch: str, chunk: int, lektor: str | None = None) -> str:
         """Reiht einen Auftrag ein und gibt seine Id zurueck; wirft ValueError bei ungueltigen
-        Angaben. Ein gleicher, noch nicht beendeter Auftrag wird nicht doppelt eingereiht."""
+        Angaben. `lektor` = Schluessel des Lektor-Ordners, wenn er vom Buchschluessel abweicht.
+        Ein gleicher, noch nicht beendeter Auftrag wird nicht doppelt eingereiht."""
         if art not in ARTEN:
             raise ValueError("Unbekannte Art des Auftrags")
         protokoll.eingang_ordner(self.root, buch)         # ValueError bei unsicherem Namen
+        lektor = protokoll.pruefe_schluessel(lektor) if lektor is not None else None
         if isinstance(chunk, bool) or not isinstance(chunk, int) or chunk < 0:
             raise ValueError("chunk muss eine Zahl ab 0 sein")
         with self._lock:
             for jid, j in self._jobs.items():
                 if (j["zustand"] in (WARTET, LAEUFT) and j["art"] == art
-                        and j["buch"] == buch and j["chunk"] == chunk):
+                        and j["buch"] == buch and j["chunk"] == chunk and j["lektor"] == lektor):
                     return jid
             jid = secrets.token_hex(8)
             self._jobs[jid] = {"id": jid, "art": art, "buch": buch, "chunk": chunk,
-                               "zustand": WARTET, "meldung": ""}
+                               "lektor": lektor, "zustand": WARTET, "meldung": ""}
             self._reihe.append(jid)
             self._vergiss_alte()
             if self._thread is None or not self._thread.is_alive():

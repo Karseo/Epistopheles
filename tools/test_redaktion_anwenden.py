@@ -214,10 +214,10 @@ def test_ruecknahme_nach_anwendung_ist_konflikt_und_aendert_nichts(tmp_path, cap
 
 
 def test_andere_ebenen_werden_uebersprungen_und_gezaehlt(tmp_path, capsys):
-    baue(tmp_path, eintraege=[eintrag(ebene="volltext")])
+    baue(tmp_path, eintraege=[eintrag(ebene="struktur")])
     assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
     out = capsys.readouterr().out
-    assert "übersprungen (Ebene volltext)" in out
+    assert "übersprungen (Ebene struktur)" in out
     assert ra.chunk_datei(tmp_path, BUCH, 1).read_bytes() == ALT.encode("utf-8")
 
 
@@ -565,3 +565,318 @@ def test_uebernehmen_loest_keine_andere_aenderung_aus_und_laesst_original_chunk_
     assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
     assert ra.chunk_datei(tmp_path, BUCH, 1).read_text(encoding="utf-8").startswith(NEU)
     assert (de / "chunk_001.md").read_bytes() == DE_NEU.encode("utf-8")
+
+
+# ----------------------------------------------------------------- P2 Task 2: Lektor-Schlüssel und Sprache
+
+LEKTOR_ALT = "Cathy O'Neil/Weapons of Math Destruction"       # Lektor-Ordner heißt anders als das Bibliotheksbuch
+
+
+def _mit_ziel(e: dict, **ziel) -> dict:
+    e = dict(e)
+    e["ziel"] = {**e["ziel"], **ziel}
+    return e
+
+
+def _baue_abweichend(tmp: Path, sprache_ordner: str = "en", quellsprache: str = "en",
+                     eintraege=None, lektor_schluessel: str = LEKTOR_ALT) -> Path:
+    autor, titel = lektor_schluessel.split("/")
+    lek = tmp / "rohdaten" / "Lektor" / autor / titel
+    (lek / sprache_ordner).mkdir(parents=True)
+    (lek / "meta.json").write_text(json.dumps({"quellsprache": quellsprache}), encoding="utf-8")
+    (lek / sprache_ordner / "chunk_001.md").write_bytes(ALT.encode("utf-8"))
+    if eintraege is not None:
+        protokoll.schreibe_eingang(tmp, "tablet", BUCH, eintraege)
+    return lek
+
+
+def test_lektor_schluessel_im_ziel_ueberschreibt_den_buchschluessel(tmp_path, capsys):
+    lek = _baue_abweichend(tmp_path, eintraege=[_mit_ziel(eintrag(), lektor=LEKTOR_ALT)])
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
+    assert (lek / "en" / "chunk_001.md").read_text(encoding="utf-8").startswith(NEU)
+    assert (lek / "redaktion.json").is_file()
+    assert not (tmp_path / "rohdaten" / "Lektor" / "Autor, Vorname").exists()      # nichts am Bibliotheksnamen angelegt
+
+
+def test_unsicherer_lektor_schluessel_ist_konflikt(tmp_path, capsys):
+    for schlecht in ("../x/y", "A/../B", "/abs/y", "A", "A/B/C", 5):
+        protokoll_root = tmp_path / str(abs(hash(str(schlecht))))
+        baue(protokoll_root, eintraege=[_mit_ziel(eintrag(), lektor=schlecht)])
+        assert ra.main(["--root", str(protokoll_root), "--ausfuehren"]) == 2
+        assert "Lektor-Schlüssel" in capsys.readouterr().out
+        assert ra.chunk_datei(protokoll_root, BUCH, 1).read_text(encoding="utf-8") == ALT       # nichts geschrieben
+
+
+def test_sprache_en_bei_deutscher_quelle_schreibt_in_en(tmp_path):
+    """Popper: Quelle deutsch, Rohchunks englisch."""
+    lek = _baue_abweichend(tmp_path, sprache_ordner="en", quellsprache="de",
+                           lektor_schluessel=BUCH, eintraege=[_mit_ziel(eintrag(), sprache="en")])
+    assert ra.chunk_datei(tmp_path, BUCH, 1, {"sprache": "en"}) == lek / "en" / "chunk_001.md"
+    assert ra.chunk_datei(tmp_path, BUCH, 1) == lek / "de" / "chunk_001.md"             # ohne Ziel wie bisher
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
+    assert (lek / "en" / "chunk_001.md").read_text(encoding="utf-8").startswith(NEU)
+
+
+@pytest.mark.parametrize("sprache", ["fr", "../en", "", 3, "EN"])
+def test_sprache_ausserhalb_der_whitelist_ist_konflikt(tmp_path, capsys, sprache):
+    baue(tmp_path, eintraege=[_mit_ziel(eintrag(), sprache=sprache)])
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 2
+    assert "Sprache" in capsys.readouterr().out
+    assert ra.chunk_datei(tmp_path, BUCH, 1).read_text(encoding="utf-8") == ALT
+
+
+def test_ohne_lektor_und_sprache_unveraendertes_verhalten(tmp_path):
+    baue(tmp_path, eintraege=[eintrag()])
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
+    assert ra.chunk_datei(tmp_path, BUCH, 1).read_text(encoding="utf-8").startswith(NEU)
+
+
+def test_uneinheitliches_ziel_im_selben_buch_ist_konflikt(tmp_path, capsys):
+    """Ein Lauf bearbeitet je Buch genau einen Lektor-Ordner; abweichende Einträge bleiben liegen."""
+    lek = _baue_abweichend(tmp_path)
+    e1 = _mit_ziel(eintrag(), lektor=LEKTOR_ALT)
+    e2 = _mit_ziel(eintrag("Zweiter Absatz bleibt.", "Zweiter neu.", index=1), lektor="Anderer/Ordner")
+    protokoll.schreibe_eingang(tmp_path, "tablet", BUCH, [e1, e2])
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 2
+    out = capsys.readouterr().out
+    assert "uneinheitliches Ziel" in out
+    text = (lek / "en" / "chunk_001.md").read_text(encoding="utf-8")
+    assert text.startswith(NEU) and "Zweiter Absatz bleibt." in text
+
+
+def test_en_chunks_kopie_folgt_dem_lektor_schluessel(tmp_path):
+    lek = _baue_abweichend(tmp_path, eintraege=[_mit_ziel(eintrag(), lektor=LEKTOR_ALT)])
+    ec = tmp_path / "rohdaten" / "en-chunks" / "Cathy O'Neil" / "Weapons of Math Destruction"
+    ec.mkdir(parents=True)
+    (ec / "chunk_001.md").write_bytes(ALT.encode("utf-8"))
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
+    assert (ec / "chunk_001.md").read_text(encoding="utf-8").startswith(NEU)
+
+
+# ----------------------------------------------------------------- P2 Task 7: Volltext-Zweig
+
+from episto_tui.korrektur import absatz_spannen  # noqa: E402
+from redaktion import schutz  # noqa: E402
+
+KAPITEL = ("# Kapitel\r\n\r\nWort[^1]\tund\tTab[^2]\r\nzweite Zeile\r\n\r\n## Seite 12\r\n\r\n"
+           "<span class=\"x\">Roh</span>\r\n\r\n[^1]: Eins.\r\n[^2]: Zwei.")        # CRLF, Tabs, ohne Schluss-Newline
+DATEI = "0001_kapitel.md"
+
+
+def reader(tmp: Path) -> Path:
+    autor, titel = BUCH.split("/")
+    return tmp / "reader" / autor / titel
+
+
+def baue_reader(tmp: Path, text: str = KAPITEL, eintraege=None, datei: str = DATEI) -> Path:
+    q = reader(tmp) / "quelle"
+    q.mkdir(parents=True)
+    (q / datei).write_bytes(text.encode("utf-8"))
+    if eintraege is not None:
+        protokoll.schreibe_eingang(tmp, "tablet", BUCH, eintraege)
+    return reader(tmp)
+
+
+def vt(text: str, index: int, art: str, parameter: dict, datei: str = DATEI, **ziel_extra) -> dict:
+    a, b = absatz_spannen(text)[index]
+    ziel = {"datei": datei, "absatz_index": index, "anfang": ops.anker_von(text[a:b]), **ziel_extra}
+    return ops.neuer_eintrag(BUCH, "volltext", ziel, art, parameter, text[a:b], geraet="test")
+
+
+def ersetze_marker(text: str, index: int = 1, alt: str = "2", neu: str = "7") -> dict:
+    return vt(text, index, "fussnote", {"aktion": "marker-umbenennen", "alt": alt, "neu": neu, "vorkommen": 0})
+
+
+def red_json(tmp: Path) -> dict:
+    return protokoll.lade_redaktion(reader(tmp) / "notizen" / "redaktion.json")
+
+
+def test_dry_run_volltext_aendert_nichts_und_nennt_absatz_und_bilanz(tmp_path, capsys):
+    e = vt(KAPITEL, 1, "ersetzen", {"nachher": "Wort und Tab[^2]\r\nzweite Zeile"})       # Marker [^1] fällt weg
+    baue_reader(tmp_path, eintraege=[e])
+    vorher = (reader(tmp_path) / "quelle" / DATEI).read_bytes()
+    assert ra.main(["--root", str(tmp_path)]) == 0
+    out = capsys.readouterr().out
+    assert (reader(tmp_path) / "quelle" / DATEI).read_bytes() == vorher
+    assert not (reader(tmp_path) / "notizen").exists()
+    assert DATEI in out and "ersetzen" in out and "würde angewendet" in out
+    assert "Fußnotentext [^1] wird nirgends verwiesen" in out and "Marker 2→1" in out      # Bilanz, Review Focus 1
+
+
+def test_ausfuehren_schreibt_datei_mit_backup_und_vermerkt_redaktion_json(tmp_path):
+    e = ersetze_marker(KAPITEL)
+    baue_reader(tmp_path, eintraege=[e])
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
+    neu = (reader(tmp_path) / "quelle" / DATEI).read_bytes().decode("utf-8")
+    assert neu == KAPITEL.replace("Tab[^2]", "Tab[^7]")
+    backups = list((reader(tmp_path) / "notizen" / "_backup").glob("0001_kapitel.*.md"))
+    assert len(backups) == 1 and backups[0].read_bytes() == KAPITEL.encode("utf-8")
+    red = red_json(tmp_path)
+    assert [x["id"] for x in red["eintraege"]] == [e["id"]] and red["eintraege"][0]["status"] == "angewendet"
+    assert red["dateien"][DATEI]["hash_original"] == ops.pruefsumme(KAPITEL)
+    assert red["dateien"][DATEI]["hash_aktuell"] == ops.pruefsumme(neu)
+    assert protokoll.lade_stand(tmp_path, BUCH)[e["id"]]["status"] == "angewendet"
+
+
+def test_nur_betroffener_absatz_aendert_sich_byteexakt_in_quelldatei(tmp_path):
+    """Review Focus 2: CRLF, Tabs, Seitenmarker, HTML, Definitionsblock, kein Schluss-Newline."""
+    baue_reader(tmp_path, eintraege=[ersetze_marker(KAPITEL)])
+    ra.main(["--root", str(tmp_path), "--ausfuehren"])
+    a, b = absatz_spannen(KAPITEL)[1]
+    soll = KAPITEL[:a] + KAPITEL[a:b].replace("[^2]", "[^7]") + KAPITEL[b:]
+    assert (reader(tmp_path) / "quelle" / DATEI).read_bytes() == soll.encode("utf-8")
+
+
+def test_konflikt_bei_geaendertem_absatz_exit_2_und_nichts_geschrieben(tmp_path, capsys):
+    e = ersetze_marker(KAPITEL)
+    anders = KAPITEL.replace("zweite Zeile", "ZWEITE Zeile")
+    baue_reader(tmp_path, text=anders, eintraege=[e])
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 2
+    assert (reader(tmp_path) / "quelle" / DATEI).read_bytes() == anders.encode("utf-8")
+    assert not (reader(tmp_path) / "notizen" / "_backup").exists()
+    assert protokoll.lade_stand(tmp_path, BUCH)[e["id"]]["status"] == "konflikt"
+    assert "Konflikt" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("name", ["../aussen.md", "_kapitel_index.json", "kapitel.json", "a/b.md", "..", "", 5, None,
+                                  "fehlt.md", "x.md.sync-conflict-1.md", "C:\\x.md"])
+def test_unzulaessige_datei_ist_konflikt(tmp_path, capsys, name):
+    """Review Focus 3: nie ausserhalb von reader/<Buch>/quelle schreiben, nie Nicht-Kapiteldateien."""
+    e = ersetze_marker(KAPITEL)
+    e["ziel"]["datei"] = name
+    baue_reader(tmp_path, eintraege=[e])
+    aussen = reader(tmp_path) / "aussen.md"
+    aussen.write_text("AUSSEN", encoding="utf-8")
+    (reader(tmp_path) / "quelle" / "kapitel.json").write_text("{}", encoding="utf-8")
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 2
+    assert aussen.read_text(encoding="utf-8") == "AUSSEN"
+    assert (reader(tmp_path) / "quelle" / DATEI).read_bytes() == KAPITEL.encode("utf-8")
+    assert (reader(tmp_path) / "quelle" / "kapitel.json").read_text(encoding="utf-8") == "{}"
+    assert not (reader(tmp_path) / "notizen").exists()
+
+
+def test_reader_ordner_fehlt_ist_konflikt(tmp_path, capsys):
+    protokoll.schreibe_eingang(tmp_path, "tablet", BUCH, [ersetze_marker(KAPITEL)])
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 2
+    assert "Reader-Ordner fehlt" in capsys.readouterr().out
+
+
+def test_hash_original_wird_nur_einmal_gesetzt_und_zwei_laeufe_bauen_aufeinander_auf(tmp_path):
+    e1 = ersetze_marker(KAPITEL)
+    baue_reader(tmp_path, eintraege=[e1])
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
+    nach1 = (reader(tmp_path) / "quelle" / DATEI).read_bytes().decode("utf-8")
+    e2 = vt(nach1, 4, "fussnote", {"aktion": "definition-umbenennen", "alt": "2", "neu": "7"}, zeile=1)
+    protokoll.schreibe_eingang(tmp_path, "tablet", BUCH, [e2])
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
+    nach2 = (reader(tmp_path) / "quelle" / DATEI).read_bytes().decode("utf-8")
+    assert nach2 == nach1.replace("[^2]: Zwei.", "[^7]: Zwei.")
+    red = red_json(tmp_path)
+    assert [x["id"] for x in red["eintraege"]] == [e1["id"], e2["id"]]
+    assert red["dateien"][DATEI]["hash_original"] == ops.pruefsumme(KAPITEL)
+    assert red["dateien"][DATEI]["hash_aktuell"] == ops.pruefsumme(nach2)
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0                   # dritter Lauf: nichts mehr zu tun
+    assert (reader(tmp_path) / "quelle" / DATEI).read_bytes().decode("utf-8") == nach2
+
+
+def test_ruecknahme_verhindert_anwendung_volltext(tmp_path):
+    e = ersetze_marker(KAPITEL)
+    r = ops.neuer_eintrag(BUCH, "volltext", e["ziel"], "ruecknahme", {"id": e["id"]}, "")
+    baue_reader(tmp_path, eintraege=[e, r])
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
+    assert (reader(tmp_path) / "quelle" / DATEI).read_bytes() == KAPITEL.encode("utf-8")
+
+
+def test_marke_aendert_nichts_und_schreibt_keine_datei(tmp_path):
+    baue_reader(tmp_path, eintraege=[vt(KAPITEL, 1, "marke", {"kategorie": "pruefen"})])
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
+    assert (reader(tmp_path) / "quelle" / DATEI).read_bytes() == KAPITEL.encode("utf-8")
+    assert not (reader(tmp_path) / "notizen" / "_backup").exists()
+
+
+def test_redaktion_json_des_readers_ist_mit_spiele_nach_wiederholbar(tmp_path):
+    """Anwenden -> quelle wird neu erzeugt (Originaltext) -> schutz.spiele_nach ergibt denselben Text."""
+    e = ersetze_marker(KAPITEL)
+    baue_reader(tmp_path, eintraege=[e])
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
+    datei = reader(tmp_path) / "quelle" / DATEI
+    neu = datei.read_bytes()
+    datei.write_bytes(KAPITEL.encode("utf-8"))                                       # Neuaufbau liefert wieder den Urzustand
+    assert schutz.spiele_nach(reader(tmp_path)) == 0
+    assert datei.read_bytes() == neu
+
+
+def test_kaputte_redaktion_json_des_readers_wird_nicht_ueberschrieben(tmp_path, capsys):
+    baue_reader(tmp_path, eintraege=[ersetze_marker(KAPITEL)])
+    (reader(tmp_path) / "notizen").mkdir()
+    (reader(tmp_path) / "notizen" / "redaktion.json").write_text("{kaputt", encoding="utf-8")
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) != 0
+    assert (reader(tmp_path) / "quelle" / DATEI).read_bytes() == KAPITEL.encode("utf-8")
+    assert (reader(tmp_path) / "notizen" / "redaktion.json").read_text(encoding="utf-8") == "{kaputt"
+
+
+def test_dry_run_nennt_offenen_nachspiel_bericht(tmp_path, capsys):
+    baue_reader(tmp_path, eintraege=[])
+    (reader(tmp_path) / "notizen").mkdir()
+    (reader(tmp_path) / "notizen" / "redaktion-nachspiel.json").write_text(json.dumps({
+        "zeit": "2026-11-02T10:00:00Z", "angewendet": 0, "basis_geaendert": [DATEI],
+        "konflikte": [{"id": "abc", "datei": DATEI, "grund": "Absatz nicht gefunden"}]}), encoding="utf-8")
+    protokoll.schreibe_eingang(tmp_path, "tablet", BUCH, [ersetze_marker(KAPITEL)])
+    assert ra.main(["--root", str(tmp_path)]) == 0                      # reine Anzeige: kein Konflikt-Exit
+    out = capsys.readouterr().out
+    assert "lektor-zu-episto" in out and "Eintrag abc: Absatz nicht gefunden" in out and "Ausgangstext" in out
+
+
+def _nachspiel_bericht(tmp: Path, ids: list[str], extra=()) -> Path:
+    n = reader(tmp) / "notizen"
+    n.mkdir(parents=True, exist_ok=True)
+    pfad = n / "redaktion-nachspiel.json"
+    pfad.write_text(json.dumps({"zeit": "2026-11-02T10:00:00Z", "angewendet": 0, "basis_geaendert": [],
+                                "konflikte": [{"id": i, "datei": DATEI, "grund": "Absatz nicht gefunden"} for i in [*ids, *extra]]}),
+                    encoding="utf-8")
+    return pfad
+
+
+def test_ruecknahme_eines_nachspiel_konflikts_loest_ihn_im_protokoll_auf(tmp_path, capsys):
+    """Review-Befund 2: 'Verwerfen' / 'Neu anwenden' in der App muss den Konflikt auch am PC beenden."""
+    e = ersetze_marker(KAPITEL)
+    baue_reader(tmp_path)
+    (reader(tmp_path) / "notizen").mkdir()
+    (reader(tmp_path) / "notizen" / "redaktion.json").write_text(json.dumps({"eintraege": [{**e, "status": "angewendet"}], "dateien": {}}), encoding="utf-8")
+    bericht = _nachspiel_bericht(tmp_path, [e["id"]])
+    r = ops.neuer_eintrag(BUCH, "volltext", e["ziel"], "ruecknahme", {"id": e["id"]}, "")
+    protokoll.schreibe_eingang(tmp_path, "tablet", BUCH, [r])
+    assert ra.main(["--root", str(tmp_path)]) == 0                                   # Dry-Run: ändert nichts
+    assert "wird nicht mehr eingespielt" in capsys.readouterr().out
+    assert json.loads(bericht.read_text(encoding="utf-8"))["konflikte"]
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
+    red = red_json(tmp_path)
+    assert red["eintraege"][0]["id"] == e["id"] and red["eintraege"][0]["status"] == "zurueckgenommen"
+    assert not bericht.exists()                                                      # nichts mehr zu melden
+    assert protokoll.lade_stand(tmp_path, BUCH)[r["id"]]["status"] == "uebersprungen"
+    # das Nachspiel ignoriert den zurückgenommenen Eintrag
+    (reader(tmp_path) / "quelle" / DATEI).write_bytes(KAPITEL.encode("utf-8"))
+    assert schutz.spiele_nach(reader(tmp_path)) == 0
+    assert (reader(tmp_path) / "quelle" / DATEI).read_bytes() == KAPITEL.encode("utf-8")
+
+
+def test_ruecknahme_laesst_andere_nachspiel_konflikte_im_bericht_stehen(tmp_path):
+    e = ersetze_marker(KAPITEL)
+    baue_reader(tmp_path)
+    (reader(tmp_path) / "notizen").mkdir()
+    (reader(tmp_path) / "notizen" / "redaktion.json").write_text(json.dumps({"eintraege": [{**e, "status": "angewendet"}], "dateien": {}}), encoding="utf-8")
+    bericht = _nachspiel_bericht(tmp_path, [e["id"]], extra=["anderer"])
+    protokoll.schreibe_eingang(tmp_path, "tablet", BUCH, [ops.neuer_eintrag(BUCH, "volltext", e["ziel"], "ruecknahme", {"id": e["id"]}, "")])
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
+    assert [k["id"] for k in json.loads(bericht.read_text(encoding="utf-8"))["konflikte"]] == ["anderer"]
+
+
+def test_ruecknahme_eines_normal_angewendeten_eintrags_bleibt_nicht_moeglich(tmp_path, capsys):
+    e = ersetze_marker(KAPITEL)
+    baue_reader(tmp_path, eintraege=[e])
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
+    protokoll.schreibe_eingang(tmp_path, "tablet", BUCH, [ops.neuer_eintrag(BUCH, "volltext", e["ziel"], "ruecknahme", {"id": e["id"]}, "")])
+    capsys.readouterr()
+    assert ra.main(["--root", str(tmp_path), "--ausfuehren"]) == 0
+    assert "Rücknahmen nicht möglich" in capsys.readouterr().out
+    assert red_json(tmp_path)["eintraege"][0]["status"] == "angewendet"

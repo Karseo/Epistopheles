@@ -16,7 +16,9 @@
 
   const ANGEWENDET = "angewendet", KONFLIKT = "konflikt", UEBERSPRUNGEN = "uebersprungen";
   const ARTEN_OHNE_TEXTWIRKUNG = ["ruecknahme", "uebersetzung-uebernehmen", "neu-uebersetzen"];
-  const TEXTARTEN = ["ersetzen", "verbinden", "trennen", "loeschen", "verschieben"];
+  const TEXTARTEN = ["ersetzen", "verbinden", "trennen", "loeschen", "verschieben", "fussnote"];
+  const FUSSNOTEN_AKTIONEN = ["marker-umbenennen", "marker-setzen", "marker-entfernen", "definition-umbenennen"];
+  const MIN_KONTEXT = 8;                                    // marker-setzen: so viele Zeichen Kontext vor der Einfuegestelle
 
   // Leerraum wie Python (str.isspace / re \s): JS-\s kennt \x1c-\x1f und \x85 nicht, aber ﻿.
   const WS = "\\t\\n\\v\\f\\r\\x1c-\\x1f \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000";
@@ -25,6 +27,10 @@
   const WS_ENDE = new RegExp("[" + WS + "]+$", "u");
   const ABSATZ_TRENNER = "\\n[" + WS + "]*\\n";            // wie in korrektur.absatz_spannen
   const ZEILENENDE = /\r?\n/;
+  // Fussnotenkennungen wie ops.py: nichts von ] [ und Leerraum (explizite Klasse); ein Marker ist [^id], solange kein ":" folgt.
+  const KENNUNG_ZEICHEN = "[^\\]\\[ \\t\\r\\n\\f\\v\\u00a0]";
+  const KENNUNG = new RegExp("^(?!\\^)" + KENNUNG_ZEICHEN + "+$", "u");
+  const MARKER = "\\[\\^(" + KENNUNG_ZEICHEN + "+)\\](?!:)";
   const BUCHSTABE = /^\p{L}$/u;
   const KLEIN = /^\p{Lowercase}$/u;                         // wie Python str.islower fuer ein Zeichen
 
@@ -63,6 +69,13 @@
     return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
   }
 
+  /** UTC mit Millisekunden, streng steigend: die Reihenfolge der Eintraege eines Geraets bleibt aus `erstellt` ablesbar. */
+  let letzteZeit = 0;
+  function jetztIso() {
+    letzteZeit = Math.max(Date.now(), letzteZeit + 1);
+    return new Date(letzteZeit).toISOString();
+  }
+
   function neuerEintrag(buch, ebene, ziel, art, parameter, vorherText, hinweis, geraet) {
     parameter = parameter || {};
     return {
@@ -75,7 +88,7 @@
       vorher: { hash: pruefsumme(vorherText), ausschnitt: zeichen(vorherText).slice(0, 80).join("") },
       nachher: hat(parameter, "nachher") ? parameter.nachher : null,
       hinweis: hinweis || "",
-      erstellt: new Date().toISOString().replace(/\.\d+Z$/, "Z"),
+      erstellt: jetztIso(),
       geraet: geraet || "",
       status: "offen",
     };
@@ -209,6 +222,71 @@
   }
 
   const konflikt = (text, grund) => ({ text: text, status: KONFLIKT, grund: grund });
+  const kennungOk = (k) => typeof k === "string" && KENNUNG.test(k);
+
+  /** Zeilenende fuer einen neu eingegebenen mehrzeiligen Absatz: das des Absatzes, hat er keinen Umbruch,
+   * das der Datei (CRLF, sobald irgendwo ein \r\n steht). */
+  function zeilenendeFuer(text, absatz) {
+    if (absatz.includes("\r\n")) return "\r\n";
+    if (absatz.includes("\n")) return "\n";
+    return text.includes("\r\n") ? "\r\n" : "\n";
+  }
+
+  /** Position HINTER dem woertlichen Kontext `nach` im Absatz (marker-setzen, trennen): mindestens MIN_KONTEXT Zeichen,
+   * genau ein Treffer (ueberlappende zaehlen mit). Ergebnis {ende} oder {grund}. */
+  function stelle(absatz, nach) {
+    if (typeof nach !== "string" || zeichen(nach).length < MIN_KONTEXT) {
+      return { grund: "Kontext für die Einfügestelle fehlt oder ist kürzer als " + MIN_KONTEXT + " Zeichen" };
+    }
+    const treffer = [];
+    for (let i = absatz.indexOf(nach); i >= 0; i = absatz.indexOf(nach, i + 1)) treffer.push(i);
+    if (treffer.length !== 1) return { grund: treffer.length ? "Einfügestelle nicht eindeutig" : "Einfügestelle nicht gefunden" };
+    return { ende: treffer[0] + nach.length };
+  }
+
+  function fussnote(text, absatz, a, b, ziel, parameter, zl, trenner) {
+    const aktion = parameter.aktion;
+    if (!FUSSNOTEN_AKTIONEN.includes(aktion)) return konflikt(text, "unbekannte Fussnoten-Aktion: " + aktion);
+
+    if (aktion === "marker-umbenennen" || aktion === "marker-entfernen") {
+      const alt = parameter[aktion === "marker-umbenennen" ? "alt" : "id"], vk = parameter.vorkommen;
+      if (!kennungOk(alt) || !istGanz(vk) || vk < 0) return konflikt(text, "Fussnoten-Parameter fehlerhaft (Kennung oder Vorkommen)");
+      const treffer = Array.from(absatz.matchAll(new RegExp(MARKER, "gu"))).filter((m) => m[1] === alt);
+      if (vk >= treffer.length) return konflikt(text, "Marker [^" + alt + "] (Vorkommen " + vk + ") nicht im Absatz");
+      const m = treffer[vk];
+      let ersatz = "";
+      if (aktion === "marker-umbenennen") {
+        const neu = parameter.neu;
+        if (!kennungOk(neu)) return konflikt(text, "neue Kennung ungültig (leer, Leerraum oder eckige Klammer)");
+        if (neu === alt) return konflikt(text, "neue Kennung ist die alte");
+        ersatz = "[^" + neu + "]";
+      }
+      return ok(text.slice(0, a) + absatz.slice(0, m.index) + ersatz + absatz.slice(m.index + m[0].length) + text.slice(b));
+    }
+
+    if (aktion === "marker-setzen") {
+      const kennung = parameter.id;
+      if (!kennungOk(kennung)) return konflikt(text, "Kennung ungültig (leer, Leerraum oder eckige Klammer)");
+      const st = stelle(absatz, parameter.nach);
+      if (st.ende === undefined) return konflikt(text, st.grund);
+      const ende = st.ende;
+      return ok(text.slice(0, a) + absatz.slice(0, ende) + "[^" + kennung + "]" + absatz.slice(ende) + text.slice(b));
+    }
+
+    // definition-umbenennen
+    const alt = parameter.alt, neu = parameter.neu, z = ziel.zeile;
+    if (!kennungOk(alt) || !kennungOk(neu)) return konflikt(text, "Kennung ungültig (leer, Leerraum oder eckige Klammer)");
+    if (neu === alt) return konflikt(text, "neue Kennung ist die alte");
+    if (!istGanz(z) || !(0 <= z && z < zl.length)) return konflikt(text, "Zeile der Definition fehlt oder liegt außerhalb des Absatzes");
+    const kopf = "[^" + alt + "]:";
+    if (!zl[z].startsWith(kopf)) return konflikt(text, "Zeile " + z + " ist keine Definition von [^" + alt + "]");
+    if (text.split(ZEILENENDE).some((zeile) => zeile.startsWith("[^" + neu + "]:"))) {
+      return konflikt(text, "Kennung [^" + neu + "] ist im Kapitel schon als Definition vergeben");
+    }
+    const neuZeilen = zl.slice();
+    neuZeilen[z] = "[^" + neu + "]:" + zl[z].slice(kopf.length);
+    return ok(text.slice(0, a) + neuZeilen.join(trenner) + text.slice(b));
+  }
   const ok = (text) => ({ text: text, status: ANGEWENDET, grund: "" });
 
   /** Wendet einen Eintrag an. Ein fehlerhafter Eintrag liefert nie eine Ausnahme, sondern einen
@@ -250,14 +328,26 @@
       if (new RegExp(ABSATZ_TRENNER, "u").test(strip(nachher))) {
         return konflikt(text, "parameter.nachher enthält eine Leerzeile (würde den Absatz teilen)");
       }
-      return ok(text.slice(0, a) + strip(nachher) + text.slice(b));
+      return ok(text.slice(0, a) + strip(nachher).replace(/\r?\n/g, zeilenendeFuer(text, absatz)) + text.slice(b));
     }
+
+    if (art === "fussnote") return fussnote(text, absatz, a, b, ziel, parameter, zl, trenner);
 
     if (art === "verbinden") {
       const z = ziel.zeile;
       if (!istGanz(z) || !(0 <= z && z < zl.length - 1)) return konflikt(text, "keine Zeile zum Verbinden");
       const neu = zl.slice(0, z).concat([verbinde(zl[z], zl[z + 1])], zl.slice(z + 2));
       return ok(text.slice(0, a) + neu.join(trenner) + text.slice(b));
+    }
+
+    if (art === "trennen" && !hat(ziel, "zeile") && hat(parameter, "nach")) {
+      // Form mit Kontext: den Absatz hinter dem Kontexttext teilen (einzeilige Absaetze haben keine Zeile zum Trennen)
+      const st = stelle(absatz, parameter.nach);
+      if (st.ende === undefined) return konflikt(text, st.grund);
+      const vorn = rstrip(absatz.slice(0, st.ende)), hinten = lstrip(absatz.slice(st.ende));
+      if (!vorn || !hinten) return konflikt(text, "Trennen würde einen leeren Absatz ergeben");
+      const z = zeilenendeFuer(text, absatz);
+      return ok(text.slice(0, a) + vorn + z + z + hinten + text.slice(b));
     }
 
     if (art === "trennen") {
@@ -434,7 +524,7 @@
     const r = await f(basis(optionen.adresse) + "/api/auftraege", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Redaktion-Token": optionen.token || "" },
-      body: JSON.stringify({ art: "neu-uebersetzen", buch: buch, chunk: chunk }),
+      body: JSON.stringify(Object.assign({ art: "neu-uebersetzen", buch: buch, chunk: chunk }, optionen.lektor ? { lektor: optionen.lektor } : {})),
     });
     const d = await antwort(r);
     if (!istObjekt(d) || typeof d.id !== "string" || !d.id) throw new Error("APIC lieferte keine Auftrags-Id");
@@ -458,7 +548,8 @@
   async function vorschlag(buch, chunk, optionen, fetchImpl) {
     pruefeChunk(chunk);
     const f = fetchImpl || fetch;
-    const r = await f(basis(optionen.adresse) + "/api/vorschlag?buch=" + encodeURIComponent(buch) + "&chunk=" + chunk, {
+    const r = await f(basis(optionen.adresse) + "/api/vorschlag?buch=" + encodeURIComponent(buch) + "&chunk=" + chunk
+      + (optionen.lektor ? "&lektor=" + encodeURIComponent(optionen.lektor) : ""), {
       method: "GET",
       headers: { "X-Redaktion-Token": optionen.token || "" },
     });

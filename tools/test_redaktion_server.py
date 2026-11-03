@@ -582,3 +582,45 @@ def test_unterprozess_fehlermeldung_enthaelt_keine_absoluten_pfade(tmp_path, mon
         assert verboten not in meldung, (verboten, meldung)
     assert "Exit 1" in meldung                                      # Nutzbares bleibt
     assert len(meldung) < 3 * (redaktion_server.MAX_MELDUNG_ZEILE + 5) + 120      # gekuerzt
+
+
+# ----------------------------------------------------------------- P2 Task 3: Lektor-Schlüssel
+
+LEKTOR_ALT = "Cathy O'Neil/Weapons of Math Destruction"
+
+
+def _lektor_abweichend(root):
+    d = root / "rohdaten" / "Lektor" / "Cathy O'Neil" / "Weapons of Math Destruction"
+    (d / "en").mkdir(parents=True)
+    (d / "de").mkdir()
+    (d / "en" / "chunk_000.md").write_text("Original", encoding="utf-8")
+    (d / "de" / "chunk_000.md").write_text("Alt O'Neil", encoding="utf-8")
+    return d
+
+
+def test_auftrag_mit_lektor_schluessel_findet_den_chunk_und_gibt_ihn_an_den_starter(asrv, lektor_root):
+    _lektor_abweichend(lektor_root)
+    body = {"art": "neu-uebersetzen", "buch": "O'Neil, Cathy/Weapons", "chunk": 0}
+    assert asrv.anfrage("/api/auftraege", "POST", body)[0] == 404                    # ohne lektor: Ordner fehlt
+    status, _, antwort = asrv.anfrage("/api/auftraege", "POST", {**body, "lektor": LEKTOR_ALT})
+    assert status == 200
+    jid = json.loads(antwort)["id"]
+    assert warte(lambda: json.loads(asrv.anfrage(f"/api/auftraege/{jid}")[2])["zustand"] == "fertig")
+    assert [(j["buch"], j["lektor"]) for j in asrv.jobs] == [("O'Neil, Cathy/Weapons", LEKTOR_ALT)]
+
+
+@pytest.mark.parametrize("lektor", ["../x/y", "A/../B", "/abs/y", "A", "A/B/C", 5, ["a", "b"]])
+def test_auftrag_mit_unsicherem_lektor_schluessel_ist_400(asrv, lektor):
+    body = {"art": "neu-uebersetzen", "buch": BUCH, "chunk": 0, "lektor": lektor}
+    assert asrv.anfrage("/api/auftraege", "POST", body)[0] == 400
+    assert asrv.jobs == []
+
+
+def test_vorschlag_mit_lektor_schluessel(asrv, lektor_root):
+    d = _lektor_abweichend(lektor_root)
+    (d / "de" / "chunk_000.md.neu").write_text("Neu O'Neil", encoding="utf-8")
+    q = "/api/vorschlag?buch=O%27Neil%2C%20Cathy%2FWeapons&chunk=0"
+    assert asrv.anfrage(q)[0] == 404
+    status, _, body = asrv.anfrage(q + "&lektor=" + urllib.parse.quote(LEKTOR_ALT))
+    assert status == 200 and json.loads(body) == {"alt": "Alt O'Neil", "neu": "Neu O'Neil"}
+    assert asrv.anfrage(q + "&lektor=..%2F..%2Fx%2Fy")[0] == 400

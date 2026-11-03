@@ -53,7 +53,7 @@ def test_fremdsprachige_quelle_rohchunks_aus_en_und_ebook_wird_mitgeliefert(tmp_
     daten = json.loads((ordner / "k001.json").read_text(encoding="utf-8"))
     assert daten["chunks"] == ["Eins\twort\n", "Zwei"]                      # Rohtext unveraendert, nicht die Uebersetzung
     assert daten["uebersetzung"] == ["Übersetzt 1", "Übersetzt 2"] and b["uebersetzung"] == 2
-    assert daten["kapitel"][0] == {"nr": 1, "titel": "0001_a", "text": "# A\n\nText ä"}
+    assert daten["kapitel"][0] == {"nr": 1, "titel": "0001_a", "datei": "0001_a.md", "text": "# A\n\nText ä"}
     assert daten["erstellt"] == index["erstellt"]
     assert json.loads((ordner / "index.json").read_text(encoding="utf-8")) == index
 
@@ -260,3 +260,101 @@ def test_dateiname_von_beiden_schreibweisen():
     assert export_korrektur.dateiname_von("C:\\a\\b\\Buch.pdf") == "Buch.pdf"
     assert export_korrektur.dateiname_von("/mnt/c/x/Buch.epub") == "Buch.epub"
     assert export_korrektur.dateiname_von("") == ""
+
+
+# --- P2 Task 1: Volltext-Metadaten ------------------------------------------------------------------
+
+def test_kapitel_haben_dateiname(tmp_path):
+    root, ordner = tmp_path / "bib", tmp_path / "korrektur"
+    _repo_buch(root, "A, B", "T", {"0001_a.md": "x", "0002_b.md": "y"})
+    export_korrektur.exportiere(root, ordner, tmp_path / "lektor")
+    daten = json.loads((ordner / "k001.json").read_text(encoding="utf-8"))
+    assert [k["datei"] for k in daten["kapitel"]] == ["0001_a.md", "0002_b.md"]
+
+
+def test_kapitel_text_behaelt_windows_zeilenenden(tmp_path):
+    root, ordner = tmp_path / "bib", tmp_path / "korrektur"
+    _repo_buch(root, "A, B", "T", {})
+    roh = "# Titel\r\n\r\nWort\tTab\r\nzweite Zeile\r\n\r\nSchluss"
+    (root / "reader" / "A, B" / "T" / "quelle" / "0001_a.md").write_bytes(roh.encode("utf-8"))
+    export_korrektur.exportiere(root, ordner, tmp_path / "lektor")
+    daten = json.loads((ordner / "k001.json").read_text(encoding="utf-8"))
+    assert daten["kapitel"][0]["text"] == roh
+
+
+def test_index_nennt_reader_und_lektor_schluessel(tmp_path):
+    root, lektor, ordner = tmp_path / "bib", tmp_path / "Lektor", tmp_path / "korrektur"
+    _repo_buch(root, "O'Neil, Cathy", "Weapons", {"0001.md": "x"})
+    _lektor_buch(lektor, "Cathy O'Neil", "Weapons of Math Destruction", ebook=("en", "w.epub"), en_chunks=["c1"])
+    _repo_meta(root, "O'Neil, Cathy", "Weapons",
+               {"quelldatei": "C:\\Users\\x\\Lektor\\Cathy O'Neil\\Weapons of Math Destruction\\en\\w.epub"})
+    (b,) = export_korrektur.exportiere(root, ordner, lektor)["buecher"]
+    assert b["reader"] == "O'Neil, Cathy/Weapons"
+    assert b["lektor"] == "Cathy O'Neil/Weapons of Math Destruction"
+
+
+def test_schluessel_leer_wenn_buch_nur_auf_einer_seite_existiert(tmp_path):
+    root, lektor, ordner = tmp_path / "bib", tmp_path / "lektor", tmp_path / "korrektur"
+    _repo_buch(root, "Nur, Reader", "T", {"0001.md": "x"})
+    _lektor_buch(lektor, "Nur Lektor", "T2", en_chunks=["c"])
+    buecher = {b["autor"]: b for b in export_korrektur.exportiere(root, ordner, lektor)["buecher"]}
+    assert (buecher["Nur, Reader"]["reader"], buecher["Nur, Reader"]["lektor"]) == ("Nur, Reader/T", "")
+    assert (buecher["Nur Lektor"]["reader"], buecher["Nur Lektor"]["lektor"]) == ("", "Nur Lektor/T2")
+
+
+def _redaktion(root: Path, inhalt) -> None:
+    pfad = root / "reader" / "A, B" / "T" / "notizen"
+    pfad.mkdir(parents=True, exist_ok=True)
+    (pfad / "redaktion.json").write_text(inhalt if isinstance(inhalt, str) else json.dumps(inhalt), encoding="utf-8")
+
+
+def test_enthalten_listet_angewendete_volltext_eintraege(tmp_path):
+    root, ordner = tmp_path / "bib", tmp_path / "korrektur"
+    _repo_buch(root, "A, B", "T", {"0001.md": "x"})
+    _redaktion(root, {"eintraege": [
+        {"id": "a1", "ebene": "volltext", "status": "angewendet"},
+        {"id": "a2", "ebene": "volltext", "status": "offen"},
+        {"id": "a3", "ebene": "chunk-orig", "status": "angewendet"},
+        {"id": 7, "ebene": "volltext", "status": "angewendet"},
+        "kein objekt",
+    ]})
+    export_korrektur.exportiere(root, ordner, tmp_path / "lektor")
+    assert json.loads((ordner / "k001.json").read_text(encoding="utf-8"))["enthalten"] == ["a1"]
+
+
+def test_enthalten_ist_leer_ohne_oder_mit_kaputter_datei(tmp_path):
+    root, ordner = tmp_path / "bib", tmp_path / "korrektur"
+    _repo_buch(root, "A, B", "T", {"0001.md": "x"})
+    export_korrektur.exportiere(root, ordner, tmp_path / "lektor")
+    assert json.loads((ordner / "k001.json").read_text(encoding="utf-8"))["enthalten"] == []
+    for kaputt in ("{nicht json", "[]", '{"eintraege": 5}'):
+        _redaktion(root, kaputt)
+        export_korrektur.exportiere(root, ordner, tmp_path / "lektor")
+        assert json.loads((ordner / "k001.json").read_text(encoding="utf-8"))["enthalten"] == []
+
+
+def test_enthalten_nimmt_nachspiel_konflikte_aus_und_nennt_sie_mit_grund(tmp_path):
+    """Review-Befund 1: Was beim Neuaufbau nicht wieder eingespielt werden konnte, steckt nicht im Text."""
+    root, ordner = tmp_path / "bib", tmp_path / "korrektur"
+    _repo_buch(root, "A, B", "T", {"0001.md": "x"})
+    _redaktion(root, {"eintraege": [{"id": "ok", "ebene": "volltext", "status": "angewendet"},
+                                    {"id": "weg", "ebene": "volltext", "status": "angewendet"}]})
+    nachspiel = root / "reader" / "A, B" / "T" / "notizen" / "redaktion-nachspiel.json"
+    nachspiel.write_text(json.dumps({"konflikte": [{"id": "weg", "datei": "0001.md", "grund": "Absatz nicht gefunden"},
+                                                   {"id": None, "datei": None, "grund": "redaktion.json unlesbar"}]}), encoding="utf-8")
+    export_korrektur.exportiere(root, ordner, tmp_path / "lektor")
+    d = json.loads((ordner / "k001.json").read_text(encoding="utf-8"))
+    assert d["enthalten"] == ["ok"] and d["nachspiel"] == {"weg": "Absatz nicht gefunden"}
+
+
+def test_nachspiel_ist_leer_ohne_oder_mit_kaputtem_bericht(tmp_path):
+    root, ordner = tmp_path / "bib", tmp_path / "korrektur"
+    _repo_buch(root, "A, B", "T", {"0001.md": "x"})
+    export_korrektur.exportiere(root, ordner, tmp_path / "lektor")
+    assert json.loads((ordner / "k001.json").read_text(encoding="utf-8"))["nachspiel"] == {}
+    n = root / "reader" / "A, B" / "T" / "notizen"
+    n.mkdir(parents=True, exist_ok=True)
+    for kaputt in ("{kaputt", "[]", '{"konflikte": 5}'):
+        (n / "redaktion-nachspiel.json").write_text(kaputt, encoding="utf-8")
+        export_korrektur.exportiere(root, ordner, tmp_path / "lektor")
+        assert json.loads((ordner / "k001.json").read_text(encoding="utf-8"))["nachspiel"] == {}

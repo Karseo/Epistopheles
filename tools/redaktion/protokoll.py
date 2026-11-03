@@ -50,14 +50,28 @@ def _eingang_basis(root: Path) -> Path:
     return Path(root) / "hilfsdaten" / "redaktion" / "eingang"
 
 
+def pruefe_schluessel(wert: object) -> str:
+    """Prueft einen Buchschluessel `"Autor/Titel"` (auch den Lektor-Schluessel eines Eintrags);
+    gibt ihn unveraendert zurueck oder wirft ValueError. Nie 'reparieren'."""
+    if not isinstance(wert, str):
+        raise ValueError("Buchschluessel ist kein Text")
+    teile = wert.split("/")
+    if len(teile) != 2:
+        raise ValueError(f"Buchschluessel braucht genau zwei Teile: {wert!r}")
+    for t in teile:
+        _pruefe_teil(t)
+    return wert
+
+
+def reader_ordner(root: Path, buch: str) -> Path:
+    """Buchordner der Bibliothek `root/reader/<Autor>/<Werk>`; wirft ValueError bei unsicheren Namen."""
+    autor, titel = pruefe_schluessel(buch).split("/")
+    return Path(root) / "reader" / autor / titel
+
+
 def eingang_ordner(root: Path, buch: str) -> Path:
     """Eingangsordner eines Buchs `"Autor/Titel"`; wirft ValueError bei unsicheren Namen."""
-    if not isinstance(buch, str):
-        raise ValueError("Buchschluessel ist kein Text")
-    teile = buch.split("/")
-    if len(teile) != 2:
-        raise ValueError(f"Buchschluessel braucht genau zwei Teile: {buch!r}")
-    autor, titel = (_pruefe_teil(t) for t in teile)
+    autor, titel = pruefe_schluessel(buch).split("/")
     basis = _eingang_basis(root)
     ziel = basis / autor / titel
     try:
@@ -100,6 +114,15 @@ def _geraet_bereinigt(geraet: object) -> str:
     return name or "geraet"
 
 
+_OHNE_MS = re.compile(r"(\d{2}:\d{2}:\d{2})Z\Z")
+
+
+def _zeitschluessel(erstellt: object) -> str:
+    """Sortierschluessel fuer `erstellt`: Zeiten ohne Millisekunden (aeltere Geraete) zaehlen als `.000`, damit sie
+    sich mit Zeiten mit Millisekunden richtig mischen (sonst sortiert `…:05Z` hinter `…:05.123Z`)."""
+    return _OHNE_MS.sub(r"\1.000Z", str(erstellt if erstellt is not None else ""))
+
+
 def lade_eingang(root: Path, buch: str) -> list[dict]:
     """Alle Eintraege des Buchs, nach `erstellt` sortiert, je `id` einmal.
 
@@ -112,7 +135,7 @@ def lade_eingang(root: Path, buch: str) -> list[dict]:
         for e in daten:
             if isinstance(e, dict) and isinstance(e.get("id"), str):
                 gesehen.setdefault(e["id"], e)
-    return sorted(gesehen.values(), key=lambda e: str(e.get("erstellt", "")))
+    return sorted(gesehen.values(), key=lambda e: _zeitschluessel(e.get("erstellt")))
 
 
 def schreibe_eingang(root: Path, geraet: str, buch: str, eintraege: list[dict]) -> list[str]:

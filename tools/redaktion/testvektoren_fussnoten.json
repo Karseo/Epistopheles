@@ -1,0 +1,409 @@
+{
+ "analysen": [
+  {
+   "name": "sauber",
+   "text": "# K\n\nText[^1] und[^2].\n\n[^1]: Eins.\n[^2]: Zwei.",
+   "erwartet": {
+    "marker": [
+     {
+      "id": "1",
+      "absatz_index": 1,
+      "zeile": 0,
+      "vorkommen": 0,
+      "in_definition": false
+     },
+     {
+      "id": "2",
+      "absatz_index": 1,
+      "zeile": 0,
+      "vorkommen": 0,
+      "in_definition": false
+     }
+    ],
+    "definitionen": [
+     {
+      "id": "1",
+      "absatz_index": 2,
+      "zeile": 0
+     },
+     {
+      "id": "2",
+      "absatz_index": 2,
+      "zeile": 1
+     }
+    ],
+    "hinweise": [],
+    "bilanz": {
+     "marker": 2,
+     "definitionen": 2
+    }
+   }
+  },
+  {
+   "name": "marker_ohne_definition",
+   "text": "Text[^1] und[^2].\n\n[^1]: Eins.",
+   "erwartet": {
+    "marker": [
+     {
+      "id": "1",
+      "absatz_index": 0,
+      "zeile": 0,
+      "vorkommen": 0,
+      "in_definition": false
+     },
+     {
+      "id": "2",
+      "absatz_index": 0,
+      "zeile": 0,
+      "vorkommen": 0,
+      "in_definition": false
+     }
+    ],
+    "definitionen": [
+     {
+      "id": "1",
+      "absatz_index": 1,
+      "zeile": 0
+     }
+    ],
+    "hinweise": [
+     {
+      "art": "marker-ohne-definition",
+      "id": "2",
+      "absatz_index": 0,
+      "zeile": 0,
+      "begruendung": "Verweis [^2] hat keinen Fußnotentext"
+     }
+    ],
+    "bilanz": {
+     "marker": 2,
+     "definitionen": 1
+    }
+   }
+  },
+  {
+   "name": "definition_ohne_marker",
+   "text": "Text[^1].\n\n[^1]: Eins.\n[^2]: Zwei.",
+   "erwartet": {
+    "marker": [
+     {
+      "id": "1",
+      "absatz_index": 0,
+      "zeile": 0,
+      "vorkommen": 0,
+      "in_definition": false
+     }
+    ],
+    "definitionen": [
+     {
+      "id": "1",
+      "absatz_index": 1,
+      "zeile": 0
+     },
+     {
+      "id": "2",
+      "absatz_index": 1,
+      "zeile": 1
+     }
+    ],
+    "hinweise": [
+     {
+      "art": "definition-ohne-marker",
+      "id": "2",
+      "absatz_index": 1,
+      "zeile": 1,
+      "begruendung": "Fußnotentext [^2] wird nirgends verwiesen"
+     }
+    ],
+    "bilanz": {
+     "marker": 1,
+     "definitionen": 2
+    }
+   }
+  },
+  {
+   "name": "doppelte_definition",
+   "text": "Text[^1].\n\n[^1]: Eins.\n[^1]: Nochmal.",
+   "erwartet": {
+    "marker": [
+     {
+      "id": "1",
+      "absatz_index": 0,
+      "zeile": 0,
+      "vorkommen": 0,
+      "in_definition": false
+     }
+    ],
+    "definitionen": [
+     {
+      "id": "1",
+      "absatz_index": 1,
+      "zeile": 0
+     },
+     {
+      "id": "1",
+      "absatz_index": 1,
+      "zeile": 1
+     }
+    ],
+    "hinweise": [
+     {
+      "art": "doppelte-definition",
+      "id": "1",
+      "absatz_index": 1,
+      "zeile": 1,
+      "begruendung": "Fußnotentext [^1] ist mehrfach vorhanden"
+     }
+    ],
+    "bilanz": {
+     "marker": 1,
+     "definitionen": 2
+    }
+   }
+  },
+  {
+   "name": "mehrzeilige_definition_und_marker_im_definitionstext",
+   "text": "Text[^1] und[^2] und[^2].\n\n[^1]: Eins,\nweiter, siehe [^2].\n[^2]: Zwei.",
+   "erwartet": {
+    "marker": [
+     {
+      "id": "1",
+      "absatz_index": 0,
+      "zeile": 0,
+      "vorkommen": 0,
+      "in_definition": false
+     },
+     {
+      "id": "2",
+      "absatz_index": 0,
+      "zeile": 0,
+      "vorkommen": 0,
+      "in_definition": false
+     },
+     {
+      "id": "2",
+      "absatz_index": 0,
+      "zeile": 0,
+      "vorkommen": 1,
+      "in_definition": false
+     },
+     {
+      "id": "2",
+      "absatz_index": 1,
+      "zeile": 1,
+      "vorkommen": 0,
+      "in_definition": true
+     }
+    ],
+    "definitionen": [
+     {
+      "id": "1",
+      "absatz_index": 1,
+      "zeile": 0
+     },
+     {
+      "id": "2",
+      "absatz_index": 1,
+      "zeile": 2
+     }
+    ],
+    "hinweise": [],
+    "bilanz": {
+     "marker": 4,
+     "definitionen": 2
+    }
+   }
+  },
+  {
+   "name": "andere_konvention_nummern_am_kapitelende",
+   "text": "Text hier.\n\n1 Erste Note.\n2 Zweite Note.\n3 Dritte Note.",
+   "erwartet": {
+    "marker": [],
+    "definitionen": [],
+    "hinweise": [
+     {
+      "art": "andere-konvention",
+      "id": "",
+      "absatz_index": 1,
+      "zeile": 0,
+      "begruendung": "Fußnoten scheinen nicht als [^Nr] ausgezeichnet zu sein (Zeilen mit Nummer am Kapitelende)"
+     }
+    ],
+    "bilanz": {
+     "marker": 0,
+     "definitionen": 0
+    }
+   }
+  },
+  {
+   "name": "keine_konventionsmeldung_wenn_definitionen_da_sind",
+   "text": "Text[^1].\n\n[^1]: Eins.\n\n1 foo\n2 bar\n3 baz",
+   "erwartet": {
+    "marker": [
+     {
+      "id": "1",
+      "absatz_index": 0,
+      "zeile": 0,
+      "vorkommen": 0,
+      "in_definition": false
+     }
+    ],
+    "definitionen": [
+     {
+      "id": "1",
+      "absatz_index": 1,
+      "zeile": 0
+     }
+    ],
+    "hinweise": [],
+    "bilanz": {
+     "marker": 1,
+     "definitionen": 1
+    }
+   }
+  },
+  {
+   "name": "leerer_text",
+   "text": "",
+   "erwartet": {
+    "marker": [],
+    "definitionen": [],
+    "hinweise": [],
+    "bilanz": {
+     "marker": 0,
+     "definitionen": 0
+    }
+   }
+  },
+  {
+   "name": "crlf_zeilen_zaehlen_wie_lf",
+   "text": "Text[^1]\r\nzweite[^1] Zeile.\r\n\r\n[^1]: Eins.",
+   "erwartet": {
+    "marker": [
+     {
+      "id": "1",
+      "absatz_index": 0,
+      "zeile": 0,
+      "vorkommen": 0,
+      "in_definition": false
+     },
+     {
+      "id": "1",
+      "absatz_index": 0,
+      "zeile": 1,
+      "vorkommen": 1,
+      "in_definition": false
+     }
+    ],
+    "definitionen": [
+     {
+      "id": "1",
+      "absatz_index": 1,
+      "zeile": 0
+     }
+    ],
+    "hinweise": [],
+    "bilanz": {
+     "marker": 2,
+     "definitionen": 1
+    }
+   }
+  },
+  {
+   "name": "kennung_mit_doppelpunkt_danach_ist_kein_marker_und_keine_definition_mitten_in_der_zeile",
+   "text": "Siehe [^1]: danach.\n\n[^2]: x",
+   "erwartet": {
+    "marker": [],
+    "definitionen": [
+     {
+      "id": "2",
+      "absatz_index": 1,
+      "zeile": 0
+     }
+    ],
+    "hinweise": [
+     {
+      "art": "definition-ohne-marker",
+      "id": "2",
+      "absatz_index": 1,
+      "zeile": 0,
+      "begruendung": "Fußnotentext [^2] wird nirgends verwiesen"
+     }
+    ],
+    "bilanz": {
+     "marker": 0,
+     "definitionen": 1
+    }
+   }
+  }
+ ],
+ "bilanzen": [
+  {
+   "name": "umbenannte_definition",
+   "vorher": "# K\n\nText[^1] und[^2].\n\n[^1]: Eins.\n[^2]: Zwei.",
+   "nachher": "# K\n\nText[^1] und[^2].\n\n[^1]: Eins.\n[^3]: Zwei.",
+   "erwartet": {
+    "marker": {},
+    "definitionen": {
+     "2": [
+      1,
+      0
+     ],
+     "3": [
+      0,
+      1
+     ]
+    },
+    "neue_hinweise": [
+     {
+      "art": "marker-ohne-definition",
+      "id": "2",
+      "absatz_index": 1,
+      "zeile": 0,
+      "begruendung": "Verweis [^2] hat keinen Fußnotentext"
+     },
+     {
+      "art": "definition-ohne-marker",
+      "id": "3",
+      "absatz_index": 2,
+      "zeile": 1,
+      "begruendung": "Fußnotentext [^3] wird nirgends verwiesen"
+     }
+    ]
+   }
+  },
+  {
+   "name": "unveraendert",
+   "vorher": "# K\n\nText[^1] und[^2].\n\n[^1]: Eins.\n[^2]: Zwei.",
+   "nachher": "# K\n\nText[^1] und[^2].\n\n[^1]: Eins.\n[^2]: Zwei.",
+   "erwartet": {
+    "marker": {},
+    "definitionen": {},
+    "neue_hinweise": []
+   }
+  },
+  {
+   "name": "marker_verloren",
+   "vorher": "# K\n\nText[^1] und[^2].\n\n[^1]: Eins.\n[^2]: Zwei.",
+   "nachher": "# K\n\nText und[^2].\n\n[^1]: Eins.\n[^2]: Zwei.",
+   "erwartet": {
+    "marker": {
+     "1": [
+      1,
+      0
+     ]
+    },
+    "definitionen": {},
+    "neue_hinweise": [
+     {
+      "art": "definition-ohne-marker",
+      "id": "1",
+      "absatz_index": 2,
+      "zeile": 0,
+      "begruendung": "Fußnotentext [^1] wird nirgends verwiesen"
+     }
+    ]
+   }
+  }
+ ]
+}

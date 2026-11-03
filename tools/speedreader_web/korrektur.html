@@ -167,6 +167,55 @@
   #vergleich-fuss { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 12px; justify-content: flex-end; }
   #vergleich-fuss button, #vergleich-kopf button { min-height: 44px; min-width: 44px; }
 
+  /* Absatz bearbeiten (Volltext) */
+  #absatz-leiste { position: absolute; right: 12px; bottom: 12px; z-index: 20; display: flex; align-items: center; gap: 6px; max-width: calc(100% - 24px);
+                   padding: 6px 8px; border: 1px solid var(--linie); border-radius: 14px; background: var(--flaeche); box-shadow: 0 6px 22px rgba(0,0,0,.28); }
+  #absatz-leiste[hidden] { display: none; }
+  #absatz-leiste-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--gedaempft); font-size: .85em; }
+  #absatz-leiste button { min-height: 44px; min-width: 44px; padding: 0 14px; border-radius: 12px; }
+  #absatz-dialog { width: min(900px, 98vw); max-height: 96dvh; margin: 8px auto auto; padding: 0; border: 1px solid var(--linie); border-radius: 16px;
+                   background: var(--flaeche); color: var(--text); }
+  #absatz-kopf { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--linie); }
+  #absatz-kopf b { flex: 1 1 10em; min-width: 0; }
+  #absatz-kopf button { min-height: 48px; min-width: 48px; padding: 0 16px; }
+  #absatz-warnung { padding: 8px 12px; color: var(--warn); font-weight: 700; white-space: pre-line; }
+  #absatz-warnung[hidden] { display: none; }
+  #absatz-editor { display: block; box-sizing: border-box; width: calc(100% - 24px); margin: 12px; height: 45dvh; min-height: 8em; resize: vertical; padding: 8px 10px;
+                   font: 16px/1.5 ui-monospace, "Cascadia Mono", "Roboto Mono", Consolas, monospace; tab-size: 4; color: var(--text); background: var(--bg);
+                   border: 1px solid var(--linie); border-radius: 12px; }
+
+  /* Ursache suchen (Volltext → Chunk) */
+  ::highlight(ursache) { background: rgba(240,190,40,.55); color: inherit; }
+  #ursache-dialog { width: min(720px, 98vw); max-height: 96dvh; margin: 8px auto auto; padding: 0; border: 1px solid var(--linie); border-radius: 16px;
+                    background: var(--flaeche); color: var(--text); overflow: auto; }
+  #ursache-kopf { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--linie); }
+  #ursache-kopf b { flex: 1; min-width: 0; }
+  #ursache-kopf button { min-height: 48px; min-width: 48px; padding: 0 16px; }
+  #ursache-info { margin: 8px 12px; color: var(--gedaempft); }
+  #ursache-liste { list-style: none; margin: 0; padding: 0 12px 12px; display: grid; gap: 6px; }
+  #ursache-liste button { width: 100%; text-align: left; min-height: 48px; padding: 6px 12px; overflow-wrap: anywhere; }
+
+  /* Fußnoten zuordnen (Volltext) */
+  .fn-marker, .fn-def { cursor: pointer; padding: 14px 3px; margin: 0 -3px; border-radius: 6px; text-decoration: underline dotted var(--akzent); text-underline-offset: 3px; }
+  .fn-marker:hover, .fn-def:hover { background: var(--knopf-aktiv); }
+  .fn-orphan { text-decoration-color: var(--warn); text-decoration-style: solid; font-weight: 700; }
+  #absatz-leiste button[hidden] { display: none; }
+  #absatz-leiste-text[data-art="fehler"] { color: var(--warn); font-weight: 700; white-space: normal; }
+  #fussnote-zuordnen { width: min(720px, 98vw); max-height: 96dvh; margin: 8px auto auto; padding: 0; border: 1px solid var(--linie); border-radius: 16px;
+                       background: var(--flaeche); color: var(--text); overflow: auto; }
+  #fn-kopf { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--linie); }
+  #fn-kopf b { flex: 1; min-width: 0; }
+  #fn-info { margin: 8px 12px 0; color: var(--gedaempft); overflow-wrap: anywhere; }
+  #fn-aktionen-oben { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 12px 0; }
+  #fn-wahl-titel { margin: 10px 12px 4px; font-size: .95rem; }
+  #fn-liste { list-style: none; margin: 0; padding: 0 12px; display: grid; gap: 6px; }
+  #fn-liste button { width: 100%; text-align: left; min-height: 48px; padding: 6px 12px; overflow-wrap: anywhere; }
+  #fn-liste button[aria-pressed="true"] { text-align: left; }
+  #fn-ergebnis { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 12px 0; }
+  #fn-kopf button, #fn-aktionen-oben button, #fn-ergebnis button { min-height: 48px; min-width: 48px; padding: 0 16px; }
+  #fn-meldung { padding: 8px 12px 12px; min-height: 1.4em; color: var(--warn); font-weight: 700; white-space: pre-line; }
+  #fn-meldung[data-art="info"] { color: var(--gedaempft); font-weight: 400; }
+
   /* Hochformat / schmales Fenster: untereinander */
   @media (max-width: 720px), (max-aspect-ratio: 1/1) {
     #teilung { flex-direction: column; }
@@ -265,6 +314,14 @@
         </div>
       </div>
       <pre id="uebersetzung-inhalt" tabindex="0" hidden></pre>
+      <div id="absatz-leiste" role="toolbar" aria-label="Absatz" hidden>
+        <span id="absatz-leiste-text"></span>
+        <button id="absatz-bearbeiten" type="button">Bearbeiten</button>
+        <button id="absatz-verweis" type="button" title="Fußnotenverweis an dieser Stelle setzen" hidden>Verweis setzen</button>
+        <button id="absatz-ursache" type="button" title="Die Stelle im Chunk suchen, aus der dieser Absatz stammt" hidden>Ursache suchen</button>
+        <button id="absatz-trennen" type="button" title="Den Absatz an dieser Stelle in zwei Absätze teilen">Absatz hier trennen</button>
+        <button id="absatz-leiste-zu" type="button" aria-label="Leiste schließen">✕</button>
+      </div>
     </div>
     <div id="aenderungen-leiste" data-zustand="ok">
       <span id="aenderungen-text" role="status" aria-live="polite">0 Änderungen · 0 Markierungen · 0 warten auf APIC</span>
@@ -334,6 +391,36 @@
   </div>
 </dialog>
 
+<dialog id="absatz-dialog" aria-label="Absatz bearbeiten">
+  <div id="absatz-kopf">
+    <b id="absatz-titel">Absatz bearbeiten</b>
+    <button id="absatz-speichern" type="button">Speichern</button>
+    <button id="absatz-abbrechen" type="button">Abbrechen</button>
+  </div>
+  <div id="absatz-warnung" role="status" aria-live="polite" hidden></div>
+  <textarea id="absatz-editor" spellcheck="false" autocapitalize="off" aria-label="Text des Absatzes"></textarea>
+</dialog>
+
+<dialog id="ursache-dialog" aria-label="Ursache suchen">
+  <div id="ursache-kopf"><b>Mehrere mögliche Stellen</b><button id="ursache-zu" type="button">Schließen</button></div>
+  <p id="ursache-info"></p>
+  <ul id="ursache-liste"></ul>
+</dialog>
+
+<dialog id="fussnote-zuordnen" aria-label="Fußnote zuordnen">
+  <div id="fn-kopf"><b id="fn-titel">Fußnote zuordnen</b><button id="fn-zu" type="button">Schließen</button></div>
+  <p id="fn-info"></p>
+  <div id="fn-aktionen-oben"><button id="fn-entfernen" type="button" hidden>Verweis entfernen</button></div>
+  <h3 id="fn-wahl-titel"></h3>
+  <ul id="fn-liste"></ul>
+  <div id="fn-ergebnis">
+    <button id="fn-zuordnen" type="button" hidden></button>
+    <button id="fn-umbenennen" type="button" hidden></button>
+    <button id="fn-setzen" type="button" hidden>Verweis hier setzen</button>
+  </div>
+  <div id="fn-meldung" role="status" aria-live="polite"></div>
+</dialog>
+
 <dialog id="aenderungsliste" aria-label="Änderungen dieses Buchs">
   <div id="aenderungsliste-kopf"><b id="aenderungsliste-titel">Änderungen</b><button id="aenderungsliste-zu">Schließen</button></div>
   <div id="aenderungsliste-inhalt"></div>
@@ -345,6 +432,8 @@
 <script src="epub.js"></script>
 <script src="redaktion.js"></script>
 <script src="verdacht.js"></script>
+<script src="fussnoten.js"></script>
+<script src="ursache.js"></script>
 <script src="chunkansicht.js"></script>
 <script>
 "use strict";
@@ -366,6 +455,7 @@ let steuerzeichen = !!lsGet("ksteuer", false);
 let epub = null, pdfUrl = null, ladeNr = 0;
 let abgelehnt = [];                   // abgelehnte Verdachtshinweise des offenen Buchs: [{anfang, art, zeile}]
 const ansichtCache = new Map();       // Chunk -> {sig, ansicht}: Verdachtserkennung je Chunk nur einmal
+const kapitelCache = new Map();       // Kapitel (Index) -> {sig, ansicht}: Volltext mit Einträgen und Fußnotenhinweisen
 let gezeigteSig = null, gezeigterChunk = -1, chunkBusy = false;
 const gespeichertEbook = new Set();   // Buch-IDs, zu denen ein Ebook im Browser liegt
 
@@ -465,7 +555,7 @@ async function oeffneBuch(b) {
   vergleichNr++; vergleich = null; if ($("vergleich").open) $("vergleich").close();      // ein Vergleich gehört zum Buch, in dem er geöffnet wurde
   ladeAenderungen(b);
   abgelehnt = lsGet("kabgelehnt:" + b.id, []); if (!Array.isArray(abgelehnt)) abgelehnt = [];
-  ansichtCache.clear(); gezeigteSig = null;
+  ansichtCache.clear(); kapitelCache.clear(); gezeigteSig = null;
   pos = Object.assign({ chunk: 0, kap: 0, epub: 0, seite: 1, deVerschub: 0 }, lsGet("kpos:" + b.id, {}));
   $("titel-buch").textContent = `${b.autor} – ${b.titel}`;
   $("titel-info").textContent = [b.quellsprache && `Sprache ${b.quellsprache}`, b.chunks ? `${b.chunks} Rohchunks${b.chunkSprache ? ` (${b.chunkSprache})` : ""}${b.chunkQuelle === "en-chunks" ? " aus en-chunks" : ""}` : "keine Rohchunks", b.kapitel.length ? `${b.kapitel.length} Kapitel` : "noch kein bereinigter Text"].filter(Boolean).join(" · ");
@@ -559,7 +649,9 @@ function zeigeUebersetzung(ix, text) {
 }
 
 function zeigeRechts() {
-  if (werkzeugLeiste) werkzeugLeiste.verberge();        // Verschieben-Modus und Auswahl überleben keinen Wechsel
+  if (window.CSS && CSS.highlights) CSS.highlights.delete("ursache");
+  if (werkzeugLeiste) werkzeugLeiste.verberge();
+  if (modus !== "text") verbergeAbsatzLeiste();        // Verschieben-Modus und Auswahl überleben keinen Wechsel
   document.querySelectorAll("[data-modus]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.modus === modus)));
   $("modus-chunks").disabled = !buch || buch.chunks === 0;
   $("modus-text").disabled = !buch || buch.kapitel.length === 0;
@@ -590,7 +682,8 @@ function zeigeRechts() {
   if (text === undefined) { zeigeRechtsHinweis(istChunkModus() ? "Dieses Buch hat keine extrahierten Rohchunks." : "Keine Kapitel."); return; }
   let gezeigt = text;
   if (istChunkModus()) gezeigt = zeigeChunkText($("rechts-inhalt"), ix, text);
-  else { fuelleText($("rechts-inhalt"), text); gezeigteSig = null; $("rechts-verdacht").textContent = ""; }
+  else if (kapitelBereit(ix)) gezeigt = zeigeKapitelText($("rechts-inhalt"), ix, text);
+  else { fuelleText($("rechts-inhalt"), text); gezeigteSig = null; $("rechts-verdacht").textContent = daten.kapitel[ix] && !daten.kapitel[ix].datei ? "Bearbeiten gesperrt: Daten neu exportieren" : ""; }
   markiereWahl(wahl);
   if (paar) { zeigeUebersetzung(ix, text); $("rechts-info").textContent = ""; return; }
   const zeilen = gezeigt.split("\n").length;
@@ -599,8 +692,42 @@ function zeigeRechts() {
 }
 
 // ---- Chunk-Ansicht A: Verdachtsstellen (chunkansicht.js) ------------------------------------------------------------
-const CA = window.Chunkansicht && window.Redaktion && window.Verdacht ? window.Chunkansicht : null;
+const CA = window.Chunkansicht && window.Redaktion && window.Verdacht && window.Fussnoten ? window.Chunkansicht : null;
 const ansichtSig = (ix) => `${buch.id}#${ix}#${CA.signatur(eintraege, ix, abgelehnt.length, eintraegeBuchId === buch.id)}`;
+
+// ---- Volltext (Modus „Bereinigt“): Kapitel mit den Einträgen der Ebene "volltext" -------------------------------------
+/** Nur mit neuen Daten (Dateiname je Kapitel, Stand `enthalten`) lässt sich der Volltext sicher bearbeiten. */
+const kapitelBereit = (ix) => !!CA && !!daten && Array.isArray(daten.enthalten) && !!daten.kapitel[ix] && typeof daten.kapitel[ix].datei === "string" && !!daten.kapitel[ix].datei;
+const kapitelOptionen = (ix) => {
+  if (!daten._enthaltenSet) daten._enthaltenSet = new Set(daten.enthalten);
+  return { ebene: "volltext", zielfeld: "datei", verdacht: false, enthalten: daten._enthaltenSet, nachspiel: daten.nachspiel || null, nr: ix };
+};
+const kapitelSig = (ix) => `${buch.id}#k${ix}#${CA.signatur(eintraege, daten.kapitel[ix].datei, abgelehnt.length, eintraegeBuchId === buch.id, kapitelOptionen(ix))}`;
+/** Signatur der gerade gezeigten Ansicht (Chunk oder Kapitel), für „muss neu gezeichnet werden?“. */
+const sigAktuell = () => (modus === "text" ? kapitelSig(gezeigterChunk) : ansichtSig(gezeigterChunk));
+const cacheVon = (ansicht) => (ansicht.ebene === "volltext" ? kapitelCache : ansichtCache);
+const sigVon = (ansicht) => (ansicht.ebene === "volltext" ? kapitelSig(ansicht.nr) : ansichtSig(ansicht.chunk));
+
+/** Zeigt das Kapitel mit den offenen Einträgen abgespielt und den Fußnotenhinweisen; gibt den gezeigten Text zurück. */
+function zeigeKapitelText(pre, ix, roh) {
+  const info = $("rechts-verdacht"), datei = daten.kapitel[ix].datei;
+  const bereit = eintraegeBuchId === buch.id;           // vor dem Laden der Einträge wäre ein "vorher" veraltet: keine Hinweise
+  const sig = kapitelSig(ix);
+  let c = kapitelCache.get(ix);
+  if (!c || c.sig !== sig) { c = { sig: sig, ansicht: CA.bereite(roh, eintraege, datei, abgelehnt, bereit, kapitelOptionen(ix)) }; kapitelCache.set(ix, c); }
+  const kennung = `${buch.id}:k:${datei}`, oben = pre.dataset.fuer === kennung ? pre.scrollTop : 0;
+  CA.rendere(pre, c.ansicht, { fuelle: haengeText, aktion: chunkAktion });
+  werkzeuge();
+  if (bereit) dekoriereFussnoten(pre, c.ansicht);
+  pre.dataset.fuer = kennung; pre.scrollTop = oben;
+  gezeigteSig = sig; gezeigterChunk = ix;
+  if (absatzAuswahl && absatzAuswahl.ansicht !== c.ansicht) verbergeAbsatzLeiste();       // anderer Text: der angetippte Absatz gilt nicht mehr
+  const n = c.ansicht.hinweise.length, k = c.ansicht.konflikte.length, l = c.ansicht.luecke.length;
+  info.textContent = bereit ? [`Fußnoten: ${n} ${n === 1 ? "Hinweis" : "Hinweise"}`, k ? `${k} ${k === 1 ? "Konflikt" : "Konflikte"}` : "",
+    l ? `${l} am PC angewendet, im Export noch nicht enthalten` : ""].filter(Boolean).join(" · ") : "Änderungen werden geladen …";
+  info.dataset.konflikt = k ? "ja" : "nein";
+  return c.ansicht.text;
+}
 
 /** Zeigt den Roh-Chunk mit den offenen Einträgen abgespielt und den Verdachtsstellen; gibt den gezeigten Text zurück. */
 function zeigeChunkText(pre, ix, roh) {
@@ -623,6 +750,14 @@ function zeigeChunkText(pre, ix, roh) {
 
 /** ● im Chunk-Wähler bei Chunks, deren (bereits berechnete) Ansicht offene Hinweise hat. */
 function markiereWahl(wahl) {
+  if (modus === "text" && CA && daten) {
+    for (const o of wahl.options) {
+      const k = daten.kapitel[Number(o.value)], c = kapitelCache.get(Number(o.value));
+      const basis = k ? `${k.nr}. ${k.titel}` : o.textContent.replace(/^● /, "");
+      o.textContent = c && c.ansicht.hinweise.length ? `● ${basis}` : basis;
+    }
+    return;
+  }
   if (!istChunkModus() || !CA) return;
   for (const o of wahl.options) {
     const kap = kapitelZuChunk(Number(o.value));
@@ -633,8 +768,8 @@ function markiereWahl(wahl) {
 
 async function chunkAktion(was, objekt, ansicht) {
   if (chunkBusy || !buch || !CA) return;
-  const b = buch, ix = ansicht.chunk, c = ansichtCache.get(ix);
-  if (!c || c.ansicht !== ansicht || c.sig !== ansichtSig(ix)) { zeigeRechts(); return; }       // Ansicht veraltet: neu zeichnen, nichts ändern
+  const b = buch, c = cacheVon(ansicht).get(ansicht.nr);
+  if (!c || c.ansicht !== ansicht || c.sig !== sigVon(ansicht)) { zeigeRechts(); return; }       // Ansicht veraltet: neu zeichnen, nichts ändern
   if (was === "ablehnen") {
     const zeile = (CA.absatzText(ansicht, objekt.absatz_index) || "").split(/\r?\n/)[objekt.zeile] || "";
     abgelehnt = abgelehnt.concat([{ anfang: objekt.anfang, art: objekt.art, zeile: CA.zeilenSchluessel(zeile) }]);
@@ -650,7 +785,7 @@ async function chunkAktion(was, objekt, ansicht) {
     else {
       const d = CA.entwurf(ansicht, was, objekt);
       if (!d) throw new Error("Absatz nicht gefunden");
-      const neu = R.neuerEintrag(buchSchluessel(b), "chunk-orig", d.ziel, d.art, d.parameter, d.vorherText, d.hinweis, geraet);
+      const neu = R.neuerEintrag(buchSchluessel(b), ansicht.ebene, d.ziel, d.art, d.parameter, d.vorherText, d.hinweis, geraet);
       // Neu anwenden: neuer Eintrag und Rücknahme des alten in EINER Runde der Kette (beide oder keiner)
       if (was === "neu") await neueAenderungen([neu, ruecknahme(objekt.eintrag)]);
       else await neueAenderung(neu);
@@ -668,24 +803,453 @@ let werkzeugLeiste = null;
 function werkzeuge() {
   if (werkzeugLeiste || !CA) return;
   werkzeugLeiste = CA.installiereWerkzeuge($("rechts-inhalt"), {
-    ansicht: () => { const c = buch && istChunkModus() ? ansichtCache.get(gezeigterChunk) : null; return c && c.sig === gezeigteSig && c.sig === ansichtSig(gezeigterChunk) ? c.ansicht : null; },
+    ansicht: () => {
+      if (!buch) return null;
+      if (modus === "text") return aktuelleKapitelAnsicht();
+      const c = istChunkModus() ? ansichtCache.get(gezeigterChunk) : null;
+      return c && c.sig === gezeigteSig && c.sig === ansichtSig(gezeigterChunk) ? c.ansicht : null;
+    },
     ausfuehren: werkzeugAktion,
   });
 }
 /** Legt die Entwürfe der Werkzeugleiste als Einträge ab (alle auf einmal, über die serialisierte Kette). */
 async function werkzeugAktion(ansicht, liste) {
   if (chunkBusy || !buch || !CA) throw new Error("bitte kurz warten");
-  const b = buch, ix = ansicht.chunk, c = ansichtCache.get(ix);
-  if (!c || c.ansicht !== ansicht || c.sig !== ansichtSig(ix)) { zeigeRechts(); throw new Error("Der Text hat sich geändert, bitte noch einmal auswählen"); }
+  const b = buch, c = cacheVon(ansicht).get(ansicht.nr);
+  if (!c || c.ansicht !== ansicht || c.sig !== sigVon(ansicht)) { zeigeRechts(); throw new Error("Der Text hat sich geändert, bitte noch einmal auswählen"); }
   chunkBusy = true;
   const geraet = verbindung.geraet || "epistopheles";
   try {
-    await neueAenderungen(liste.map((d) => R.neuerEintrag(buchSchluessel(b), "chunk-orig", d.ziel, d.art, d.parameter, d.vorherText, d.hinweis, geraet)));
+    await neueAenderungen(liste.map((d) => R.neuerEintrag(buchSchluessel(b), ansicht.ebene, d.ziel, d.art, d.parameter, d.vorherText, d.hinweis, geraet)));
   } finally {
     chunkBusy = false;
     if (buch === b) zeigeRechts();
   }
 }
+
+// ---- Absatz bearbeiten (Volltext, Modus „Bereinigt“) --------------------------------------------------------------------
+let absatzAuswahl = null;               // {ansicht, index}: der angetippte Absatz der gezeigten Kapitelansicht
+let absatzEditor = null;                // {ansicht, index, roh, bestaetigt}: der offene Editor
+
+/** Die gerade gezeigte Kapitelansicht, wenn sie noch zu den Daten passt (sonst null). */
+function aktuelleKapitelAnsicht() {
+  if (!buch || !CA || modus !== "text" || gezeigteSig === null || !kapitelBereit(gezeigterChunk)) return null;
+  const c = kapitelCache.get(gezeigterChunk);
+  return c && c.sig === gezeigteSig && c.sig === kapitelSig(gezeigterChunk) ? c.ansicht : null;
+}
+function verbergeAbsatzLeiste() { absatzAuswahl = null; $("absatz-leiste").hidden = true; }
+
+$("rechts-inhalt").addEventListener("click", (ev) => {
+  const a = aktuelleKapitelAnsicht();
+  if (!a) { verbergeAbsatzLeiste(); return; }
+  if (werkzeugLeiste && werkzeugLeiste.zustand().modus === "verschieben") return;            // Zielabsatz antippen, nicht bearbeiten
+  if (ev.target.closest && ev.target.closest("button, .verdacht-leiste, .konflikt, .fn-marker, .fn-def")) return;
+  const pre = $("rechts-inhalt"), sel = document.getSelection();
+  const off = sel && sel.rangeCount && sel.isCollapsed && pre.contains(sel.anchorNode) ? CA.offsetIn(pre, sel.anchorNode, sel.anchorOffset) : null;
+  const i = off === null ? -1 : a.spannen.findIndex(([x, y]) => off >= x && off <= y);
+  if (i < 0) { verbergeAbsatzLeiste(); return; }
+  absatzAuswahl = { ansicht: a, index: i, pos: off - a.spannen[i][0] };
+  const roh = CA.absatzText(a, i).replace(/\s+/g, " ").trim();
+  $("absatz-leiste-text").textContent = `Absatz ${i + 1}: ${roh.length > 40 ? roh.slice(0, 40) + "…" : roh}`;
+  delete $("absatz-leiste-text").dataset.art;
+  const leiste = $("absatz-leiste"), koerper = $("rechts-koerper");
+  $("absatz-verweis").hidden = !fnAnalyse(a).definitionen.length;
+  $("absatz-ursache").hidden = !ursacheQuellen();
+  leiste.hidden = false;
+  // Neben die Tippstelle setzen (darunter, sonst darüber), damit sie den Absatz nicht verdeckt; ohne Lage unten rechts
+  const rs = sel.getRangeAt(0).getClientRects(), r = rs.length ? rs[rs.length - 1] : null;
+  const y = r && (r.bottom || r.top) ? r : ev.clientY > 0 ? { top: ev.clientY, bottom: ev.clientY } : null;
+  if (y) {
+    const kr = koerper.getBoundingClientRect(), h = leiste.offsetHeight;
+    let top = y.bottom - kr.top + 10;
+    if (top + h > kr.height) top = Math.max(0, y.top - kr.top - h - 10);
+    leiste.style.top = top + "px"; leiste.style.bottom = "auto";
+  } else { leiste.style.top = ""; leiste.style.bottom = ""; }
+});
+$("absatz-leiste-zu").addEventListener("click", verbergeAbsatzLeiste);
+
+function meldeAbsatz(text) { const w = $("absatz-warnung"); w.textContent = text; w.hidden = !text; }
+function zuruecksetzenAbsatzBestaetigung() {
+  if (!absatzEditor) return;
+  absatzEditor.bestaetigt = false; $("absatz-speichern").textContent = "Speichern"; meldeAbsatz("");
+}
+function schliesseAbsatzEditor() { absatzEditor = null; if ($("absatz-dialog").open) $("absatz-dialog").close(); }
+
+$("absatz-bearbeiten").addEventListener("click", () => {
+  const a = aktuelleKapitelAnsicht();
+  if (!a || !absatzAuswahl || absatzAuswahl.ansicht !== a) { verbergeAbsatzLeiste(); return; }
+  const roh = CA.absatzText(a, absatzAuswahl.index);
+  if (roh === null) { verbergeAbsatzLeiste(); return; }
+  absatzEditor = { ansicht: a, index: absatzAuswahl.index, roh: roh, bestaetigt: false };
+  $("absatz-titel").textContent = `Absatz ${absatzAuswahl.index + 1} · ${daten.kapitel[a.nr].titel}`;
+  $("absatz-editor").value = roh;
+  zuruecksetzenAbsatzBestaetigung();
+  $("absatz-dialog").showModal();
+  $("absatz-editor").focus();
+});
+$("absatz-editor").addEventListener("input", zuruecksetzenAbsatzBestaetigung);
+$("absatz-abbrechen").addEventListener("click", schliesseAbsatzEditor);
+$("absatz-dialog").addEventListener("close", () => { absatzEditor = null; });
+
+/** Fußnoten, die sich durch die Änderung verschieben: Zeilen für die Warnung („Verweis [^2]: 1 → 0“). */
+function fussnotenWarnung(vorher, nachher) {
+  const b = window.Fussnoten.bilanz(vorher, nachher), zeilen = [];
+  for (const [id, [v, n]] of Object.entries(b.marker)) zeilen.push(`Verweis [^${id}]: ${v} → ${n}`);
+  for (const [id, [v, n]] of Object.entries(b.definitionen)) zeilen.push(`Fußnotentext [^${id}]: ${v} → ${n}`);
+  for (const h of b.neue_hinweise) zeilen.push(`Neu: ${h.begruendung}`);
+  return zeilen;
+}
+
+async function speichereAbsatz() {
+  const ed = absatzEditor;
+  if (!ed || chunkBusy || !buch || !CA) return;
+  const neu = $("absatz-editor").value;                              // das Textfeld liefert \n; ops.py setzt bei CRLF-Absätzen \r\n
+  if (neu === ed.roh.replace(/\r\n/g, "\n")) { meldeAbsatz("Keine Änderung: es wird nichts gespeichert."); return; }
+  if (!neu.trim()) { meldeAbsatz("Der Absatz wäre leer. Zum Entfernen später das Werkzeug „Löschen“ benutzen."); return; }
+  if (/\n\s*\n/.test(neu.trim())) { meldeAbsatz("Ein Absatz darf keine Leerzeile enthalten. Zum Teilen „Absatz hier trennen“ benutzen."); return; }
+  const a = ed.ansicht, c = kapitelCache.get(a.nr);
+  if (!c || c.ansicht !== a || c.sig !== kapitelSig(a.nr)) { meldeAbsatz("Der Text hat sich inzwischen geändert. Bitte den Absatz noch einmal öffnen."); return; }
+  const b = buch, geraet = verbindung.geraet || "epistopheles";
+  const eintrag = R.neuerEintrag(buchSchluessel(b), "volltext", { datei: a.chunk, anfang: R.ankerVon(ed.roh), absatz_index: ed.index },
+    "ersetzen", { nachher: neu }, ed.roh, "", geraet);
+  const erg = R.wendeAn(a.text, eintrag);                            // genau das, was APIC später tut: Vorprüfung
+  if (erg.status !== "angewendet") { meldeAbsatz("Nicht möglich: " + erg.grund); return; }
+  const warnung = fussnotenWarnung(a.text, erg.text);
+  if (warnung.length && !ed.bestaetigt) {
+    ed.bestaetigt = true;
+    meldeAbsatz("Fußnoten ändern sich:\n" + warnung.join("\n"));
+    $("absatz-speichern").textContent = "Trotzdem speichern";
+    return;
+  }
+  chunkBusy = true;
+  try {
+    await neueAenderung(eintrag);
+    schliesseAbsatzEditor(); verbergeAbsatzLeiste();
+  } catch (e) {
+    meldeAbsatz("Änderung nicht gespeichert: " + (e.message || e));
+  } finally {
+    chunkBusy = false;
+    if (buch === b) zeigeRechts();
+  }
+}
+$("absatz-speichern").addEventListener("click", speichereAbsatz);
+
+// ---- Fußnote zuordnen (Volltext) ------------------------------------------------------------------------------------------
+/** Fußnotenanalyse des abgespielten Kapitels (einmal je Ansicht). */
+const fnAnalyse = (a) => a.fn || (a.fn = window.Fussnoten.analysiere(a.text));            // `bereite` legt sie schon an (a.fn)
+const FN_TREFFER = /\[\^([^\]\[ \t\r\n\f\v\u00a0]+)\](:?)/g;
+
+/** Macht [^id] im Fließtext und die Köpfe „[^id]:“ der Fußnotentexte antippbar (Spans mit unverändertem Text).
+ *  Die Reihenfolge der Treffer im DOM muss genau der Analyse entsprechen, sonst bleibt der Text undekoriert. */
+function dekoriereFussnoten(pre, a) {
+  const ana = fnAnalyse(a);
+  const waise = { marker: new Set(), definition: new Set() };
+  for (const h of ana.hinweise) {
+    if (h.art === "marker-ohne-definition") waise.marker.add(h.id);
+    if (h.art === "definition-ohne-marker") waise.definition.add(h.id);
+  }
+  const knoten = [], lauf = document.createTreeWalker(pre, NodeFilter.SHOW_TEXT, { acceptNode: (n) =>
+    n.parentElement && n.parentElement.closest("[data-leer], button, .verdacht-leiste, .konflikt") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
+  for (let n; (n = lauf.nextNode());) knoten.push(n);
+  const treffer = [];                                          // {knoten, von, bis, art, nr}
+  let prev = "", m = 0, d = 0;
+  for (const k of knoten) {
+    const t = k.data;
+    for (const x of t.matchAll(FN_TREFFER)) {
+      const davor = x.index > 0 ? t[x.index - 1] : prev;
+      if (x[2]) {
+        if (davor !== "" && davor !== "\n") continue;           // „[^1]:“ mitten in der Zeile ist weder Marker noch Fußnotentext
+        if (!ana.definitionen[d] || ana.definitionen[d].id !== x[1]) return;
+        treffer.push({ k, von: x.index, bis: x.index + x[0].length, art: "def", nr: d++, id: x[1] });
+      } else {
+        if (!ana.marker[m] || ana.marker[m].id !== x[1]) return;
+        treffer.push({ k, von: x.index, bis: x.index + x[0].length, art: "marker", nr: m++, id: x[1] });
+      }
+    }
+    if (t) prev = t[t.length - 1];
+  }
+  if (m !== ana.marker.length || d !== ana.definitionen.length) return;          // Analyse und Anzeige stimmen nicht überein: nichts anfassen
+  for (let i = treffer.length - 1; i >= 0; i--) {                                  // von hinten, damit frühere Positionen gültig bleiben
+    const { k, von, bis, art, nr, id } = treffer[i];
+    const rest = k.splitText(von), nach = rest.splitText(bis - von);                // k = Text davor, rest = Treffer, nach = Rest
+    void nach;
+    const span = document.createElement("span");
+    span.className = art === "marker" ? "fn-marker" : "fn-def";
+    if (waise[art === "marker" ? "marker" : "definition"].has(id)) span.classList.add("fn-orphan");
+    span.dataset.fnNr = String(nr);
+    rest.parentNode.replaceChild(span, rest);
+    span.append(rest);
+  }
+}
+
+let fnDialog = null;               // {ansicht, art: "marker"|"def"|"setzen", item, wahl}
+
+function meldeFn(text, art) { const x = $("fn-meldung"); x.textContent = text || ""; x.dataset.art = art || "fehler"; }
+function schliesseFn() { fnDialog = null; if ($("fussnote-zuordnen").open) $("fussnote-zuordnen").close(); }
+$("fn-zu").addEventListener("click", schliesseFn);
+$("fussnote-zuordnen").addEventListener("close", () => { fnDialog = null; });
+
+const fnZeile = (a, i, z) => (CA.absatzText(a, i) || "").split(/\r?\n/)[z] || "";
+const kurz = (t, n) => { t = t.replace(/\s+/g, " ").trim(); return t.length > n ? t.slice(0, n) + "…" : t; };
+const fnMarkerText = (a, m) => `[^${m.id}] in „${kurz(fnZeile(a, m.absatz_index, m.zeile), 46)}“`;
+const fnDefText = (a, dd) => `[^${dd.id}] Fußnotentext: „${kurz(fnZeile(a, dd.absatz_index, dd.zeile).replace(/^\[\^[^\]]*\]:\s*/, ""), 46)}“`;
+
+/** Eintrag der Art "fussnote" für einen Absatz des Kapitels (vorher = Text des abgespielten Absatzes). */
+function fnEintrag(a, absatzIndex, parameter, zeile) {
+  const roh = CA.absatzText(a, absatzIndex);
+  const ziel = { datei: a.chunk, anfang: R.ankerVon(roh), absatz_index: absatzIndex };
+  if (zeile !== undefined) ziel.zeile = zeile;
+  return R.neuerEintrag(buchSchluessel(buch), "volltext", ziel, "fussnote", parameter, roh, "", verbindung.geraet || "epistopheles");
+}
+
+async function fnSpeichere(eintrag) {
+  const fd = fnDialog;
+  if (!fd || chunkBusy || !buch) return;
+  const a = fd.ansicht, c = kapitelCache.get(a.nr);
+  if (!c || c.ansicht !== a || c.sig !== kapitelSig(a.nr)) { meldeFn("Der Text hat sich inzwischen geändert. Bitte noch einmal antippen."); return; }
+  const erg = R.wendeAn(a.text, eintrag);                                          // genau die Vorprobe, die APIC später macht
+  if (erg.status !== "angewendet") { meldeFn("Nicht möglich: " + erg.grund); return; }
+  const b = buch;
+  chunkBusy = true;
+  try { await neueAenderung(eintrag); schliesseFn(); }
+  catch (e) { meldeFn("Änderung nicht gespeichert: " + (e.message || e)); }
+  finally { chunkBusy = false; if (buch === b) zeigeRechts(); }
+}
+
+/** Kandidaten der Auswahlliste: Waisen zuerst. */
+function fnKandidaten(a, art) {
+  const ana = fnAnalyse(a);
+  const definiert = new Set(ana.definitionen.map((d) => d.id)), verwiesen = new Set(ana.marker.map((m) => m.id));
+  // art "def": Verweise im Fließtext zur Wahl (Waise = ohne Text); sonst: Fußnotentexte (Waise = ohne Verweis). Waisen zuerst.
+  const liste = art === "def"
+    ? ana.marker.filter((m) => !m.in_definition).map((m) => ({ art: "marker", x: m, waise: !definiert.has(m.id), text: fnMarkerText(a, m) }))
+    : ana.definitionen.map((d) => ({ art: "def", x: d, waise: !verwiesen.has(d.id), text: fnDefText(a, d) }));
+  const hinweis = art === "def" ? " · ohne Text" : " · ohne Verweis";
+  return liste.map((k) => (k.waise ? { ...k, text: k.text + hinweis } : k)).sort((p, q) => Number(!p.waise) - Number(!q.waise));      // stabil
+}
+
+function zeigeFnListe(titel, kandidaten) {
+  $("fn-wahl-titel").textContent = titel;
+  const ul = $("fn-liste"); ul.textContent = "";
+  kandidaten.forEach((k, n) => {
+    const li = el("li"), b = el("button", "", k.text);
+    b.type = "button"; b.dataset.nr = String(n); b.setAttribute("aria-pressed", "false");
+    li.append(b); ul.append(li);
+  });
+  if (!kandidaten.length) ul.append(el("li", "", "Keine Einträge vorhanden."));
+}
+
+function oeffneFn(art, nr) {
+  const a = aktuelleKapitelAnsicht();
+  if (!a) return;
+  const ana = fnAnalyse(a), item = art === "marker" ? ana.marker[nr] : ana.definitionen[nr];
+  if (!item) return;
+  fnDialog = { ansicht: a, art: art, item: item, kandidaten: null, wahl: null };
+  for (const id of ["fn-zuordnen", "fn-umbenennen", "fn-setzen", "fn-entfernen"]) $(id).hidden = true;
+  meldeFn("");
+  if (art === "marker") {
+    $("fn-titel").textContent = `Verweis [^${item.id}] zuordnen`;
+    $("fn-info").textContent = fnMarkerText(a, item);
+    $("fn-entfernen").hidden = false;
+    fnDialog.kandidaten = fnKandidaten(a, "marker");
+    zeigeFnListe("Zu welchem Fußnotentext gehört dieser Verweis?", fnDialog.kandidaten);
+  } else {
+    $("fn-titel").textContent = `Fußnotentext [^${item.id}] zuordnen`;
+    $("fn-info").textContent = fnDefText(a, item);
+    fnDialog.kandidaten = fnKandidaten(a, "def");
+    zeigeFnListe("Zu welchem Verweis gehört dieser Fußnotentext?", fnDialog.kandidaten);
+  }
+  $("fussnote-zuordnen").showModal();
+}
+
+/** Verweis an der Stelle des angetippten Zeigers setzen: Auswahl des Fußnotentexts. */
+function oeffneFnSetzen() {
+  const a = aktuelleKapitelAnsicht();
+  if (!a || !absatzAuswahl || absatzAuswahl.ansicht !== a) return;
+  fnDialog = { ansicht: a, art: "setzen", item: { absatz_index: absatzAuswahl.index, pos: absatzAuswahl.pos }, kandidaten: null, wahl: null };
+  for (const id of ["fn-zuordnen", "fn-umbenennen", "fn-setzen", "fn-entfernen"]) $(id).hidden = true;
+  meldeFn("");
+  $("fn-titel").textContent = "Verweis hier setzen";
+  $("fn-info").textContent = `Absatz ${absatzAuswahl.index + 1}, nach „${kurz(CA.absatzText(a, absatzAuswahl.index).slice(Math.max(0, absatzAuswahl.pos - 30), absatzAuswahl.pos), 30)}“`;
+  fnDialog.kandidaten = fnKandidaten(a, "setzen");
+  zeigeFnListe("Welcher Fußnotentext gehört zu diesem Verweis?", fnDialog.kandidaten);
+  verbergeAbsatzLeiste();
+  $("fussnote-zuordnen").showModal();
+}
+$("absatz-verweis").addEventListener("click", oeffneFnSetzen);
+
+// ---- Ursache suchen: vom Volltext zum Chunk (ursache.js) -------------------------------------------------------------------
+const UR = window.Ursache || null;
+/** Wo gesucht wird: in den übersetzten Chunks, bei deutscher Quelle (keine Übersetzung) in den Rohchunks. */
+function ursacheQuellen() {
+  if (!UR || !buch || !daten) return null;
+  if (buch.uebersetzung > 0 && Array.isArray(daten.uebersetzung) && daten.uebersetzung.length) return { liste: daten.uebersetzung, art: "uebersetzung" };
+  if (buch.chunks > 0 && Array.isArray(daten.chunks) && daten.chunks.length) return { liste: daten.chunks, art: "roh" };
+  return null;
+}
+/** Chunk-Bereich des Kapitels k (einschließlich), nur wenn es gleich viele Kapitelgrenzen wie Kapitel gibt; sonst null. */
+function ursacheBereich(k) {
+  if (!sprungMoeglich() || !daten.segmente[k]) return null;
+  const s = daten.segmente;
+  return [s[k].chunk, k + 1 < s.length ? s[k + 1].chunk : Infinity];
+}
+
+/** Markiert die gefundene Stelle im Text von `pre` (CSS Custom Highlight: ändert das DOM nicht) und scrollt dorthin. */
+function hebeUrsacheHervor(pre, fenster) {
+  if (!window.CSS || !CSS.highlights || typeof Highlight === "undefined") return;
+  CSS.highlights.delete("ursache");
+  const knoten = [], starts = [], lauf = document.createTreeWalker(pre, NodeFilter.SHOW_TEXT, { acceptNode: (n) =>
+    n.parentElement && n.parentElement.closest("[data-leer]") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
+  let text = "";
+  for (let n; (n = lauf.nextNode());) { knoten.push(n); starts.push(text.length); text += n.data; }
+  const r = UR.finde(text, fenster);
+  if (!r || !knoten.length) return;
+  const an = (p) => { let k = starts.length - 1; while (k > 0 && starts[k] > p) k--; return [knoten[k], p - starts[k]]; };
+  const [n1, o1] = an(r.von), [n2, o2] = an(Math.max(r.von, r.bis - 1));
+  const bereich = document.createRange();
+  bereich.setStart(n1, o1); bereich.setEnd(n2, o2 + 1);
+  CSS.highlights.set("ursache", new Highlight(bereich));
+  const rect = bereich.getBoundingClientRect(), pr = pre.getBoundingClientRect();
+  pre.scrollTop += rect.top - pr.top - pr.height / 3;
+}
+
+function springeZurUrsache(q, t) {
+  verbergeAbsatzLeiste();
+  if ($("ursache-dialog").open) $("ursache-dialog").close();
+  if (q.art === "uebersetzung") {
+    // Rohchunk ungefähr zuordnen und die Verschiebung so setzen, dass genau dieser übersetzte Chunk erscheint (↺ stellt zurück)
+    const n = buch.chunks, m = buch.uebersetzung || 0, j = t.chunk;
+    const basis = (i) => (n === m ? i : Math.round(i * (m - 1) / Math.max(1, n - 1)));
+    pos.chunk = Math.min(Math.max(n === m ? j : Math.round(j * (n - 1) / Math.max(1, m - 1)), 0), n - 1);
+    pos.deVerschub = j - basis(pos.chunk);
+    modus = wunschModus = "uebersetzung";
+  } else {
+    pos.chunk = Math.min(Math.max(t.chunk, 0), buch.chunks - 1);
+    modus = wunschModus = "chunks";
+  }
+  lsSet("kmodus", modus); speicherePos(); zeigeRechts();
+  const pre = q.art === "uebersetzung" ? $("uebersetzung-inhalt") : $("rechts-inhalt");
+  requestAnimationFrame(() => hebeUrsacheHervor(pre, t.fenster));
+}
+
+let ursacheAuswahl = null;           // {q, treffer} des offenen Dialogs
+function oeffneUrsacheDialog(q, erg, ausserhalb) {
+  ursacheAuswahl = { q: q, treffer: erg.treffer };
+  $("ursache-info").textContent = ausserhalb
+    ? "Im erwarteten Bereich des Kapitels steht der Text nicht; außerhalb gibt es diese Stellen. Bitte eine wählen."
+    : "Der Text passt zu mehreren Stellen oder nur teilweise. Bitte eine wählen (es wird nichts geraten).";
+  const ul = $("ursache-liste"); ul.textContent = "";
+  erg.treffer.forEach((t, n) => {
+    const b = el("button", "", `Chunk ${t.chunk} · ${t.anzahl} ${t.anzahl === 1 ? "Textstück" : "Textstücke"} stimmen · „${t.fenster}“`);
+    b.type = "button"; b.dataset.nr = String(n);
+    const li = el("li"); li.append(b); ul.append(li);
+  });
+  $("ursache-dialog").showModal();
+}
+$("ursache-liste").addEventListener("click", (ev) => {
+  const b = ev.target.closest("button[data-nr]");
+  if (b && ursacheAuswahl) springeZurUrsache(ursacheAuswahl.q, ursacheAuswahl.treffer[Number(b.dataset.nr)]);
+});
+$("ursache-zu").addEventListener("click", () => $("ursache-dialog").close());
+
+$("absatz-ursache").addEventListener("click", () => {
+  const a = aktuelleKapitelAnsicht(), sel = absatzAuswahl, text = $("absatz-leiste-text");
+  const meld = (t) => { text.textContent = t; text.dataset.art = "fehler"; };
+  if (!a || !sel || sel.ansicht !== a) { verbergeAbsatzLeiste(); return; }
+  const q = ursacheQuellen();
+  if (!q) { meld("Zu diesem Buch gibt es keine Chunks, in denen gesucht werden könnte."); return; }
+  const roh = CA.absatzText(a, sel.index), bereich = ursacheBereich(a.nr);
+  let erg = UR.suche(roh, q.liste, bereich ? { bereich: bereich } : {}), ausserhalb = false;
+  if (erg.art === "keine" && bereich && !erg.grund) { erg = UR.suche(roh, q.liste, {}); ausserhalb = erg.art !== "keine"; }
+  if (erg.art === "keine") { meld(erg.grund ? "Suche nicht möglich: " + erg.grund + "." : "Keine eindeutige Stelle gefunden: der Text steht in keinem Chunk oder wurde stark verändert."); return; }
+  if (erg.art === "eindeutig" && !ausserhalb) springeZurUrsache(q, erg.treffer[0]);
+  else oeffneUrsacheDialog(q, erg, ausserhalb);
+});
+
+/** Wörtlicher Kontext direkt vor dem Zeiger (für „Verweis setzen“ und „Absatz trennen“): bis zu 40 Zeichen, bei Mehrdeutigkeit länger,
+ *  mindestens 8. Ergebnis {nach} oder {fehler}. */
+function kontextVorZeiger(roh, pos) {
+  for (let n = Math.min(40, pos); n <= pos; n++) {
+    const s = roh.slice(pos - n, pos);
+    if (Array.from(s).length < 8) continue;
+    let treffer = 0;
+    for (let i = roh.indexOf(s); i >= 0; i = roh.indexOf(s, i + 1)) treffer++;
+    if (treffer === 1) return { nach: s };
+  }
+  return { fehler: pos < 8 ? "Vor dieser Stelle stehen weniger als mindestens 8 Zeichen: bitte weiter hinten im Absatz antippen." : "Die Stelle ist im Absatz nicht eindeutig: bitte an einer anderen Stelle antippen." };
+}
+
+/** Teilt den angetippten Absatz an der Stelle des Zeigers (Art "trennen" mit Kontext, nötig bei einzeiligen Absätzen). */
+async function trenneAbsatz() {
+  const a = aktuelleKapitelAnsicht(), sel = absatzAuswahl, text = $("absatz-leiste-text");
+  const fehler = (t) => { text.textContent = t; text.dataset.art = "fehler"; };
+  if (!a || !sel || sel.ansicht !== a || chunkBusy || !buch) { verbergeAbsatzLeiste(); return; }
+  const roh = CA.absatzText(a, sel.index), k = kontextVorZeiger(roh, sel.pos);
+  if (k.fehler) { fehler(k.fehler); return; }
+  const eintrag = R.neuerEintrag(buchSchluessel(buch), "volltext", { datei: a.chunk, anfang: R.ankerVon(roh), absatz_index: sel.index },
+    "trennen", { nach: k.nach }, roh, "", verbindung.geraet || "epistopheles");
+  const erg = R.wendeAn(a.text, eintrag);                                      // dieselbe Vorprobe wie später bei APIC
+  if (erg.status !== "angewendet") { fehler("Nicht möglich: " + erg.grund); return; }
+  const b = buch;
+  chunkBusy = true;
+  try { await neueAenderung(eintrag); verbergeAbsatzLeiste(); }
+  catch (e) { fehler("Änderung nicht gespeichert: " + (e.message || e)); }
+  finally { chunkBusy = false; if (buch === b) zeigeRechts(); }
+}
+$("absatz-trennen").addEventListener("click", trenneAbsatz);
+
+/** Nach der Wahl eines Gegenstücks: die möglichen Aktionen zeigen. */
+function waehleFnKandidat(n) {
+  const fd = fnDialog;
+  if (!fd) return;
+  const k = fd.kandidaten[n];
+  if (!k) return;
+  fd.wahl = k;
+  $("fn-liste").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.nr === String(n))));
+  for (const id of ["fn-zuordnen", "fn-umbenennen", "fn-setzen"]) $(id).hidden = true;
+  meldeFn("");
+  const a = fd.ansicht, ana = fnAnalyse(a);
+  if (fd.art === "setzen") { $("fn-setzen").hidden = false; $("fn-setzen").textContent = `Verweis [^${k.x.id}] hier setzen`; return; }
+  const M = fd.art === "marker" ? fd.item : k.x, D = fd.art === "marker" ? k.x : fd.item;
+  if (M.id === D.id) { meldeFn(`Schon zugeordnet: Verweis und Fußnotentext heißen beide [^${M.id}].`, "info"); return; }
+  const belegt = ana.definitionen.some((x) => x.id === M.id);
+  $("fn-zuordnen").hidden = false; $("fn-zuordnen").textContent = `Fußnotentext umbenennen: [^${D.id}] → [^${M.id}]`;
+  $("fn-zuordnen").disabled = belegt;
+  $("fn-umbenennen").hidden = false; $("fn-umbenennen").textContent = `Verweis umbenennen: [^${M.id}] → [^${D.id}]`;
+  if (belegt) meldeFn(`Zu [^${M.id}] gibt es schon einen Fußnotentext. Den Verweis auf [^${D.id}] umzubenennen ist möglich.`, "info");
+}
+$("fn-liste").addEventListener("click", (ev) => { const b = ev.target.closest("button[data-nr]"); if (b) waehleFnKandidat(Number(b.dataset.nr)); });
+
+function fnPaar() {
+  const fd = fnDialog, k = fd && fd.wahl;
+  return k ? { M: fd.art === "marker" ? fd.item : k.x, D: fd.art === "marker" ? k.x : fd.item } : null;
+}
+$("fn-zuordnen").addEventListener("click", () => {
+  const p = fnPaar(); if (!p) return;
+  fnSpeichere(fnEintrag(fnDialog.ansicht, p.D.absatz_index, { aktion: "definition-umbenennen", alt: p.D.id, neu: p.M.id }, p.D.zeile));
+});
+$("fn-umbenennen").addEventListener("click", () => {
+  const p = fnPaar(); if (!p) return;
+  fnSpeichere(fnEintrag(fnDialog.ansicht, p.M.absatz_index, { aktion: "marker-umbenennen", alt: p.M.id, neu: p.D.id, vorkommen: p.M.vorkommen }));
+});
+$("fn-entfernen").addEventListener("click", () => {
+  const fd = fnDialog; if (!fd || fd.art !== "marker") return;
+  fnSpeichere(fnEintrag(fd.ansicht, fd.item.absatz_index, { aktion: "marker-entfernen", id: fd.item.id, vorkommen: fd.item.vorkommen }));
+});
+$("fn-setzen").addEventListener("click", () => {
+  const fd = fnDialog; if (!fd || fd.art !== "setzen" || !fd.wahl) return;
+  const roh = CA.absatzText(fd.ansicht, fd.item.absatz_index), pos = fd.item.pos;
+  const k = kontextVorZeiger(roh, pos);
+  if (k.fehler) { meldeFn(k.fehler); return; }
+  fnSpeichere(fnEintrag(fd.ansicht, fd.item.absatz_index, { aktion: "marker-setzen", id: fd.wahl.x.id, nach: k.nach }));
+});
+
+$("rechts-inhalt").addEventListener("click", (ev) => {
+  const t = ev.target.closest && ev.target.closest(".fn-marker, .fn-def");
+  if (!t || !aktuelleKapitelAnsicht()) return;
+  ev.preventDefault();
+  oeffneFn(t.classList.contains("fn-marker") ? "marker" : "def", Number(t.dataset.fnNr));
+});
 
 /** Chunk ↔ Kapitel: aus einem Chunk zum bereinigten Kapitel springen und umgekehrt zum ersten Chunk des Kapitels. */
 $("kapitel-sprung").addEventListener("click", () => {
@@ -899,6 +1463,16 @@ let sendeLaeuft = false, sendeNochmal = false;
 let kette = Promise.resolve();        // serialisiert alle Änderungen am Speicher (kein verlorenes Update)
 
 const buchSchluessel = (b) => `${b.autor}/${b.titel}`;          // so kennt APIC das Buch
+/** Lektor-Schlüssel des Buchs, wenn der Lektor-Ordner anders heißt als das Bibliotheksbuch (O'Neil, Piano); sonst "". */
+const lektorFuer = (b) => (typeof b.lektor === "string" && b.lektor && b.lektor !== buchSchluessel(b) ? b.lektor : "");
+/** Ziel-Zusatz für Einträge der Chunk-Ebene: Lektor-Schlüssel (auch bei Übernahmen) und Sprache der Rohchunks (nur Korrekturen); nur wenn bekannt, überschreibt nichts. */
+function mitZielZusatz(b, eintrag) {
+  if (!eintrag || (eintrag.ebene !== "chunk-orig" && eintrag.ebene !== "uebersetzung")) return eintrag;
+  const zusatz = {}, ziel = eintrag.ziel || {};
+  if (!("lektor" in ziel) && lektorFuer(b)) zusatz.lektor = lektorFuer(b);
+  if (eintrag.ebene === "chunk-orig" && !("sprache" in ziel) && (b.chunkSprache === "en" || b.chunkSprache === "de")) zusatz.sprache = b.chunkSprache;
+  return Object.keys(zusatz).length ? Object.assign({}, eintrag, { ziel: Object.assign({}, ziel, zusatz) }) : eintrag;
+}
 const verbindungFertig = () => !!(verbindung.adresse && verbindung.token);
 const mitZeitlimit = (url, opt) => fetch(url, Object.assign({}, opt, AbortSignal.timeout ? { signal: AbortSignal.timeout(10000) } : {}));
 
@@ -915,7 +1489,7 @@ function zeigeLeiste() {
   $("aenderungen-text").textContent = text;
   $("aenderungen-text").title = zahlen;
   // Am PC eingearbeitete Textänderungen stehen erst nach einem neuen Export in der Ansicht: darauf hinweisen
-  const eingearbeitet = eintraege.filter((e) => e && e.status === "angewendet" && e.art !== "marke" && e.art !== "ruecknahme").length;
+  const eingearbeitet = eintraege.filter((e) => e && e.status === "angewendet" && e.art !== "marke" && e.art !== "ruecknahme" && e.ebene !== "volltext").length;
   const hinweis = $("aenderungen-hinweis");
   hinweis.hidden = !eingearbeitet;
   hinweis.textContent = eingearbeitet
@@ -926,7 +1500,7 @@ function zeigeLeiste() {
   if ($("aenderungsliste").open) zeigeAenderungsliste();
   zeigeAuftragsKopf();
   // Chunk-Ansicht: haben sich die Einträge dieses Chunks geändert (Laden, Konflikt von APIC), neu zeichnen
-  if (CA && daten && buch && istChunkModus() && gezeigteSig !== null && gezeigteSig !== ansichtSig(gezeigterChunk)) zeigeRechts();
+  if (CA && daten && buch && (istChunkModus() || kapitelBereit(gezeigterChunk)) && gezeigteSig !== null && gezeigteSig !== sigAktuell()) zeigeRechts();
 }
 
 /** Ändert die Einträge eines Buchs (nacheinander, über den Speicher) und gibt die neue Liste zurück. */
@@ -958,14 +1532,14 @@ function ladeAenderungen(b) {
 function neueAenderung(eintrag) {
   if (!buch) return Promise.reject(new Error("Kein Buch geöffnet"));
   const b = buch;
-  const e = Object.assign({ status: "offen", geraet: verbindung.geraet || "epistopheles", buch: buchSchluessel(b) }, eintrag);
+  const e = Object.assign({ status: "offen", geraet: verbindung.geraet || "epistopheles", buch: buchSchluessel(b) }, mitZielZusatz(b, eintrag));
   return aendereEintraege(b.id, (liste) => { liste.push(e); return liste; }).then((liste) => { sendeJetzt(); return liste; });
 }
 /** Mehrere Einträge auf einmal (gemeinsam gespeichert, gemeinsam gesendet). */
 function neueAenderungen(eintragListe) {
   if (!buch) return Promise.reject(new Error("Kein Buch geöffnet"));
   const b = buch, geraet = verbindung.geraet || "epistopheles";
-  const neu = eintragListe.map((eintrag) => Object.assign({ status: "offen", geraet: geraet, buch: buchSchluessel(b) }, eintrag));
+  const neu = eintragListe.map((eintrag) => Object.assign({ status: "offen", geraet: geraet, buch: buchSchluessel(b) }, mitZielZusatz(b, eintrag)));
   return aendereEintraege(b.id, (liste) => liste.concat(neu)).then((liste) => { sendeJetzt(); return liste; });
 }
 window.neueAenderung = neueAenderung;
@@ -1027,7 +1601,7 @@ $("aenderungen-sichern").addEventListener("click", () => {
 
 // Änderungsliste mit Rücknahme (Spec 5.1: möglich, solange der Eintrag nicht angewendet ist)
 const ART_KLAR = { ersetzen: "Text ersetzt", verbinden: "Zeilen verbunden", trennen: "Absatz getrennt", loeschen: "Gelöscht", verschieben: "Verschoben",
-                   marke: "Markierung", "uebersetzung-uebernehmen": "Übersetzung übernehmen", "neu-uebersetzen": "Neu übersetzen" };
+                   marke: "Markierung", fussnote: "Fußnote geändert", "uebersetzung-uebernehmen": "Übersetzung übernehmen", "neu-uebersetzen": "Neu übersetzen" };
 const KATEGORIE_KLAR = { markiert: "markiert", "kapitelgrenze-vermutet": "Kapitel beginnt hier", verzeichnis: "Inhaltsverzeichnis", glossar: "Glossar" };
 const STATUS_KLAR = { offen: "wartet auf APIC", gesendet: "bereits bei APIC", bestaetigt: "bei APIC bestätigt", angewendet: "angewendet",
                       konflikt: "Konflikt", abgelehnt: "abgelehnt", uebersprungen: "übersprungen" };
@@ -1038,6 +1612,8 @@ const artKlar = (e) => {
 };
 const zeitKlar = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" }); };
 const chunkNr = (e) => (e.ziel && Number.isInteger(e.ziel.chunk) ? e.ziel.chunk : null);
+/** Kapitel-Index zu einem Volltext-Eintrag (über den Dateinamen), -1 wenn unbekannt. */
+const kapitelNr = (e) => (daten && e.ebene === "volltext" && e.ziel && typeof e.ziel.datei === "string" ? daten.kapitel.findIndex((k) => k.datei === e.ziel.datei) : -1);
 
 function zeigeAenderungsliste() {
   const inhalt = $("aenderungsliste-inhalt");
@@ -1055,8 +1631,9 @@ function zeigeAenderungsliste() {
   for (const e of wirksam) {
     const li = el("li", "aenderung"); li.dataset.id = e.id; li.dataset.status = e.status;
     const text = el("div", "text");
-    const nr = chunkNr(e);
-    text.append(el("b", "", artKlar(e)), ` · ${nr === null ? "ohne Chunk" : "Chunk " + nr} · ${STATUS_KLAR[e.status] || e.status}${e.erstellt ? " · " + zeitKlar(e.erstellt) : ""}`);
+    const volltext = e.ebene === "volltext", kn = kapitelNr(e), nr = volltext ? (kn >= 0 ? kn : null) : chunkNr(e);
+    const ort = volltext ? (kn >= 0 ? `Kapitel ${daten.kapitel[kn].nr}` : "Kapitel unbekannt") : nr === null ? "ohne Chunk" : "Chunk " + nr;
+    text.append(el("b", "", artKlar(e)), ` · ${ort} · ${STATUS_KLAR[e.status] || e.status}${e.erstellt ? " · " + zeitKlar(e.erstellt) : ""}`);
     const detail = e.status === "konflikt" && e.grund ? e.grund
       : e.art === "uebersetzung-uebernehmen" ? "Die neue Übersetzung wird erst am PC unter Kontrolle angewendet."
       : (e.vorher && e.vorher.ausschnitt) || "";
@@ -1086,10 +1663,11 @@ async function nimmZurueck(id) {
   sendeJetzt();
 }
 function springeZuEintrag(id) {
-  const e = eintraege.find((x) => x.id === id), nr = e ? chunkNr(e) : null;
+  const e = eintraege.find((x) => x.id === id), volltext = !!e && e.ebene === "volltext", nr = e ? (volltext ? (kapitelNr(e) >= 0 ? kapitelNr(e) : null) : chunkNr(e)) : null;
   if (nr === null || !buch) return;
   $("aenderungsliste").close();
-  if (!istChunkModus()) { if ($("modus-chunks").disabled) return; $("modus-chunks").click(); }
+  if (volltext) { if (modus !== "text") { if ($("modus-text").disabled) return; $("modus-text").click(); } }
+  else if (!istChunkModus()) { if ($("modus-chunks").disabled) return; $("modus-chunks").click(); }
   rechtsSpringe(nr);
 }
 $("aenderungen-liste-knopf").addEventListener("click", () => { zeigeAenderungsliste(); $("aenderungsliste").showModal(); });
@@ -1196,7 +1774,7 @@ const zuordnungSicher = () => !!buch && buch.chunks === (buch.uebersetzung || 0)
 
 const netzFehler = (e) => !(e && typeof e.status === "number" && e.status > 0);
 const apicHinweis = (e) => (netzFehler(e) ? "APIC nicht erreichbar" : e.status === 401 || e.status === 403 ? "Token abgelehnt" : `APIC meldet Fehler (${e.status})`);
-const optApic = () => ({ adresse: verbindung.adresse, token: verbindung.token });
+const optApic = (b) => ({ adresse: verbindung.adresse, token: verbindung.token, lektor: b ? lektorFuer(b) : "" });
 
 function zeigeAuftragsKopf() {
   const zeile = $("neu-zeile");
@@ -1271,7 +1849,7 @@ async function sendeWunsch(b, key, w) {
     return;
   }
   try {
-    const r = await R.auftrag(buchSchluessel(b), ix, optApic(), mitZeitlimit);
+    const r = await R.auftrag(buchSchluessel(b), ix, optApic(b), mitZeitlimit);
     setzeAuftrag(b.id, key, w, { zustand: "wartet", id: r.id, meldung: "", hinweis: "" });
   } catch (e) {
     if (e && (e.status === 400 || e.status === 404)) {
@@ -1326,7 +1904,7 @@ async function oeffneVergleich(ix) {
   if (!verbindungFertig()) { vergleichStatus("APIC ist nicht eingerichtet: der Vorschlag kann nicht geladen werden.", "fehler"); $("vergleich-nochmal").hidden = false; return; }
   vergleichStatus("Lade Vorschlag von APIC …", "");
   try {
-    const v = await R.vorschlag(buchSchluessel(b), ix, optApic(), mitZeitlimit);
+    const v = await R.vorschlag(buchSchluessel(b), ix, optApic(b), mitZeitlimit);
     if (nr !== vergleichNr || buch !== b) return;              // inzwischen anderer Vergleich, geschlossen oder Buch gewechselt
     vergleich = { buchId: b.id, chunk: ix, alt: v.alt, neu: v.neu };
     $("vergleich-alt").textContent = v.alt; $("vergleich-neu").textContent = v.neu;
