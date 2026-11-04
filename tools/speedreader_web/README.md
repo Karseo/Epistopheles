@@ -68,6 +68,10 @@ ohne Passwort aus).
 
 ## Bedienung
 
+- **Titelbild und Version:** Beim Start zeigt die App kurz ein Titelbild (rund 1,4 s, fängt keine Eingaben ab, Daten laden im Hintergrund)
+  mit der Versionsnummer; sie steht auch im Fuß des Kapitel-Dialogs. Die Nummer steht **nur** in `version.js` und bestimmt den Cache-Namen
+  des Service Workers: bei jeder Änderung an den App-Dateien dort hochzählen, sonst liefert ein installierter Epistopheles weiter die alte Hülle.
+
 - **Umschalter** oben: Speed / KI-Text / Original / Verbindungen; die Wahl wird gemerkt. Beim Wechsel
   Speed → KI-Text scrollt der Text zum Abschnitt des aktuellen Worts; KI-Text → Speed
   startet am obersten sichtbaren Abschnitt.

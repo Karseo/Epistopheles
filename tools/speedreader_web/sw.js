@@ -1,8 +1,9 @@
 /* Service Worker: haelt nur die App-Dateien (Huelle) offline bereit. daten.json, buecher/ und
    korrektur/ laufen unveraendert ans Netz; die App legt sie selbst in IndexedDB ab.
-   Bei jeder Aenderung an den App-Dateien VERSION erhoehen (bundle.py setzt sie beim Export). */
-const VERSION = "epistopheles-v2";
-const HUELLE = ["./", "index.html", "korrektur.html", "speedreader.js", "lesetext.js", "epub.js",
+   Bei jeder Aenderung an den App-Dateien die Version in version.js erhoehen (sie bestimmt den Cache-Namen). */
+importScripts("version.js");
+const VERSION = "epistopheles-" + self.EPISTO_VERSION;
+const HUELLE = ["./", "version.js", "index.html", "korrektur.html", "speedreader.js", "lesetext.js", "epub.js",
   "redaktion.js", "verdacht.js", "fussnoten.js", "ursache.js", "chunkansicht.js",
   "verbindungen.js", "graphlayout.js", "graphansicht.js", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 

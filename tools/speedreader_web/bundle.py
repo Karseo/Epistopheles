@@ -9,7 +9,7 @@ from pathlib import Path
 APP_DATEIEN = ("index.html", "korrektur.html", "speedreader.js", "lesetext.js", "epub.js", "redaktion.js",
                "verdacht.js", "fussnoten.js", "ursache.js", "chunkansicht.js",
                "verbindungen.js", "graphlayout.js", "graphansicht.js",
-               "sw.js", "manifest.webmanifest", "icon-192.png", "icon-512.png")
+               "version.js", "sw.js", "manifest.webmanifest", "icon-192.png", "icon-512.png")
 PAKET_ORDNER = ("reader", "export-epistopheles")          # relativ zur Bibliothekswurzel
 
 

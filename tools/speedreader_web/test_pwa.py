@@ -40,3 +40,13 @@ def test_alle_skripte_der_seiten_stehen_in_huelle_und_pages_workflow():
         for src in re.findall(r'<script src="([^"]+)"', (HIER / seite).read_text(encoding="utf-8")):
             assert src in huelle, (seite, src)
             assert src in wf, (seite, src)
+
+
+def test_version_ist_eine_einzige_semver_stelle_und_bestimmt_den_cache_namen():
+    v = (HIER / "version.js").read_text(encoding="utf-8")
+    m = re.search(r'self\.EPISTO_VERSION = "(\d+\.\d+\.\d+)";', v)
+    assert m, "version.js muss self.EPISTO_VERSION = \"x.y.z\" setzen"
+    sw = (HIER / "sw.js").read_text(encoding="utf-8")
+    assert 'importScripts("version.js")' in sw and 'const VERSION = "epistopheles-" + self.EPISTO_VERSION;' in sw
+    assert not re.search(r'"epistopheles-v\d', sw)                        # keine zweite, handgepflegte Versionsstelle
+    assert '<script src="version.js">' in (HIER / "index.html").read_text(encoding="utf-8")

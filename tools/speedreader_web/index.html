@@ -8,6 +8,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#14130f">
 <link rel="icon" href="icon-192.png">
+<script src="version.js"></script>
 <script>if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {});</script>
 <style>
   :root {
@@ -137,6 +138,17 @@
   #start button { margin-top: 12px; }
   [hidden] { display: none !important; }
 
+  /* Titelbild beim Start: rein optisch, faengt keine Eingaben ab und verschwindet von selbst */
+  #titelbild { position: fixed; inset: 0; z-index: 100; display: grid; place-content: center; justify-items: center; gap: 10px; text-align: center;
+               background: var(--bg); color: var(--text); pointer-events: none; padding: 24px; opacity: 1; transition: opacity .45s ease; }
+  #titelbild.weg { opacity: 0; }
+  #titelbild .marke { font: 700 clamp(2.4rem, 12vmin, 5rem) / 1 system-ui, "Segoe UI", Roboto, sans-serif; letter-spacing: .28em; margin-right: -.28em; }
+  #titelbild .marke b { color: var(--orp); }
+  #titelbild .name { font-size: 1.15em; color: var(--gedaempft); letter-spacing: .06em; }
+  #titelbild .leitsatz { font-size: .8em; color: var(--gedaempft); max-width: 28em; }
+  #titelbild .version { position: absolute; bottom: calc(env(safe-area-inset-bottom) + 20px); font-size: .8em; color: var(--gedaempft); font-variant-numeric: tabular-nums; }
+  @media (prefers-reduced-motion: reduce) { #titelbild { transition: none; } }
+
   @media (orientation: landscape) and (max-height: 640px) {
     body { font-size: 16px; gap: 6px; }
     button { min-height: 48px; }
@@ -145,6 +157,12 @@
 </style>
 </head>
 <body>
+<div id="titelbild" aria-hidden="true">
+  <div class="marke">EP<b>I</b>STO</div>
+  <div class="name">Epistopheles</div>
+  <div class="leitsatz">KI → Hinweis → Originaltext → Beginn des Denkens</div>
+  <div class="version" id="titel-version"></div>
+</div>
 <header id="kopf">
   <button id="knopf-wahl" aria-label="Kapitel wählen">☰ Kapitel</button>
   <div id="titel"><b id="titel-kapitel">EPISTO Speedreader</b><span id="titel-buch">Epistopheles</span></div>
@@ -230,7 +248,7 @@
   </div>
   <div id="liste"></div>
   <div id="wahl-fuss">
-    <span id="stand"></span>
+    <span id="stand"></span><span id="app-version"></span>
     <span><button id="daten-neu">Daten aktualisieren …</button> <button id="volltext-neu">Volltext importieren …</button>
       <button id="verb-neu">Verbindungen importieren …</button>
       <a href="korrektur.html" style="color:var(--akzent)">Korrekturlesen ↗</a></span>
@@ -864,6 +882,18 @@ async function ordnerEinlesen(dateien) {
 $("volltext-neu").addEventListener("click", () => $("ordner").click());
 $("knopf-ordner").addEventListener("click", () => $("ordner").click());
 $("ordner").addEventListener("change", async (e) => { const f = [...e.target.files]; e.target.value = ""; await ordnerEinlesen(f); });
+
+// ---- Titelbild und Version ---------------------------------------------------------------------------------
+const APP_VERSION = self.EPISTO_VERSION || "?";
+$("titel-version").textContent = `Version ${APP_VERSION}`;
+$("app-version").textContent = ` · App ${APP_VERSION}`;
+(() => {
+  const t = $("titelbild");
+  setTimeout(() => t.classList.add("weg"), 1400);                        // Daten laden währenddessen im Hintergrund
+  const aus = () => t.remove();
+  t.addEventListener("transitionend", aus);
+  setTimeout(aus, 2400);                                                  // ohne Übergang (reduzierte Bewegung) oder im Hintergrund-Tab
+})();
 
 // ---- Start -----------------------------------------------------------------------------------------
 (async () => {
