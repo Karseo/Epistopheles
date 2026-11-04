@@ -95,20 +95,51 @@
       const abschnitt = namen.length;
       namen.push(name);
       woerter.push({ text: name, abschnitt, marke: true, satzende: true, faktor: 2.0 });
-      for (const eintrag of eintraege) {
-        const token = tokens(eintrag);
-        token.forEach((t, i) => {
-          const w = { text: t, abschnitt, marke: false, satzende: false, faktor: faktorVon(t) };
-          if (i === token.length - 1) {
-            w.satzende = true;
-            w.faktor = Math.max(w.faktor, 2.0);
-          } else if (SATZENDE.includes(letzteZeichen(t, SCHLUSS_ZEICHEN))) {
-            w.satzende = true;
-          }
-          woerter.push(w);
-        });
+      for (const eintrag of eintraege) haengeAn(woerter, abschnitt, eintrag);
+    }
+    return { woerter, namen };
+  }
+
+  /** Haengt die Woerter eines Eintrags (Absatz, Listenpunkt, These ...) an; das letzte Wort beendet den Satz. */
+  function haengeAn(woerter, abschnitt, eintrag) {
+    const token = tokens(eintrag);
+    token.forEach((t, i) => {
+      const w = { text: t, abschnitt, marke: false, satzende: false, faktor: faktorVon(t) };
+      if (i === token.length - 1) {
+        w.satzende = true;
+        w.faktor = Math.max(w.faktor, 2.0);
+      } else if (SATZENDE.includes(letzteZeichen(t, SCHLUSS_ZEICHEN))) {
+        w.satzende = true;
+      }
+      woerter.push(w);
+    });
+  }
+
+  const ohneAuszeichnung = (t) => String(t).replace(/\\([*_\[\]\\])/g, "$1").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1");
+
+  /** Originaltext: Bloecke von Lesetext.parse -> Wortfolge. Jede Ueberschrift beginnt einen Abschnitt (Name = Ueberschrift,
+   *  gekuerzt; Text davor heisst `anfang`). Absaetze, Zitate und Listenpunkte werden gelesen, Seitenmarken, Bilder, Linien und
+   *  Fussnotentexte uebersprungen (Fussnotenmarken im Text entfallen). Leere Abschnitte entfallen. Ohne Wort: {woerter: [], namen: []}. */
+  function baueWoerterAusBloecken(bloecke, anfang) {
+    const woerter = [];
+    const namen = [];
+    let abschnitt = -1;
+    const eroeffne = (name) => { namen.push(name); abschnitt = namen.length - 1; };
+    for (const b of Array.isArray(bloecke) ? bloecke : []) {
+      if (!b || typeof b.text !== "string") continue;
+      if (b.typ === "h") {
+        const text = tokens(ohneAuszeichnung(b.text)).join(" ");
+        if (!text) continue;
+        eroeffne(Array.from(text).length > 60 ? Array.from(text).slice(0, 59).join("").trimEnd() + "…" : text);
+        haengeAn(woerter, abschnitt, ohneAuszeichnung(b.text));
+      } else if (b.typ === "p" || b.typ === "li" || b.typ === "zitat") {
+        const text = ohneAuszeichnung(b.text);
+        if (!tokens(text).length) continue;
+        if (abschnitt < 0) eroeffne(anfang || "Anfang");
+        haengeAn(woerter, abschnitt, text);
       }
     }
+    // Ueberschrift ohne folgenden Text: ihr Abschnitt besteht nur aus der Ueberschrift; das ist gewollt (kurze Kapitel, Zwischentitel)
     return { woerter, namen };
   }
 
@@ -188,7 +219,7 @@
 
   return {
     MIN_WPM, MAX_WPM, STANDARD_WPM, WPM_SCHRITT, WPM_FEIN, ABSCHNITTE,
-    kernDesWortes, feldEintraege, baueWoerter, orpIndex, teileWort,
+    kernDesWortes, feldEintraege, baueWoerter, baueWoerterAusBloecken, orpIndex, teileWort,
     satzanfang, voriger_satzanfang, naechster_satzanfang,
     abschnittsanfang, voriger_abschnitt, naechster_abschnitt,
     begrenzeTempo, grunddauer, dauer, restdauer,

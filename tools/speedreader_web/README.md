@@ -74,6 +74,12 @@ ohne Passwort aus).
 - **KI-Text und Original:** normales Scrollen per Touch, Pfeiltasten, Leertaste, Bild ↑/↓.
   **A− / A+** (oder `−` / `+`) ändern die Schriftgröße (80–200 %). In **Original** merkt
   sich die App die Lesestelle je Kapitel und öffnet dort nach dem Neuladen wieder.
+- **Speed – Quelle:** unter den Tempo-Knöpfen wählt **KI-Felder / Originaltext**, was gelesen wird (die Wahl wird gemerkt). Beim
+  **Originaltext** beginnt jede Überschrift einen Abschnitt (**⏮ Abschn. / Abschn. ⏭** springt von Überschrift zu Überschrift), Absätze,
+  Listenpunkte und Zitate werden gelesen; Seitenmarken, Bilder, Linien und Fußnotentexte entfallen (Fußnotenmarken im Text auch).
+  Das Absatzende zählt als Satzende mit längerer Pause. Die **Lesestelle je Kapitel** wird gemerkt (letzte 300 Kapitel) und beim
+  Wiederöffnen angesteuert; am Kapitelende beginnt das Kapitel wieder von vorn. Der Volltext muss auf dem Gerät liegen (Import wie für
+  die Ansicht Original); sonst steht eine Meldung mit Importknopf da. Nur in `speedreader.js` umgesetzt, nicht in `episto_tui/speedreader.py`.
 - **Speed:** Antippen der Wortfläche oder **Start** startet/pausiert; beim Öffnen steht
   der Lauf still. Tempo 100–900 Wörter/min (Standard 400), **−50 / −5 / +5 / +50**;
   **◀ Satz / Satz ▶**, **⏮ Abschn. / Abschn. ⏭**, Fortschrittsbalken zum Springen.
@@ -432,7 +438,7 @@ Zusätzlich im Ordner `tools`: `python -m pytest test_lektor_zu_episto_schutz.py
 Redaktion: `redaktion\` (Operationen und Vektoren, Fußnotenanalyse, Protokoll, Schutz, Aufträge, Testwurzel),
 `test_redaktion_js.py`, `test_fussnoten_js.py`, `test_ursache.py`, `test_verdacht.py`, `test_chunkansicht.py` (Node) sowie die
 Browsertests `test_werkzeugleiste.py`, `test_aenderungsliste.py`, `test_neu_uebersetzen.py`, `test_lektor_schluessel.py`,
-`test_volltext.py`, `test_fussnoten_ui.py`, `test_ursache_ui.py`, `test_graphansicht_ui.py`, `test_verbindungen_ui.py` und der **Gesamtlauf** `test_gesamtlauf_p2.py` (Urtext →
+`test_volltext.py`, `test_fussnoten_ui.py`, `test_ursache_ui.py`, `test_speed_original_ui.py`, `test_graphansicht_ui.py`, `test_verbindungen_ui.py` und der **Gesamtlauf** `test_gesamtlauf_p2.py` (Urtext →
 Export → App → Empfänger → Einarbeiten → neuer Export → Neuaufbau mit Nachspiel; ohne Playwright übersprungen).
 Verbindungen: `test_export_verbindungen.py`, `test_qdrant_nachbarn.py` (Qdrant-Attrappe), `test_verbindungen_js.py`, `test_graphlayout.py`,
 `test_graphansicht.py` (Node) und der **Gesamtlauf** `test_gesamtlauf_verbindungen.py` (Export → App → Öffnen, Qdrant-Ausfall, 950 Kapitel).
