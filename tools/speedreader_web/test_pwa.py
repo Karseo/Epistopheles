@@ -29,3 +29,14 @@ def test_seiten_binden_manifest_und_service_worker_ein():
     for seite in ("index.html", "korrektur.html"):
         t = (HIER / seite).read_text(encoding="utf-8")
         assert 'rel="manifest"' in t and "serviceWorker" in t
+
+
+def test_alle_skripte_der_seiten_stehen_in_huelle_und_pages_workflow():
+    """Sonst fehlt eine Datei offline (Service Worker) oder auf GitHub Pages."""
+    sw = (HIER / "sw.js").read_text(encoding="utf-8")
+    huelle = set(re.findall(r'"([^"]+)"', re.search(r"const HUELLE = \[(.*?)\];", sw, re.S).group(1)))
+    wf = (HIER.parent.parent / ".github" / "workflows" / "pages.yml").read_text(encoding="utf-8")
+    for seite in ("index.html", "korrektur.html"):
+        for src in re.findall(r'<script src="([^"]+)"', (HIER / seite).read_text(encoding="utf-8")):
+            assert src in huelle, (seite, src)
+            assert src in wf, (seite, src)
