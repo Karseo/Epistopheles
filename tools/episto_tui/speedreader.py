@@ -111,7 +111,7 @@ def baue_woerter(tag: Tag) -> tuple[list[Wort], list[str]]:
 def orp_index(text: str) -> int:
     """Index des Erkennungspunkts (der Buchstabe, auf den das Auge faellt) im
     Wort: etwa ab der Mitte des ersten Drittels, wie bei den ueblichen
-    Schnellleseverfahren. Umgebende Satzzeichen zaehlen nicht mit."""
+    Schnellleseverfahren (bei sehr langen Woertern rund 30 % der Laenge). Umgebende Satzzeichen zaehlen nicht mit."""
     kern = kern_des_wortes(text)
     versatz = text.find(kern) if kern else 0
     laenge = len(kern)
@@ -124,7 +124,7 @@ def orp_index(text: str) -> int:
     elif laenge <= 13:
         index = 3
     else:
-        index = 4
+        index = (3 * laenge + 5) // 10     # ab 14: rund 30 % der Laenge (bei 14 -> 4), damit der Punkt bei langen Woertern nicht nach vorn wandert
     return max(0, versatz) + index
 
 

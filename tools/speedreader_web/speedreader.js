@@ -159,7 +159,7 @@
     else if (laenge <= 5) index = 1;
     else if (laenge <= 9) index = 2;
     else if (laenge <= 13) index = 3;
-    else index = 4;
+    else index = Math.floor((3 * laenge + 5) / 10);       // ab 14: rund 30 % der Laenge (bei 14 -> 4), damit der Punkt bei langen Woertern nicht nach vorn wandert
     return Math.min(versatz + index, Math.max(z.length - 1, 0));
   }
 

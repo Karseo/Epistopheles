@@ -32,6 +32,8 @@ FAELLE = [
     dict(zusammenfassung="Mehrere   Leerzeichen\nund\tTabs. Zweiter Satz! Dritter Satz? Vierter…",
          these=["Eins", "Zwei drei"], gegen=["x"], kern=["(Substantiell,"], **{"def": ["Habitus"]},
          beleg=["Marx 1867, S. 12."]),
+    dict(zusammenfassung="Arbeitsunfähigkeitsbescheinigung, (Donaudampfschifffahrtsgesellschaft) und Übergrößenträger.", these=[], gegen=[],
+         kern=[], **{"def": []}, beleg=[]),
 ]
 
 NODE_SKRIPT = r"""

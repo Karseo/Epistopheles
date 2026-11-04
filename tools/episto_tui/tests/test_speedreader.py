@@ -47,7 +47,9 @@ def test_fussnotenmarken_fallen_weg_und_leerer_tag_ergibt_nichts():
 
 @pytest.mark.parametrize("wort,erwartet", [
     ("a", 0), ("zu", 1), ("Macht", 1), ("Habitus", 2), ("Substantiell", 3),
-    ("Rechtsschutzversicherung", 4), ("(Substantiell,", 4), ("„Macht“", 2),
+    ("Rechtsschutzversicherung", 7), ("(Substantiell,", 4), ("„Macht“", 2),
+    ("Zweihundertdreizehn", 6), ("a" * 13, 3), ("a" * 14, 4), ("a" * 15, 5), ("a" * 20, 6), ("a" * 28, 8),
+    ("(" + "a" * 20 + ").", 7),
 ])
 def test_orp_index(wort, erwartet):
     assert sr.orp_index(wort) == erwartet
