@@ -16,7 +16,7 @@ def _repo_buch(root: Path, autor: str, titel: str, kapitel: dict) -> None:
     quelle = root / "reader" / autor / titel / "quelle"
     quelle.mkdir(parents=True)
     for datei, text in kapitel.items():
-        (quelle / datei).write_text(text, encoding="utf-8")
+        (quelle / datei).write_bytes(text.encode("utf-8"))  # LF behalten (Windows würde CRLF schreiben)
 
 
 def _lektor_buch(lektor: Path, autor: str, titel: str, *, ebook: tuple[str, str] | None = None,

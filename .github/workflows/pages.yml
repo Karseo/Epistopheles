@@ -1,0 +1,33 @@
+# Veroeffentlicht NUR die App-Huelle (tools/speedreader_web) als installierbare PWA.
+# Keine Buchtexte: daten.json und buecher/ liegen nicht im Repo, die App importiert sie auf dem Geraet.
+name: Epistopheles Pages
+on:
+  push:
+    branches: [main]
+    paths: ["tools/speedreader_web/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Nur App-Dateien ausliefern
+        run: |
+          mkdir site
+          cd tools/speedreader_web
+          cp index.html korrektur.html speedreader.js lesetext.js epub.js redaktion.js verdacht.js fussnoten.js ursache.js chunkansicht.js verbindungen.js graphlayout.js graphansicht.js sw.js manifest.webmanifest icon-192.png icon-512.png ../../site/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: site }
+      - id: deployment
+        uses: actions/deploy-pages@v4
