@@ -101,7 +101,7 @@ def test_lesestelle_und_quelle_bleiben_nach_neuladen_und_gelten_je_kapitel(start
 def test_fehlender_volltext_zeigt_meldung_mit_import_und_ki_bleibt_nutzbar(start):
     pg, _ = start(volltext=False)
     pg.click("[data-quelle=original]")
-    pg.wait_for_selector("#leer:not([hidden])")
+    pg.wait_for_function("() => { const e = document.querySelector('#leer'); return e && !e.hidden && e.innerText.includes('nicht auf diesem Gerät'); }")
     assert "nicht auf diesem Gerät" in pg.inner_text("#leer") and pg.is_visible("#leer-import")
     pg.click("[data-quelle=ki]")
     pg.wait_for_function("woerter.length > 0")
