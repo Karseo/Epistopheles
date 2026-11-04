@@ -8,7 +8,7 @@ const HUELLE = ["./", "version.js", "index.html", "korrektur.html", "speedreader
   "verbindungen.js", "graphlayout.js", "graphansicht.js", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(HUELLE)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(HUELLE.map((h) => new Request(h, { cache: "reload" })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (e) => {
@@ -25,7 +25,7 @@ self.addEventListener("fetch", (e) => {
   const name = url.pathname.slice(url.pathname.lastIndexOf("/") + 1) || "./";
   if (!HUELLE.includes(name) && !(r.mode === "navigate")) return;          // Daten: direkt ans Netz
   // Huelle: erst Netz (neue Version), bei Ausfall die Kopie
-  e.respondWith(fetch(r).then((resp) => {
+  e.respondWith(fetch(r, { cache: "no-cache" }).then((resp) => {
     if (resp.ok && HUELLE.includes(name)) { const kopie = resp.clone(); caches.open(VERSION).then((c) => c.put(r, kopie)); }
     return resp;
   }).catch(() => caches.match(r, { ignoreSearch: true }).then((m) => m || caches.match("index.html"))));

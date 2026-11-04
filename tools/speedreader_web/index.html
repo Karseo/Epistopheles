@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#14130f">
 <link rel="icon" href="icon-192.png">
 <script src="version.js"></script>
-<script>if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {});</script>
+<script>if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch(() => {});</script>
 <style>
   :root {
     --bg: #f7f5f0; --flaeche: #ffffff; --text: #1d1b18; --gedaempft: #6b665e;
